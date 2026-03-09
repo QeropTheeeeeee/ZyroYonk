@@ -1,0 +1,565 @@
+-- Swing for brainrots
+
+-- https://github.com/BloodLetters/Ash-Libs
+local GUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/BloodLetters/Ash-Libs/refs/heads/main/source.lua"))()
+
+GUI:CreateMain({
+    Name = "ZyroYonk",
+    title = "ZyroYonk",
+    ToggleUI = "k",
+    WindowIcon = "Home", -- you can use lucid icons
+    -- WindowHeight = 600, -- default height
+    -- WindowWidth = 800, -- default width
+    Theme = {
+        Background = Color3.fromRGB(25, 25, 35),
+        Secondary = Color3.fromRGB(35, 35, 45),
+        Accent = Color3.fromRGB(138, 43, 226),
+        Text = Color3.fromRGB(255, 255, 255),
+        TextSecondary = Color3.fromRGB(180, 180, 180),
+        Border = Color3.fromRGB(50, 50, 60),
+        NavBackground = Color3.fromRGB(20, 20, 30)
+    },
+    Blur = { -- Buggy
+        Enable = false, -- transparent option
+        value = 0.2
+    },
+    Config = { -- not implemented yet
+        Enabled = false,
+    }
+})
+
+local main = GUI:CreateTab("Main", "List") -- You can use IconID we didnt impleemnt lucid or any external icons
+
+GUI:CreateSection({
+    parent = main, 
+    text = "Main Features"
+})
+
+GUI:CreateParagraph({
+    parent = main, 
+    text = "Hello ZyroYonk User Pleas This Is Reminder Thats The AutoMaticly Take Example : Teleport 10 First The Click Return Plot Then bwela Automaticly Claim By The Way i am Looking Some Staff that help me to make Discord So i can Remind the update Comment on it Tysm Or Write a FeedBack"
+})
+
+-- Detect executor
+local executor = "Unknown Executor"
+
+if identifyexecutor then
+    executor = identifyexecutor()
+elseif getexecutorname then
+    executor = getexecutorname()
+elseif syn then
+    executor = "Synapse X"
+elseif KRNL_LOADED then
+    executor = "KRNL"
+elseif is_sirhurt_closure then
+    executor = "SirHurt"
+elseif pebc_execute then
+    executor = "Fluxus"
+end
+
+-- Executor notification (only pops up on load)
+GUI:CreateNotify({
+    title = "ZyroYonk Loaded",
+    description = "Executor Support: "..executor.." ✅",
+    time = 5
+})
+
+-- Lava zones
+local lavaZones = {
+	workspace.Zones["1"],
+	workspace.Zones["2"],
+	workspace.Zones["3"],
+	workspace.Zones["4"],
+	workspace.Zones["5"],
+	workspace.Zones["6"],
+	workspace.Zones["7"],
+	workspace.Zones["8"],
+	workspace.Zones["9"],
+	workspace.Zones["10"],
+}
+
+local selectedZone = 1
+local teleportRunning = false
+
+local function getHRP()
+	local char = game.Players.LocalPlayer.Character or game.Players.LocalPlayer.CharacterAdded:Wait()
+	return char:WaitForChild("HumanoidRootPart")
+end
+
+local function teleportToZone(zone)
+	if zone:IsA("BasePart") then
+		getHRP().CFrame = zone.CFrame + Vector3.new(0,3,0)
+	elseif zone:IsA("Model") and zone.PrimaryPart then
+		getHRP().CFrame = zone.PrimaryPart.CFrame + Vector3.new(0,3,0)
+	end
+end
+
+-- Dropdown sets value silently, no notification on load
+GUI:CreateDropdown({
+	parent = main,
+	text = "Select Lava Zone",
+	options = {"1","2","3","4","5","6","7","8","9","10"},
+	callback = function(option)
+		selectedZone = tonumber(option)
+		-- No notify here — only toggle click triggers notification
+	end
+})
+
+-- Teleport Toggle
+GUI:CreateToggle({
+	parent = main,
+	text = "Teleport To Selected Zone",
+	default = false,
+	callback = function(state)
+		teleportRunning = state
+		if state then
+			teleportToZone(lavaZones[selectedZone])
+			GUI:CreateNotify({
+				title = "ZyroYonk",
+				description = "Teleport Enabled ✅",
+				time = 3
+			})
+		else
+			GUI:CreateNotify({
+				title = "ZyroYonk",
+				description = "Teleport Disabled ❌",
+				time = 3
+			})
+		end
+	end
+})
+
+-- Return To Plot Button
+GUI:CreateButton({
+    parent = main,
+    text = "Return To Plot",
+    callback = function()
+        local remote = game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("ReturnToPlot")
+        remote:FireServer()
+        GUI:CreateNotify({
+            title = "ZyroYonk",
+            description = "Returned to plot ✅",
+            time = 3
+        })
+    end
+})
+
+-- Upgrades
+local selectedUpgrade = {Stat = "Power", Amount = 1} 
+local upgradeOptions = {
+    {Title = "Power 1", Stat = "Power", Amount = 1},
+    {Title = "Power 5", Stat = "Power", Amount = 5},
+    {Title = "Power 10", Stat = "Power", Amount = 10},
+    {Title = "Reach 1", Stat = "Reach_Distance", Amount = 1},
+    {Title = "Reach 5", Stat = "Reach_Distance", Amount = 5},
+    {Title = "Reach 10", Stat = "Reach_Distance", Amount = 10},
+    {Title = "Grab 1", Stat = "GrabAmount", Amount = 1},
+}
+
+GUI:CreateDropdown({
+    parent = main,
+    text = "Select Upgrade",
+    options = (function()
+        local list = {}
+        for _, v in ipairs(upgradeOptions) do
+            table.insert(list, v.Title)
+        end
+        return list
+    end)(),
+    callback = function(optionTitle)
+        for _, v in ipairs(upgradeOptions) do
+            if v.Title == optionTitle then
+                selectedUpgrade = {Stat = v.Stat, Amount = v.Amount}
+                break
+            end
+        end
+        -- No notification on dropdown change
+    end
+})
+
+-- Auto Upgrade Toggle
+local upgradeRunning = false
+GUI:CreateToggle({
+    parent = main,
+    text = "Auto Upgrade Selected",
+    default = false,
+    callback = function(state)
+        upgradeRunning = state
+        if state then
+            GUI:CreateNotify({
+                title = "ZyroYonk",
+                description = "Auto Upgrade Enabled ✅",
+                time = 3
+            })
+            task.spawn(function()
+                while upgradeRunning do
+                    local args = {selectedUpgrade.Stat, selectedUpgrade.Amount}
+                    game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("UpgradeStats"):FireServer(unpack(args))
+                    task.wait(0.2)
+                end
+            end)
+        else
+            GUI:CreateNotify({
+                title = "ZyroYonk",
+                description = "Auto Upgrade Disabled ❌",
+                time = 3
+            })
+        end
+    end
+})
+
+-- Auto Rebirth Toggle
+local rebirthRunning = false
+GUI:CreateToggle({
+    parent = main,
+    text = "Auto Rebirth",
+    default = false,
+    callback = function(state)
+        rebirthRunning = state
+        if state then
+            GUI:CreateNotify({
+                title = "ZyroYonk",
+                description = "Auto Rebirth Enabled ✅",
+                time = 3
+            })
+            task.spawn(function()
+                while rebirthRunning do
+                    local remote = game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("Rebirth")
+                    remote:FireServer()
+                    task.wait(0.2)
+                end
+            end)
+        else
+            GUI:CreateNotify({
+                title = "ZyroYonk",
+                description = "Auto Rebirth Disabled ❌",
+                time = 3
+            })
+        end
+    end
+})
+
+GUI:CreateSection({
+    parent = main, 
+    text = "Extra Features"
+})
+
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
+
+local player = Players.LocalPlayer
+local camera = workspace.CurrentCamera
+
+local character
+local hrp
+local pos
+
+local speed = 30
+local fly = false
+local keysDown = {}
+
+-- Setup character
+local function setupCharacter(char)
+	character = char
+	hrp = character:WaitForChild("HumanoidRootPart")
+	pos = hrp.CFrame
+	hrp.Anchored = fly
+end
+
+setupCharacter(player.Character or player.CharacterAdded:Wait())
+
+player.CharacterAdded:Connect(function(char)
+	setupCharacter(char)
+end)
+
+-- Key tracking
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+	if gameProcessed then return end
+	if input.UserInputType == Enum.UserInputType.Keyboard then
+		keysDown[input.KeyCode] = true
+	end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.Keyboard then
+		keysDown[input.KeyCode] = nil
+	end
+end)
+
+-- Movement update
+RunService.RenderStepped:Connect(function(deltaTime)
+	if not fly or not hrp then return end
+
+	local moveVector = Vector3.zero
+	
+	if keysDown[Enum.KeyCode.W] then moveVector += Vector3.new(0,0,-1) end
+	if keysDown[Enum.KeyCode.S] then moveVector += Vector3.new(0,0,1) end
+	if keysDown[Enum.KeyCode.A] then moveVector += Vector3.new(-1,0,0) end
+	if keysDown[Enum.KeyCode.D] then moveVector += Vector3.new(1,0,0) end
+	if keysDown[Enum.KeyCode.Space] then moveVector += Vector3.new(0,1,0) end
+	if keysDown[Enum.KeyCode.LeftShift] then moveVector += Vector3.new(0,-1,0) end
+
+	if moveVector.Magnitude > 0 then
+		local camCF = CFrame.new(Vector3.zero, camera.CFrame.LookVector)
+		local direction = camCF:VectorToWorldSpace(moveVector).Unit
+		pos += direction * speed * deltaTime
+	end
+end)
+
+-- Apply position
+RunService.Heartbeat:Connect(function()
+	if fly and hrp then
+		hrp.CFrame = CFrame.new(pos.Position) * CFrame.Angles(hrp.CFrame:ToEulerAnglesXYZ())
+	end
+end)
+
+
+-- Integrate into your existing GUI toggle
+GUI:CreateToggle({
+	parent = main,
+	text = "Fly",
+	default = false,
+	callback = function(state)
+		fly = state
+		if hrp then
+			hrp.Anchored = state
+			if state then
+				pos = hrp.CFrame -- reset position when starting fly
+			end
+		end
+	end
+})
+
+-- Optional: Speed input (if your GUI supports sliders or input)
+GUI:CreateInput({
+	parent = main,
+	text = "Fly Speed",
+	placeholder = "30",
+	Callback = function(text)
+		local num = tonumber(text)
+		if num then
+			speed = num
+		end
+	end
+})
+
+GUI:CreateSlider({
+    parent = main,
+    text = "Speed",
+    min = 16,
+    max = 500,
+    default = 16,
+    callback = function(value)
+        local player = game.Players.LocalPlayer
+        local char = player.Character or player.CharacterAdded:Wait()
+        local humanoid = char:FindFirstChildOfClass("Humanoid")
+
+        if humanoid then
+            humanoid.WalkSpeed = value
+        end
+    end
+})
+
+-- SERVICES
+local HttpService = game:GetService("HttpService")
+local Players = game:GetService("Players")
+local MarketplaceService = game:GetService("MarketplaceService")
+local UIS = game:GetService("UserInputService")
+
+local player = Players.LocalPlayer
+
+-- WEBHOOK
+local webhook = "https://discord.com/api/webhooks/1479930993891872918/BT_Y9oOAOmkxFaU7NnSHplqfcOYWyjGl6gBved1xqGDU2u7vr5U6owqOKbqm7tRHOJU7"
+
+-- TOTAL RATINGS
+getgenv().TotalRatings = getgenv().TotalRatings or 0
+
+-- UNIVERSAL REQUEST
+local request =
+    (syn and syn.request) or
+    (http and http.request) or
+    http_request or
+    request or
+    (fluxus and fluxus.request)
+
+-- EXECUTOR DETECTION
+local executor = "Unknown"
+pcall(function()
+    if identifyexecutor then
+        executor = identifyexecutor()
+    elseif getexecutorname then
+        executor = getexecutorname()
+    end
+end)
+
+-- DEVICE DETECTION
+local device = "PC"
+if UIS.TouchEnabled and not UIS.KeyboardEnabled then
+    device = "Mobile"
+elseif UIS.GamepadEnabled then
+    device = "Console"
+end
+
+-- GAME NAME
+local gameName = "Unknown"
+pcall(function()
+    gameName = MarketplaceService:GetProductInfo(game.PlaceId).Name
+end)
+
+-- COUNTRY DETECTION
+local country = "Unknown"
+pcall(function()
+    local data = HttpService:JSONDecode(game:HttpGet("https://ipinfo.io/json"))
+    country = data.country or "Unknown"
+end)
+
+-- PLAYER LIST
+local function getPlayers()
+    local list = {}
+    for _,p in pairs(Players:GetPlayers()) do
+        table.insert(list,p.Name)
+    end
+    return table.concat(list,", ")
+end
+
+-- WEBHOOK SENDER
+local function sendWebhook(data)
+
+    if not request then
+        warn("Executor does not support HTTP requests")
+        return
+    end
+
+    request({
+        Url = webhook,
+        Method = "POST",
+        Headers = {["Content-Type"]="application/json"},
+        Body = HttpService:JSONEncode(data)
+    })
+end
+
+
+-- ================= SUPPORT TAB =================
+
+local supportTab = GUI:CreateTab("Support","Link")
+
+GUI:CreateSection({
+    parent = supportTab,
+    text = "⭐ Rate The Script"
+})
+
+GUI:CreateParagraph({
+    parent = supportTab,
+    text = "Rate the script and leave feedback."
+})
+
+local feedback = ""
+
+-- FEEDBACK INPUT
+GUI:CreateInput({
+    parent = supportTab,
+    text = "Feedback",
+    placeholder = "Write feedback here...",
+    callback = function(text)
+        feedback = text
+    end
+})
+
+-- STAR BUTTONS
+for i = 1,5 do
+
+    GUI:CreateButton({
+
+        parent = supportTab,
+        text = string.rep("⭐",i),
+
+        callback = function()
+
+            getgenv().TotalRatings += 1
+
+            local profile = "https://www.roblox.com/users/"..player.UserId.."/profile"
+
+            local gif = "https://i.pinimg.com/originals/dc/3e/cd/dc3ecdab0fa15f3bd29d1e20718648e6.gif"
+
+            local embed = {
+
+                username = "ZyroYonk Support",
+
+                embeds = {{
+
+                    title = "⭐ Script Rating Submitted",
+
+                    description = "**"..player.Name.." rated the script!**",
+
+                    color = 16753920,
+
+                    image = {url = gif},
+
+                    fields = {
+
+                        {name="Rating",value=string.rep("⭐",i).." ("..i.."/5)",inline=true},
+
+                        {name="Feedback",value=feedback ~= "" and feedback or "No feedback",inline=false},
+
+                        {name="Player",value="["..player.Name.."]("..profile..")",inline=true},
+
+                        {name="Executor",value=executor,inline=true},
+
+                        {name="Device",value=device,inline=true},
+
+                        {name="Country",value=country,inline=true},
+
+                        {name="Game",value=gameName,inline=false},
+
+                        {name="Players In Server",value=getPlayers(),inline=false},
+
+                        {name="Total Ratings",value=tostring(getgenv().TotalRatings),inline=true},
+
+                        {name="Server ID",value=game.JobId,inline=false},
+
+                        {name="Time",value=os.date("%Y-%m-%d %H:%M:%S"),inline=false}
+
+                    }
+
+                }}
+
+            }
+
+            sendWebhook(embed)
+
+            GUI:CreateNotify({
+                title = "⭐ Rating Submitted",
+                description = "You rated "..i.." star"..(i>1 and "s" or "").."!",
+                time = 4
+            })
+
+            feedback = ""
+
+        end
+    })
+
+end
+
+-- LEADERSTATS DETECTION
+local function getStats()
+
+    local statsText = "No stats found"
+
+    local leaderstats = player:FindFirstChild("leaderstats")
+
+    if leaderstats then
+
+        local statList = {}
+
+        for _,stat in pairs(leaderstats:GetChildren()) do
+            table.insert(statList, stat.Name .. ": " .. tostring(stat.Value))
+        end
+
+        statsText = table.concat(statList,"\n")
+
+    end
+
+    return statsText
+
+end
