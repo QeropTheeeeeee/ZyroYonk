@@ -1,0 +1,409 @@
+-- Load WindUI
+local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
+
+local Players = game:GetService("Players")
+local VirtualInputManager = game:GetService("VirtualInputManager")
+local HttpService = game:GetService("HttpService")
+local player = Players.LocalPlayer
+
+-- Put your webhook URL here
+local WebhookURL = "https://discord.com/api/webhooks/1480893067975458918/nIT86MwoDOXp_tIjmY3fCLHw7IPbTEE4AlE3WnOeAVZCixjzr0wwn8f4wKuzOZ1s7V8J"
+
+-- Window
+local Window = WindUI:CreateWindow({
+    Title = "Main",
+    Icon = "rocket",
+    Author = "⚡ ZyroYonk Hub",
+    Folder = "ZyroYonkHub",
+    Size = UDim2.fromOffset(520,520),
+    Theme = "Dark",
+    AccentColor = Color3.fromRGB(0, 255, 200),
+    ExitButtonColor = Color3.fromRGB(255, 50, 50)
+})
+
+--------------------------------------------------
+-- TAB: Lucky Block Collector
+--------------------------------------------------
+local LuckyTab = Window:Tab({
+    Title = "Auto Farm",
+    Icon = "gift"
+})
+
+LuckyTab:Paragraph({
+    Title = "📌 Auto Lucky Block Collector",
+    Desc = "Select Lucky Blocks & Base. Toggle to auto collect.",
+    Icon = "info",
+    Color = Color3.fromRGB(0,255,200)
+})
+
+-- Character helper
+local function getHRP()
+    local char = player.Character or player.CharacterAdded:Wait()
+    return char:WaitForChild("HumanoidRootPart")
+end
+
+-- Lucky Block dropdown
+local friendFolder = workspace.Live:FindFirstChild("Friends")
+local luckyOptions = {}
+if friendFolder then
+    for _,v in pairs(friendFolder:GetChildren()) do
+        table.insert(luckyOptions, v.Name)
+    end
+end
+table.insert(luckyOptions, "OG Lucky Block")
+
+local selectedBlocks = {}
+LuckyTab:Dropdown({
+    Title = "Select Lucky Blocks",
+    Values = luckyOptions,
+    Multi = true,
+    Icon = "gift",
+    Callback = function(values)
+        selectedBlocks = values
+    end
+})
+
+-- Base dropdown
+local baseOptions = { "BasePos1","BasePos2","BasePos3","BasePos4","BasePos5" }
+local selectedBase = nil
+LuckyTab:Dropdown({
+    Title = "Select Base",
+    Values = baseOptions,
+    Icon = "home",
+    Callback = function(value)
+        selectedBase = value
+    end
+})
+
+-- Hold E function
+local function holdE()
+    VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.E, false, game)
+    task.wait(0.6)
+    VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.E, false, game)
+end
+
+-- Teleport to block
+local function teleportBlock(name)
+    local obj
+    if name == "OG Lucky Block" then
+        obj = workspace.Live:FindFirstChild("LuckyBlock")
+    else
+        obj = workspace.Live.Friends:FindFirstChild(name)
+    end
+    if not obj then return end
+    local hrp = getHRP()
+    if obj:IsA("Model") then
+        hrp.CFrame = obj:GetPivot()
+    else
+        hrp.CFrame = obj.CFrame
+    end
+    task.wait(0.2)
+    holdE()
+end
+
+-- Teleport to base
+local function teleportBase()
+    if not selectedBase then return end
+    local base = workspace.Plots:FindFirstChild(selectedBase)
+    if not base then return end
+    local target = base.MainBase:GetChildren()[6]
+    if not target then return end
+    local hrp = getHRP()
+    hrp.CFrame = target.CFrame + Vector3.new(0,5,0)
+end
+
+-- Inventory label
+local invLabel = LuckyTab:Paragraph({
+    Title = "🎒 Lucky Block Inventory",
+    Desc = "Scanning...",
+    Icon = "box",
+    Color = Color3.fromRGB(0,255,200)
+})
+
+local function updateInventory()
+    local counts = {}
+    local function scan(container)
+        for _,item in pairs(container:GetChildren()) do
+            if item:IsA("Tool") and string.find(item.Name, "Lucky") then
+                counts[item.Name] = (counts[item.Name] or 0) + 1
+            end
+        end
+    end
+    scan(player.Backpack)
+    if player.Character then scan(player.Character) end
+    local text = ""
+    for name, amount in pairs(counts) do
+        text = text .. name .. ": " .. amount .. "\n"
+    end
+    if text == "" then text = "No Lucky Blocks" end
+    invLabel:SetDesc(text)
+end
+
+task.spawn(function()
+    while true do
+        updateInventory()
+        task.wait(0.2)
+    end
+end)
+
+-- Toggle: Auto Collect Lucky Blocks
+local autoLucky = false
+LuckyTab:Toggle({
+    Title = "🔁 Auto Collect Lucky Blocks",
+    Icon = "gift",
+    Default = false,
+    Color = Color3.fromRGB(0,255,200),
+    Callback = function(state)
+        autoLucky = state
+        if autoLucky then
+            if not selectedBlocks or next(selectedBlocks) == nil then
+                WindUI:Notify({
+                    Title = "⚠ Select Lucky Blocks",
+                    Content = "You must select at least one block.",
+                    Duration = 4
+                })
+                autoLucky = false
+                return
+            end
+            if not selectedBase then
+                WindUI:Notify({
+                    Title = "⚠ Select Base",
+                    Content = "You must select a base first.",
+                    Duration = 4
+                })
+                autoLucky = false
+                return
+            end
+
+            task.spawn(function()
+                while autoLucky do
+                    for _,name in pairs(selectedBlocks) do
+                        teleportBlock(name)
+                        task.wait(0.4)
+                        teleportBase()
+                        task.wait(0.6)
+                    end
+                end
+            end)
+        end
+    end
+})
+
+-- Toggle: Collect Cash 1-30
+local autoCash = false
+LuckyTab:Toggle({
+    Title = "💵 Collect Cash 1-30",
+    Icon = "dollar-sign",
+    Default = false,
+    Color = Color3.fromRGB(255,200,0),
+    Callback = function(state)
+        autoCash = state
+        if autoCash then
+            task.spawn(function()
+                while autoCash do
+                    for i = 1,30 do
+                        local args = { tostring(i) }
+                        pcall(function()
+                            local remote = game:GetService("ReplicatedStorage")
+                                :WaitForChild("SharedModules")
+                                :WaitForChild("Network")
+                                :WaitForChild("Remotes")
+                                :WaitForChild("Collect Earnings")
+                            remote:FireServer(unpack(args))
+                        end)
+                        task.wait(0.1)
+                    end
+                    task.wait(1)
+                end
+            end)
+        end
+    end
+})
+
+--------------------------------------------------
+-- TAB: Feedback (1 submission per session)
+--------------------------------------------------
+local FeedTab = Window:Tab({
+    Title = "Feedback",
+    Icon = "message-square"
+})
+
+FeedTab:Paragraph({
+    Title = "💬 ZyroYonk Hub Feedback",
+    Desc = "Rate this script and send suggestions!\n⚠ You can only submit once per session.",
+    Color = Color3.fromRGB(0,255,200)
+})
+
+local rating = nil
+local feedbackText = ""
+local hasSubmitted = false
+
+FeedTab:Dropdown({
+    Title = "⭐ Select Rating",
+    Values = {"⭐ 1 - Very Bad","⭐ 2 - Bad","⭐ 3 - Okay","⭐ 4 - Good","⭐ 5 - Amazing"},
+    Color = Color3.fromRGB(0,255,200),
+    Callback = function(v)
+        rating = v
+    end
+})
+
+FeedTab:Input({
+    Title = "📝 Your Feedback",
+    Placeholder = "Write your feedback here...",
+    Color = Color3.fromRGB(0,255,200),
+    Callback = function(text)
+        feedbackText = text
+    end
+})
+
+-- FIXED WEBHOOK FUNCTION - Works on ALL executors
+local function sendDiscordWebhook()
+    local userId = tostring(player.UserId)
+    local avatarUrl = "https://www.roblox.com/headshot-thumbnail/image?userId=" .. userId .. "&width=420&height=420&format=png"
+    local profileUrl = "https://www.roblox.com/users/" .. userId .. "/profile"
+
+    local data = {
+        username = "ZyroYonk Hub Feedback",
+        embeds = {{
+            title = "⭐ New Feedback Submitted",
+            url = profileUrl,
+            description = "**Player:** [`" .. player.Name .. "`](" .. profileUrl .. ")\n**User ID:** `" .. userId .. "`\n**Rating:** " .. rating .. "\n**Feedback:** " .. feedbackText,
+            color = 3066993, -- Green color
+            author = {
+                name = player.Name,
+                url = profileUrl,
+                icon_url = avatarUrl
+            },
+            thumbnail = {
+                url = avatarUrl
+            },
+            footer = {
+                text = "ZyroYonk Hub | " .. os.date("%Y-%m-%d %H:%M:%S")
+            }
+        }}
+    }
+
+    local jsonData = HttpService:JSONEncode(data)
+    
+    -- Try multiple request methods for maximum compatibility
+    local success = false
+    
+    -- Method 1: Synapse X / Script-Ware
+    if syn and syn.request then
+        success = pcall(function()
+            syn.request({
+                Url = WebhookURL,
+                Method = "POST",
+                Headers = {
+                    ["Content-Type"] = "application/json"
+                },
+                Body = jsonData
+            })
+        end)
+    end
+    
+    -- Method 2: Krnl / Solara
+    if not success and http and http.request then
+        success = pcall(function()
+            http.request({
+                Url = WebhookURL,
+                Method = "POST",
+                Headers = {
+                    ["Content-Type"] = "application/json"
+                },
+                Body = jsonData
+            })
+        end)
+    end
+    
+    -- Method 3: Fluxus / Oxygen U
+    if not success and request and request.request then
+        success = pcall(function()
+            request.request({
+                Url = WebhookURL,
+                Method = "POST",
+                Headers = {
+                    ["Content-Type"] = "application/json"
+                },
+                Body = jsonData
+            })
+        end)
+    end
+    
+    -- Method 4: Universal http_request (most executors)
+    if not success and http_request then
+        success = pcall(function()
+            http_request({
+                Url = WebhookURL,
+                Method = "POST",
+                Headers = {
+                    ["Content-Type"] = "application/json"
+                },
+                Body = jsonData
+            })
+        end)
+    end
+    
+    -- Method 5: Falls back to game:HttpGet if all else fails (limited)
+    if not success then
+        warn("Webhook send failed - all request methods unavailable")
+        return false
+    end
+    
+    return true
+end
+
+FeedTab:Button({
+    Title = "🚀 Submit Feedback",
+    Color = Color3.fromRGB(0,255,200),
+    Callback = function()
+        if hasSubmitted then
+            WindUI:Notify({
+                Title = "⚠️ Already Submitted",
+                Content = "You can only submit once per session!",
+                Duration = 4
+            })
+            return
+        end
+
+        if not rating then
+            WindUI:Notify({
+                Title = "⚠️ Missing Rating",
+                Content = "Please select a rating!",
+                Duration = 4
+            })
+            return
+        end
+
+        if feedbackText == "" or feedbackText == "Write your feedback here..." then
+            WindUI:Notify({
+                Title = "⚠️ Missing Feedback",
+                Content = "Please write your feedback!",
+                Duration = 4
+            })
+            return
+        end
+
+        -- Mark as submitted
+        hasSubmitted = true
+
+        -- Send webhook
+        local webhookSuccess = sendDiscordWebhook()
+        
+        if webhookSuccess then
+            WindUI:Notify({
+                Title = "✅ Feedback Sent Successfully!",
+                Content = "Thank you! Your feedback has been received.\nYou cannot submit again this session.",
+                Duration = 6
+            })
+        else
+            WindUI:Notify({
+                Title = "❌ Webhook Failed",
+                Content = "Feedback saved locally but webhook failed.\nCheck your webhook URL.",
+                Duration = 6
+            })
+            -- Reset hasSubmitted so they can try again
+            hasSubmitted = false
+        end
+    end
+})
