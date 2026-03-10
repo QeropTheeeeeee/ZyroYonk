@@ -1,0 +1,251 @@
+-- Load WindUI
+local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
+
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+
+--------------------------------------------------
+-- COOL NOTIFICATION FUNCTION
+--------------------------------------------------
+local function CoolNotify(title, text, style)
+    local Colors = {
+        success = Color3.fromRGB(0, 255, 150),
+        warning = Color3.fromRGB(255, 150, 0),
+        error = Color3.fromRGB(255, 50, 50),
+        info = Color3.fromRGB(0, 200, 255)
+    }
+
+    local Emojis = {
+        success = "⚡",
+        warning = "⚠️",
+        error = "💥",
+        info = "✨"
+    }
+
+    WindUI:Notify({
+        Title = (Emojis[style] or "✨").." "..title,
+        Text = text,
+        Duration = 4,
+        BackgroundColor = Colors[style] or Colors.info,
+        TextColor = Color3.fromRGB(20,20,20),
+        TextSize = 16,
+        Shadow = true,
+        Blur = true,
+        Glow = true
+    })
+end
+
+--------------------------------------------------
+-- WINDOW
+--------------------------------------------------
+local Window = WindUI:CreateWindow({
+    Title = "Spin a Brainrot 🎲",
+    Icon = "Rocket",
+    Author = "⚡ ZyroYonk Hub",
+    Folder = "ZyroYonkHub",
+    Size = UDim2.fromOffset(430,470),
+    Theme = "Dark",
+    AccentColor = Color3.fromRGB(0, 255, 200),
+    ExitButtonColor = Color3.fromRGB(255, 50, 50)
+})
+
+--------------------------------------------------
+-- EXECUTOR DETECTION
+--------------------------------------------------
+local executor = "Unknown"
+pcall(function()
+    if identifyexecutor then
+        executor = identifyexecutor()
+    elseif getexecutorname then
+        executor = getexecutorname()
+    elseif syn then
+        executor = "Synapse X"
+    elseif KRNL_LOADED then
+        executor = "KRNL"
+    elseif is_sirhurt_closure then
+        executor = "SirHurt"
+    end
+end)
+
+CoolNotify("ZyroYonk Hub Loaded", "Executor detected: "..executor, "info")
+
+--------------------------------------------------
+-- TAB: Lucky Block Collector (Main Tab)
+--------------------------------------------------
+local LuckyTab = Window:Tab({
+    Title = "Main",
+    Icon = "list"
+})
+
+LuckyTab:Paragraph({
+    Title = "Beta Info",
+    Desc = "This script is currently in Beta. Updates will come later."
+})
+
+--------------------------------------------------
+-- AUTO REBIRTH
+--------------------------------------------------
+local AutoRebirth = false
+
+LuckyTab:Toggle({
+    Title = "♻️ Auto Rebirth",
+    Default = false,
+    Callback = function(state)
+        AutoRebirth = state
+        CoolNotify("Auto Rebirth", state and "♻️ Auto Rebirth ENABLED! Let's go!" or "♻️ Auto Rebirth Disabled.", "success")
+
+        if AutoRebirth then
+            task.spawn(function()
+                while AutoRebirth do
+                    pcall(function()
+                        game:GetService("ReplicatedStorage"):WaitForChild("Network"):WaitForChild("Client"):WaitForChild("Rebirth"):InvokeServer()
+                    end)
+                    task.wait(0.5)
+                end
+            end)
+        end
+    end
+})
+
+--------------------------------------------------
+-- DICE DROPDOWN + AUTO ROLL TOGGLE
+--------------------------------------------------
+local SelectedDice = {}
+local AutoRoll = false
+
+local DiceList = {
+    "BasicDice","SilverDice","GoldenDice","PlatinumDice","CrystalDice","DiamondDice",
+    "GalaxyDice","NebulaDice","GuantumDice","AscendantDice","SingularityDice","DevilDice",
+    "HeavenkyDice","CosmicDice","AbyssalDice","Void Dice","EtherealDice","CelestialDice",
+    "ChronoDice","RiftDice","InfinityDice","SolarFlareDice","SupernovaDice","BlackholeDice",
+    "MultiverseDice","ParadoxDice","TimelessDice","RealityDice","AetherialDice","PhantomDice",
+    "CelestialEmperorDice","VortexDice","AnomalyDice","BloodcodeDice","DoomDice","VercaDice",
+    "radianDice","Verdict Dice","HellcoreDice","GodrollDice","OblivionDice","CataclysmDice",
+    "AnnihilationDice","ApollyonDice","Starlord Dice","VoidreaperDice","NecronovaDice",
+    "StarshatterDice","ObscurionDice","GhoulstarDice","WorldsplitterDice","RiftshardDice",
+    "VoidpulseDice","StarfractureDice","AbyssflareDice","TruecrownDice","FrosthaloDice"
+}
+
+LuckyTab:Dropdown({
+    Title = "Select Dice to Roll",
+    Values = DiceList,
+    Multi = true,
+    Default = {"BasicDice"},
+    Callback = function(value)
+        SelectedDice = value
+        CoolNotify("Dice Selected", "🎲 Your dice selection is now LEGENDARY!", "info")
+    end
+})
+
+LuckyTab:Toggle({
+    Title = "🎲 Auto Roll Selected Dice",
+    Default = false,
+    Callback = function(state)
+        AutoRoll = state
+        CoolNotify("Auto Roll", state and "🎲 Dice will now roll automatically!" or "🎲 Auto Roll Disabled.", "success")
+
+        if AutoRoll then
+            task.spawn(function()
+                while AutoRoll do
+                    for _,dice in pairs(SelectedDice) do
+                        pcall(function()
+                            game:GetService("ReplicatedStorage"):WaitForChild("Network"):WaitForChild("Client"):WaitForChild("RollDice"):InvokeServer(dice)
+                        end)
+                    end
+                    task.wait(0.05)
+                end
+            end)
+        end
+    end
+})
+
+--------------------------------------------------
+-- AUTO EQUIP BEST ENTITIES
+--------------------------------------------------
+local AutoEquipBest = false
+
+LuckyTab:Toggle({
+    Title = "⭐ Auto Equip Best",
+    Default = false,
+    Callback = function(state)
+        AutoEquipBest = state
+        CoolNotify("Auto Equip Best", state and "⭐ Your entities are now optimized!" or "⭐ Auto Equip Disabled.", "success")
+
+        if AutoEquipBest then
+            task.spawn(function()
+                while AutoEquipBest do
+                    pcall(function()
+                        game:GetService("ReplicatedStorage"):WaitForChild("Network"):WaitForChild("Client"):WaitForChild("EquipBestEntities"):InvokeServer()
+                    end)
+                    task.wait(1)
+                end
+            end)
+        end
+    end
+})
+
+--------------------------------------------------
+-- DICE PURCHASE DROPDOWN + AUTO BUY TOGGLE
+--------------------------------------------------
+local AutoBuy = false
+local SelectedDiceBuy = {}
+
+LuckyTab:Dropdown({
+    Title = "Select Dice to Buy",
+    Values = DiceList,
+    Multi = true,
+    Default = {"BasicDice"},
+    Callback = function(value)
+        SelectedDiceBuy = value
+        CoolNotify("Dice Buy Selection", "🛒 Your dice purchase selection has been updated!", "info")
+    end
+})
+
+LuckyTab:Toggle({
+    Title = "🛒 Auto Purchase Selected Dice",
+    Default = false,
+    Callback = function(state)
+        AutoBuy = state
+        CoolNotify("Auto Buy", state and "🛒 Automatic purchasing ENABLED!" or "🛒 Auto Buy Disabled.", "success")
+
+        if AutoBuy then
+            task.spawn(function()
+                while AutoBuy do
+                    for _,dice in pairs(SelectedDiceBuy) do
+                        pcall(function()
+                            local args = {dice,1}
+                            game:GetService("ReplicatedStorage"):WaitForChild("Network"):WaitForChild("Client"):WaitForChild("PurchaseMaxItems"):InvokeServer(unpack(args))
+                        end)
+                    end
+                    task.wait(0)
+                end
+            end)
+        end
+    end
+})
+
+--------------------------------------------------
+-- SUPPORT TAB
+--------------------------------------------------
+local SupportTab = Window:Tab({
+    Title = "Support",
+    Icon = "info"
+})
+
+SupportTab:Paragraph({
+    Title = "Discord Support",
+    Desc = "If you want updates and new scripts, join the Discord server."
+})
+
+SupportTab:Paragraph({
+    Title = "Beta Notice",
+    Desc = "This script is currently in Beta. Updates will be provided later."
+})
+
+SupportTab:Button({
+    Title = "Copy Discord Invite",
+    Callback = function()
+        setclipboard("https://discord.gg/xgxPBS8n") -- replace with your invite
+        CoolNotify("Discord", "📋 Invite copied to clipboard! Join us!", "info")
+    end
+})
