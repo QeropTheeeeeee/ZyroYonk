@@ -1,0 +1,291 @@
+dont steal baby From penguins
+
+-- Fast load WindUI
+local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
+
+local Players = game:GetService("Players")
+local VirtualInputManager = game:GetService("VirtualInputManager")
+local player = Players.LocalPlayer
+local HttpService = game:GetService("HttpService")
+
+-- Discord Webhook URL
+local WebhookURL = "https://discord.com/api/webhooks/1480893067975458918/nIT86MwoDOXp_tIjmY3fCLHw7IPbTEE4AlE3WnOeAVZCixjzr0wwn8f4wKuzOZ1s7V8J"
+
+-- Detect executor
+local executor = "Unknown Executor"
+if identifyexecutor then
+    executor = identifyexecutor()
+end
+
+-- ==============================
+-- Create main Window first
+-- ==============================
+local Window = WindUI:CreateWindow({
+    Title = "Dont Steal Baby From Penguins",
+    Icon = "rocket",
+    Author = "ZyroYonk Hub",
+    Folder = "ZyroYonkHub",
+    Size = UDim2.fromOffset(500, 500),
+    Theme = "Dark"
+})
+
+-- Show executor notification
+WindUI:Notify({
+    Title = "⚡ Executor Detected",
+    Content = "You are using: "..executor,
+    Duration = 5
+})
+
+-- ==============================
+-- Spawn Collector Tab
+-- ==============================
+local SpawnTab = Window:Tab({
+    Title = "Spawn Collector",
+    Icon = "target"
+})
+
+SpawnTab:Paragraph({
+    Title = "📌 Collect Items Automatically",
+    Desc = "Select a spawn base and plot. Toggle to automatically collect in a loop.",
+    Icon = "info"
+})
+
+-- Map dropdown display names to actual spawn numbers
+local spawnMap = {
+    ["Penguin"] = "1",
+    ["Sammy"] = "2",
+    ["Boxer"] = "3",
+    ["King's"] = "4",
+    ["Arcade"] = "5",
+    ["Vampire"] = "6",
+    ["Ceberus"] = "7"
+}
+
+local spawnNames = {} -- names to show in dropdown
+for name,_ in pairs(spawnMap) do
+    table.insert(spawnNames, name)
+end
+
+local selectedSpawn = nil
+
+-- Updated Spawn Base dropdown
+SpawnTab:Dropdown({
+    Title = "Select Base Spawn",
+    Values = spawnNames,  -- Shows: Penguin, Sammy, Boxer, King's, Arcade, Vampire, Ceberus
+    Icon = "map-pin",
+    Default = nil,
+    Callback = function(value)
+        selectedSpawn = spawnMap[value]  -- store internal number for collection
+    end
+})
+
+-- Plot selection
+local plots = workspace.Plots:GetChildren()
+local plotOptions = {}
+for i, plot in ipairs(plots) do
+    table.insert(plotOptions, "Plot "..i)
+end
+
+local selectedPlotIndex = nil
+
+SpawnTab:Dropdown({
+    Title = "Select Plot",
+    Values = plotOptions,
+    Icon = "grid",
+    Default = nil,
+    Callback = function(value)
+        selectedPlotIndex = tonumber(value:match("%d+"))
+    end
+})
+
+-- Collection counter
+local collectionCount = 0
+local counterParagraph = SpawnTab:Paragraph({
+    Title = "📊 Collection Stats",
+    Desc = "You have collected 0 times.",
+    Icon = "check-circle"
+})
+local function updateCounter()
+    counterParagraph:SetDesc("You have collected " .. collectionCount .. " times.")
+end
+
+-- Function to collect
+local function collectAtSpawn(baseNum, plotPart)
+    local char = player.Character or player.CharacterAdded:Wait()
+    local hrp = char:WaitForChild("HumanoidRootPart")
+
+    -- Teleport to plot
+    if plotPart then
+        hrp.CFrame = plotPart.CFrame + Vector3.new(0,5,0)
+        task.wait(0.2)
+    end
+
+    -- Teleport to spawn
+    local spawnPoint = workspace.Map.Bases[baseNum].Stands["5"].SpawnPoint
+    if spawnPoint then
+        hrp.CFrame = spawnPoint.CFrame
+        task.wait(0.2)
+
+        -- Press E
+        VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.E, false, game)
+        task.wait(0.6)
+        VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.E, false, game)
+
+        -- Increment counter
+        collectionCount = collectionCount + 1
+        updateCounter()
+    else
+        warn("SpawnPoint "..baseNum.." not found!")
+    end
+end
+
+-- Toggle for auto-collect
+local autoCollect = false
+
+SpawnTab:Toggle({
+    Title = "🔁 Auto Collect Selected Plot",
+    Default = false,
+    Icon = "play",
+    Callback = function(state)
+        autoCollect = state
+
+        if autoCollect then
+            -- Validate selections
+            if not selectedSpawn then
+                WindUI:Notify({
+                    Title = "⚠ Missing Spawn Base",
+                    Content = "You need to select a spawn base first!",
+                    Duration = 4,
+                    Icon = "alert-circle"
+                })
+                autoCollect = false
+                return
+            end
+
+            if not selectedPlotIndex then
+                WindUI:Notify({
+                    Title = "⚠ Missing Plot",
+                    Content = "You need to select a plot first!",
+                    Duration = 4,
+                    Icon = "alert-circle"
+                })
+                autoCollect = false
+                return
+            end
+
+            task.spawn(function()
+                while autoCollect do
+                    local plotPart = workspace.Plots:GetChildren()[selectedPlotIndex]
+                    if plotPart and plotPart:FindFirstChild("TeleportPart") then
+                        collectAtSpawn(selectedSpawn, plotPart.TeleportPart)
+                    else
+                        warn("Selected plot's TeleportPart not found!")
+                    end
+                    task.wait(1)
+                end
+            end)
+        end
+    end
+})
+
+-- ==============================
+-- Feedback Tab
+-- ==============================
+local FeedTab = Window:Tab({
+    Title = "Feedback",
+    Icon = "message-square"
+})
+
+FeedTab:Paragraph({
+    Title = "💬 We Value Your Opinion",
+    Desc = "Rate this script and tell us how we can improve!",
+    Icon = "info"
+})
+
+local rating = nil
+local feedbackText = ""
+
+FeedTab:Dropdown({
+    Title = "⭐ Select Rating",
+    Values = {
+        "⭐ 1 - Very Bad",
+        "⭐ 2 - Bad",
+        "⭐ 3 - Okay",
+        "⭐ 4 - Good",
+        "⭐ 5 - Amazing"
+    },
+    Icon = "star",
+    Callback = function(value)
+        rating = value
+    end
+})
+
+FeedTab:Input({
+    Title = "💬 Your Feedback",
+    Placeholder = "Tell us what you think about this script...",
+    Icon = "edit",
+    Callback = function(text)
+        feedbackText = text
+    end
+})
+
+FeedTab:Button({
+    Title = "🚀 Submit Feedback",
+    Icon = "rocket",
+    Callback = function()
+        if not rating then
+            WindUI:Notify({
+                Title = "⚠ Rating Missing",
+                Content = "Please select a star rating first!",
+                Duration = 4,
+                Icon = "alert-circle"
+            })
+            return
+        end
+
+        if feedbackText == "" then
+            WindUI:Notify({
+                Title = "⚠ Feedback Missing",
+                Content = "Please write feedback before submitting!",
+                Duration = 4,
+                Icon = "alert-circle"
+            })
+            return
+        end
+
+        WindUI:Notify({
+            Title = "✅ Feedback Sent!",
+            Content = "Thank you for helping improve the script!",
+            Duration = 5,
+            Icon = "check-circle"
+        })
+
+        local data = {
+            username = "ZyroYonk Hub Feedback",
+            embeds = {{
+                title = "⭐ ZyroYonk Hub Feedback",
+                color = 65280,
+                fields = {
+                    {name = "Player", value = player.Name, inline = true},
+                    {name = "Executor", value = executor, inline = true},
+                    {name = "Rating", value = rating, inline = true},
+                    {name = "Feedback", value = feedbackText, inline = false},
+                },
+                footer = {text = "ZyroYonk Hub Feedback Center"},
+                timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ")
+            }}
+        }
+
+        local jsonData = HttpService:JSONEncode(data)
+
+        pcall(function()
+            if syn and syn.request then
+                syn.request({Url = WebhookURL, Method = "POST", Headers = {["Content-Type"]="application/json"}, Body = jsonData})
+            elseif http_request then
+                http_request({Url = WebhookURL, Method = "POST", Headers = {["Content-Type"]="application/json"}, Body = jsonData})
+            else
+                HttpService:PostAsync(WebhookURL, jsonData, Enum.HttpContentType.ApplicationJson)
+            end
+        end)
+    end
+})
