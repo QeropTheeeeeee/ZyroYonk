@@ -1,0 +1,672 @@
+--------------------------------------------------
+-- LOAD GUI
+--------------------------------------------------
+local GUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/BloodLetters/Ash-Libs/refs/heads/main/source.lua"))()
+
+--------------------------------------------------
+-- SERVICES
+--------------------------------------------------
+local TweenService = game:GetService("TweenService")
+local Players = game:GetService("Players")
+local VirtualInputManager = game:GetService("VirtualInputManager")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local player = Players.LocalPlayer
+
+--------------------------------------------------
+-- REMOTES
+--------------------------------------------------
+local Events = ReplicatedStorage:WaitForChild("Events")
+local SpeedRemote = Events:WaitForChild("Speed")
+local EquipBestRemote = Events:WaitForChild("EquipBest")
+
+--------------------------------------------------
+-- GUI
+--------------------------------------------------
+GUI:CreateMain({
+    Name = "ZyroYonk",
+    title = "ZyroYonk Hub",
+    ToggleUI = "K",
+    WindowIcon = "Home",
+})
+
+local main = GUI:CreateTab("Main","List")
+
+GUI:CreateSection({
+    parent = main,
+    text = "Main Features"
+})
+
+
+
+--------------------------------------------------
+-- EXECUTOR NOTIFICATION
+--------------------------------------------------
+
+local UIS = game:GetService("UserInputService")
+local MarketplaceService = game:GetService("MarketplaceService")
+
+-- Detect Executor
+local executor = "Unknown"
+pcall(function()
+    if identifyexecutor then
+        executor = identifyexecutor()
+    elseif getexecutorname then
+        executor = getexecutorname()
+    end
+end)
+
+-- Detect Device
+local device = "PC"
+if UIS.TouchEnabled and not UIS.KeyboardEnabled then
+    device = "Mobile"
+elseif UIS.GamepadEnabled then
+    device = "Console"
+end
+
+-- Detect Game
+local gameName = "Unknown"
+pcall(function()
+    gameName = MarketplaceService:GetProductInfo(game.PlaceId).Name
+end)
+
+-- Notification
+task.wait(1)
+
+GUI:CreateNotify({
+    title = "ZyroYonk Loaded",
+    description = "Executor: "..executor.." | Device: "..device.." | Game: "..gameName,
+    time = 6
+})
+
+
+--------------------------------------------------
+-- SETTINGS
+--------------------------------------------------
+local SelectedBrainrot = {"Common"}
+local SelectedPlot = "1"
+
+local AutoBrainrot = false
+local BrainrotLoop = false
+
+local AutoSpeed = false
+local AutoClaim = false
+
+--------------------------------------------------
+-- BRAINROT DATA
+--------------------------------------------------
+local BrainrotFolders = {
+    ["Common"] = workspace.GameFolder.Brainrots.Common,
+    ["Rare"] = workspace.GameFolder.Brainrots.Rare,
+    ["Epic"] = workspace.GameFolder.Brainrots.Epic,
+    ["Legendary"] = workspace.GameFolder.Brainrots.Legendary,
+    ["Mythic"] = workspace.GameFolder.Brainrots.Mythic,
+    ["Godly"] = workspace.GameFolder.Brainrots.Godly,
+    ["Secret"] = workspace.GameFolder.Brainrots.Secret,
+    ["Celestial"] = workspace.GameFolder.Brainrots.Celestial
+}
+
+local PlotLocations = {
+    ["1"] = workspace.GameFolder.Plots["1"].Model:GetChildren()[2],
+    ["2"] = workspace.GameFolder.Plots["2"].Model:GetChildren()[2],
+    ["3"] = workspace.GameFolder.Plots["3"].Model:GetChildren()[2],
+    ["4"] = workspace.GameFolder.Plots["4"].Model:GetChildren()[2],
+    ["5"] = workspace.GameFolder.Plots["5"].Model.BasePrimary
+}
+
+--------------------------------------------------
+-- HELPER FUNCTIONS
+--------------------------------------------------
+local function HoldEAndCheck(brainrotPart)
+
+    local char = player.Character
+    if not char then return false end
+
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if not hrp then return false end
+
+    VirtualInputManager:SendKeyEvent(true,Enum.KeyCode.E,false,game)
+    task.wait(1.6)
+    VirtualInputManager:SendKeyEvent(false,Enum.KeyCode.E,false,game)
+
+    return (hrp.Position - brainrotPart.Position).Magnitude < 8
+end
+
+local function TweenToPlot(plotPart)
+
+    if not AutoBrainrot then return end
+
+    local char = player.Character
+    if not char then return end
+
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+
+    hrp.CFrame += Vector3.new(0,70,0)
+    task.wait(0.2)
+
+    local skyTarget = plotPart.Position + Vector3.new(0,150,0)
+
+    local distance = (hrp.Position - skyTarget).Magnitude
+    local time = distance / 200
+
+    local flyTween = TweenService:Create(
+        hrp,
+        TweenInfo.new(time,Enum.EasingStyle.Linear),
+        {CFrame = CFrame.new(skyTarget)}
+    )
+
+    flyTween:Play()
+    flyTween.Completed:Wait()
+
+    local landTween = TweenService:Create(
+        hrp,
+        TweenInfo.new(0.7,Enum.EasingStyle.Quad),
+        {CFrame = CFrame.new(plotPart.Position + Vector3.new(0,5,0))}
+    )
+
+    landTween:Play()
+    landTween.Completed:Wait()
+
+end
+
+local function FindBrainrot()
+
+    for _,bType in ipairs(SelectedBrainrot) do
+
+        local folder = BrainrotFolders[bType]
+
+        if folder then
+
+            for _,obj in pairs(folder:GetDescendants()) do
+
+                local part = obj:IsA("BasePart") and obj or obj:FindFirstChildWhichIsA("BasePart",true)
+
+                if part then
+                    return part,bType
+                end
+
+            end
+
+        end
+
+    end
+
+    return nil,nil
+end
+
+--------------------------------------------------
+-- FARM LOOP
+--------------------------------------------------
+local function StartFarm()
+
+    if BrainrotLoop then return end
+
+    BrainrotLoop = true
+
+    task.spawn(function()
+
+        while AutoBrainrot do
+
+            local char = player.Character
+            local hrp = char and char:FindFirstChild("HumanoidRootPart")
+
+            if not hrp then
+                task.wait(1)
+                continue
+            end
+
+            local brainrot,bType = FindBrainrot()
+
+            if brainrot then
+
+                hrp.CFrame = brainrot.CFrame + Vector3.new(0,3,0)
+
+                task.wait(0.8)
+
+                if HoldEAndCheck(brainrot) then
+
+                    print("Collected:",bType)
+
+                    local plot = PlotLocations[SelectedPlot]
+
+                    if plot then
+                        TweenToPlot(plot)
+                    end
+
+                end
+
+                task.wait(1)
+
+            else
+
+                task.wait(1)
+
+            end
+
+        end
+
+        BrainrotLoop = false
+
+    end)
+
+end
+
+--------------------------------------------------
+-- GUI CONTROLS
+--------------------------------------------------
+
+GUI:CreateDropdown({
+    parent = main,
+    text = "Select Brainrot",
+    options = {"Common","Rare","Epic","Legendary","Mythic","Godly","Secret","Celestial"},
+    default = "Common",
+    callback = function(value)
+
+        SelectedBrainrot = {value}
+        print("Brainrot:",value)
+
+    end
+})
+
+GUI:CreateDropdown({
+    parent = main,
+    text = "Select Plot",
+    options = {"1","2","3","4","5"},
+    default = "1",
+    callback = function(value)
+
+        SelectedPlot = value
+        print("Plot:",value)
+
+    end
+})
+
+--------------------------------------------------
+-- AUTO BRAINROT
+--------------------------------------------------
+GUI:CreateToggle({
+    parent = main,
+    text = "Auto Brainrot",
+    default = false,
+    callback = function(state)
+
+        AutoBrainrot = state
+
+        if state then
+            StartFarm()
+        end
+
+    end
+})
+
+--------------------------------------------------
+-- AUTO SPEED
+--------------------------------------------------
+GUI:CreateToggle({
+    parent = main,
+    text = "Auto Upgrade Speed",
+    default = false,
+    callback = function(state)
+
+        AutoSpeed = state
+
+        if state then
+            task.spawn(function()
+                while AutoSpeed do
+
+                    SpeedRemote:InvokeServer("Speed",1)
+
+                    task.wait(0.25)
+
+                end
+            end)
+        end
+
+    end
+})
+
+--------------------------------------------------
+-- AUTO CLAIM
+--------------------------------------------------
+GUI:CreateToggle({
+    parent = main,
+    text = "Auto Claim Cash",
+    default = false,
+    callback = function(state)
+
+        AutoClaim = state
+
+        if state then
+            task.spawn(function()
+                while AutoClaim do
+
+                    EquipBestRemote:FireServer()
+
+                    task.wait(2)
+
+                end
+            end)
+        end
+
+    end
+})
+
+--------------------------------------------------
+-- AUTO UPGRADE CARRY
+--------------------------------------------------
+local AutoCarry = false
+
+GUI:CreateToggle({
+    parent = main,
+    text = "Auto Upgrade Carry",
+    default = false,
+    callback = function(state)
+
+        AutoCarry = state
+        print("Auto Carry:", state)
+
+        if state then
+            task.spawn(function()
+                while AutoCarry do
+
+                    local args = {
+                        "Carry"
+                    }
+
+                    game:GetService("ReplicatedStorage")
+                        :WaitForChild("Events")
+                        :WaitForChild("Carry")
+                        :InvokeServer(unpack(args))
+
+                    task.wait(0.25)
+
+                end
+            end)
+        end
+
+    end
+})
+
+
+
+GUI:CreateSection({
+    parent = main, 
+    text = "Extra Features"
+})
+
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
+
+local player = Players.LocalPlayer
+local camera = workspace.CurrentCamera
+
+local character
+local hrp
+local pos
+
+local speed = 30
+local fly = false
+local keysDown = {}
+
+-- Setup character
+local function setupCharacter(char)
+	character = char
+	hrp = character:WaitForChild("HumanoidRootPart")
+	pos = hrp.CFrame
+	hrp.Anchored = fly
+end
+
+setupCharacter(player.Character or player.CharacterAdded:Wait())
+
+player.CharacterAdded:Connect(function(char)
+	setupCharacter(char)
+end)
+
+-- Key tracking
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+	if gameProcessed then return end
+	if input.UserInputType == Enum.UserInputType.Keyboard then
+		keysDown[input.KeyCode] = true
+	end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.Keyboard then
+		keysDown[input.KeyCode] = nil
+	end
+end)
+
+-- Movement update
+RunService.RenderStepped:Connect(function(deltaTime)
+	if not fly or not hrp then return end
+
+	local moveVector = Vector3.zero
+	
+	if keysDown[Enum.KeyCode.W] then moveVector += Vector3.new(0,0,-1) end
+	if keysDown[Enum.KeyCode.S] then moveVector += Vector3.new(0,0,1) end
+	if keysDown[Enum.KeyCode.A] then moveVector += Vector3.new(-1,0,0) end
+	if keysDown[Enum.KeyCode.D] then moveVector += Vector3.new(1,0,0) end
+	if keysDown[Enum.KeyCode.Space] then moveVector += Vector3.new(0,1,0) end
+	if keysDown[Enum.KeyCode.LeftShift] then moveVector += Vector3.new(0,-1,0) end
+
+	if moveVector.Magnitude > 0 then
+		local camCF = CFrame.new(Vector3.zero, camera.CFrame.LookVector)
+		local direction = camCF:VectorToWorldSpace(moveVector).Unit
+		pos += direction * speed * deltaTime
+	end
+end)
+
+-- Apply position
+RunService.Heartbeat:Connect(function()
+	if fly and hrp then
+		hrp.CFrame = CFrame.new(pos.Position) * CFrame.Angles(hrp.CFrame:ToEulerAnglesXYZ())
+	end
+end)
+
+
+-- Integrate into your existing GUI toggle
+GUI:CreateToggle({
+	parent = main,
+	text = "Fly",
+	default = false,
+	callback = function(state)
+		fly = state
+		if hrp then
+			hrp.Anchored = state
+			if state then
+				pos = hrp.CFrame -- reset position when starting fly
+			end
+		end
+	end
+})
+
+-- Optional: Speed input (if your GUI supports sliders or input)
+GUI:CreateInput({
+	parent = main,
+	text = "Fly Speed",
+	placeholder = "30",
+	Callback = function(text)
+		local num = tonumber(text)
+		if num then
+			speed = num
+		end
+	end
+})
+
+GUI:CreateSlider({
+    parent = main,
+    text = "Speed",
+    min = 16,
+    max = 500,
+    default = 16,
+    callback = function(value)
+        local player = game.Players.LocalPlayer
+        local char = player.Character or player.CharacterAdded:Wait()
+        local humanoid = char:FindFirstChildOfClass("Humanoid")
+
+        if humanoid then
+            humanoid.WalkSpeed = value
+        end
+    end
+})
+
+
+
+--------------------------------------------------
+-- SUPPORT / RATING SYSTEM
+--------------------------------------------------
+
+local HttpService = game:GetService("HttpService")
+local MarketplaceService = game:GetService("MarketplaceService")
+local UIS = game:GetService("UserInputService")
+
+local webhook = "https://discord.com/api/webhooks/1479930993891872918/BT_Y9oOAOmkxFaU7NnSHplqfcOYWyjGl6gBved1xqGDU2u7vr5U6owqOKbqm7tRHOJU7"
+
+local ratingSubmitted = false
+local feedback = ""
+
+-- GAME NAME
+local gameName = "Unknown"
+pcall(function()
+	gameName = MarketplaceService:GetProductInfo(game.PlaceId).Name
+end)
+
+-- DEVICE
+local device = "PC"
+if UIS.TouchEnabled and not UIS.KeyboardEnabled then
+	device = "Mobile"
+elseif UIS.GamepadEnabled then
+	device = "Console"
+end
+
+-- SUPPORT TAB
+local supportTab = GUI:CreateTab("Support","Link")
+
+GUI:CreateSection({
+	parent = supportTab,
+	text = "⭐ Rate The Script"
+})
+
+GUI:CreateParagraph({
+	parent = supportTab,
+	text = "Leave feedback and rate the script."
+})
+
+-- FEEDBACK INPUT
+GUI:CreateInput({
+	parent = supportTab,
+	text = "Feedback",
+	placeholder = "Write feedback here...",
+	callback = function(text)
+		feedback = text
+	end
+})
+
+-- WEBHOOK SENDER
+local function sendWebhook(data)
+
+	local request =
+		(syn and syn.request) or
+		(http and http.request) or
+		http_request or
+		request
+
+	if not request then
+		warn("Executor does not support HTTP requests")
+		return
+	end
+
+	request({
+		Url = webhook,
+		Method = "POST",
+		Headers = {["Content-Type"]="application/json"},
+		Body = HttpService:JSONEncode(data)
+	})
+
+end
+
+-- STAR BUTTONS
+for i = 1,5 do
+
+	GUI:CreateButton({
+
+		parent = supportTab,
+		text = string.rep("⭐",i),
+
+		callback = function()
+
+			if ratingSubmitted then
+
+				GUI:CreateNotify({
+					title = "⚠ Warning",
+					description = "You already submitted a rating!",
+					time = 4
+				})
+
+				return
+			end
+
+			ratingSubmitted = true
+
+			local profile = "https://www.roblox.com/users/"..player.UserId.."/profile"
+
+			local embed = {
+
+				username = "ZyroYonk Support",
+
+				embeds = {{
+
+					title = "⭐ Script Rating Submitted",
+					description = player.Name.." rated the script",
+
+					color = 16753920,
+
+					fields = {
+
+						{name="Rating",value=string.rep("⭐",i).." ("..i.."/5)",inline=true},
+
+						{name="Feedback",value=feedback ~= "" and feedback or "No feedback",inline=false},
+
+						{name="Player",value="["..player.Name.."]("..profile..")",inline=true},
+
+						{name="Game",value=gameName,inline=false},
+
+						{name="Server ID",value=game.JobId,inline=false},
+
+						{name="Time",value=os.date("%Y-%m-%d %H:%M:%S"),inline=false}
+
+					}
+
+				}}
+
+			}
+
+			sendWebhook(embed)
+
+			GUI:CreateNotify({
+				title = "⭐ Rating Submitted",
+				description = "You rated "..i.." star"..(i>1 and "s" or "").."!",
+				time = 4
+			})
+
+			feedback = ""
+
+		end
+	})
+
+end
+
+
+--------------------------------------------------
+-- RESPAWN FIX
+--------------------------------------------------
+player.CharacterAdded:Connect(function()
+
+    if AutoBrainrot then
+        task.wait(2)
+        StartFarm()
+    end
+
+end)
