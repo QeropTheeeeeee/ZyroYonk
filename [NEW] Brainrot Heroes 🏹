@@ -1,0 +1,581 @@
+local GUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/BloodLetters/Ash-Libs/refs/heads/main/source.lua"))()
+
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local hrp = character:WaitForChild("HumanoidRootPart")
+
+local heroCenter = workspace:WaitForChild("HeroCenter")
+
+--------------------------------------------------
+-- HERO GROUPS
+--------------------------------------------------
+local ArcherHero = "Archer"
+
+local GroupTwo = {"Ninja","Mage","Viking"}
+local GroupThree = {"Gunslinger","Assassin","Alchemist"}
+local GroupFour = {"Necromancer","Samurai","Paladin"}
+
+local EnabledArcher = false
+local EnabledGroup2 = false
+local EnabledGroup3 = false
+local EnabledGroup4 = false
+
+--------------------------------------------------
+-- GUI
+--------------------------------------------------
+GUI:CreateMain({
+    Name = "ZyroYonk",
+    title = "ZyroYonk Brainrot",
+    ToggleUI = "K",
+    WindowIcon = "Home",
+})
+
+local main = GUI:CreateTab("Main","List")
+
+GUI:CreateSection({
+    parent = main,
+    text = "Auto Hero Buyer"
+})
+
+--------------------------------------------------
+-- BUY HERO FUNCTION
+--------------------------------------------------
+local function buyHero(heroName)
+
+    local hero = heroCenter:FindFirstChild(heroName)
+    if not hero then return end
+
+    -- TELEPORT TO HERO
+    hrp.CFrame = hero:GetPivot() * CFrame.new(0,3,0)
+    task.wait(1)
+
+    -- HERO PROMPT
+    local prompt = hero:FindFirstChildWhichIsA("ProximityPrompt", true)
+    if prompt then
+        fireproximityprompt(prompt,0.5)
+    end
+
+    task.wait(1)
+
+    -- WEAPON PROMPT
+    local weapon = hero:FindFirstChild("Weapon")
+    if weapon then
+        hrp.CFrame = weapon:GetPivot() * CFrame.new(0,3,0)
+        task.wait(1)
+
+        local weaponPrompt = weapon:FindFirstChildWhichIsA("ProximityPrompt", true)
+        if weaponPrompt then
+            fireproximityprompt(weaponPrompt,0.5)
+        end
+    end
+
+    task.wait(1)
+
+end
+
+--------------------------------------------------
+-- TOGGLE 1 (ARCHER)
+--------------------------------------------------
+GUI:CreateToggle({
+    parent = main,
+    text = "Auto Buy Rare",
+    state = false,
+    callback = function(value)
+
+        EnabledArcher = value
+
+        if value then
+            task.spawn(function()
+                while EnabledArcher do
+                    buyHero(ArcherHero)
+                    task.wait(1)
+                end
+            end)
+        end
+
+    end
+})
+
+--------------------------------------------------
+-- TOGGLE 2 (NINJA + MAGE + VIKING)
+--------------------------------------------------
+GUI:CreateToggle({
+    parent = main,
+    text = "Auto Buy Epic",
+    state = false,
+    callback = function(value)
+
+        EnabledGroup2 = value
+
+        if value then
+            task.spawn(function()
+                while EnabledGroup2 do
+
+                    for _,heroName in ipairs(GroupTwo) do
+                        buyHero(heroName)
+                    end
+
+                    task.wait(1)
+
+                end
+            end)
+        end
+
+    end
+})
+
+--------------------------------------------------
+-- TOGGLE 3 (GUNSLINGER + ASSASSIN + ALCHEMIST)
+--------------------------------------------------
+GUI:CreateToggle({
+    parent = main,
+    text = "Auto Buy Legendary",
+    state = false,
+    callback = function(value)
+
+        EnabledGroup3 = value
+
+        if value then
+            task.spawn(function()
+                while EnabledGroup3 do
+
+                    for _,heroName in ipairs(GroupThree) do
+                        buyHero(heroName)
+                    end
+
+                    task.wait(1)
+
+                end
+            end)
+        end
+
+    end
+})
+
+--------------------------------------------------
+-- TOGGLE 4 (NECROMANCER + SAMURAI + PALADIN)
+--------------------------------------------------
+GUI:CreateToggle({
+    parent = main,
+    text = "Auto Buy Mythic",
+    state = false,
+    callback = function(value)
+
+        EnabledGroup4 = value
+
+        if value then
+            task.spawn(function()
+                while EnabledGroup4 do
+
+                    for _,heroName in ipairs(GroupFour) do
+                        buyHero(heroName)
+                    end
+
+                    task.wait(1)
+
+                end
+            end)
+        end
+
+    end
+})
+
+--------------------------------------------------
+-- TOGGLE 6 (CAVEMAN + BOMBER)
+--------------------------------------------------
+local GroupFive = {"Caveman","Bomber"}
+local EnabledGroup5 = false
+
+GUI:CreateToggle({
+    parent = main,
+    text = "Auto Buy Godly",
+    state = false,
+    callback = function(value)
+
+        EnabledGroup5 = value
+
+        if value then
+            task.spawn(function()
+                while EnabledGroup5 do
+
+                    for _,heroName in ipairs(GroupFive) do
+                        buyHero(heroName)
+                    end
+
+                    task.wait(1)
+
+                end
+            end)
+        end
+
+    end
+})
+
+--------------------------------------------------
+-- TOGGLE 5 (AUTO COLLECT BRAINROT INCOME)
+--------------------------------------------------
+local EnabledIncome = false
+
+GUI:CreateToggle({
+    parent = main,
+    text = "Auto Collect Cash",
+    state = false,
+    callback = function(value)
+
+        EnabledIncome = value
+
+        if value then
+            task.spawn(function()
+                while EnabledIncome do
+
+                    for i = 1,30 do
+                        local args = {tostring(i)}
+
+                        game:GetService("ReplicatedStorage")
+                        :WaitForChild("Remotes")
+                        :WaitForChild("CollectBrainrotIncome")
+                        :InvokeServer(unpack(args))
+
+                        task.wait(0.2)
+                    end
+
+                    task.wait(1)
+
+                end
+            end)
+        end
+
+    end
+})
+
+--------------------------------------------------
+-- TOGGLE (AUTO EQUIP BEST BRAINROTS)
+--------------------------------------------------
+local EnabledEquip = false
+
+GUI:CreateToggle({
+    parent = main,
+    text = "Auto Equip Best Brainrots",
+    state = false,
+    callback = function(value)
+
+        EnabledEquip = value
+
+        if value then
+            task.spawn(function()
+                while EnabledEquip do
+
+                    game:GetService("ReplicatedStorage")
+                    :WaitForChild("Remotes")
+                    :WaitForChild("EquipBestBrainrots")
+                    :InvokeServer()
+
+                    task.wait(2)
+
+                end
+            end)
+        end
+
+    end
+})
+
+--------------------------------------------------
+-- TOGGLE (AUTO REBIRTH)
+--------------------------------------------------
+local EnabledRebirth = false
+
+GUI:CreateToggle({
+    parent = main,
+    text = "Auto Rebirth",
+    state = false,
+    callback = function(value)
+
+        EnabledRebirth = value
+
+        if value then
+            task.spawn(function()
+                while EnabledRebirth do
+
+                    game:GetService("ReplicatedStorage")
+                    :WaitForChild("Remotes")
+                    :WaitForChild("AttemptRebirth")
+                    :InvokeServer()
+
+                    task.wait(3)
+
+                end
+            end)
+        end
+
+    end
+})
+
+
+GUI:CreateSection({
+    parent = main, 
+    text = "Extra Features"
+})
+
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
+
+local player = Players.LocalPlayer
+local camera = workspace.CurrentCamera
+
+local character
+local hrp
+local pos
+
+local speed = 30
+local fly = false
+local keysDown = {}
+
+-- Setup character
+local function setupCharacter(char)
+	character = char
+	hrp = character:WaitForChild("HumanoidRootPart")
+	pos = hrp.CFrame
+	hrp.Anchored = fly
+end
+
+setupCharacter(player.Character or player.CharacterAdded:Wait())
+
+player.CharacterAdded:Connect(function(char)
+	setupCharacter(char)
+end)
+
+-- Key tracking
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+	if gameProcessed then return end
+	if input.UserInputType == Enum.UserInputType.Keyboard then
+		keysDown[input.KeyCode] = true
+	end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.Keyboard then
+		keysDown[input.KeyCode] = nil
+	end
+end)
+
+-- Movement update
+RunService.RenderStepped:Connect(function(deltaTime)
+	if not fly or not hrp then return end
+
+	local moveVector = Vector3.zero
+	
+	if keysDown[Enum.KeyCode.W] then moveVector += Vector3.new(0,0,-1) end
+	if keysDown[Enum.KeyCode.S] then moveVector += Vector3.new(0,0,1) end
+	if keysDown[Enum.KeyCode.A] then moveVector += Vector3.new(-1,0,0) end
+	if keysDown[Enum.KeyCode.D] then moveVector += Vector3.new(1,0,0) end
+	if keysDown[Enum.KeyCode.Space] then moveVector += Vector3.new(0,1,0) end
+	if keysDown[Enum.KeyCode.LeftShift] then moveVector += Vector3.new(0,-1,0) end
+
+	if moveVector.Magnitude > 0 then
+		local camCF = CFrame.new(Vector3.zero, camera.CFrame.LookVector)
+		local direction = camCF:VectorToWorldSpace(moveVector).Unit
+		pos += direction * speed * deltaTime
+	end
+end)
+
+-- Apply position
+RunService.Heartbeat:Connect(function()
+	if fly and hrp then
+		hrp.CFrame = CFrame.new(pos.Position) * CFrame.Angles(hrp.CFrame:ToEulerAnglesXYZ())
+	end
+end)
+
+
+-- Integrate into your existing GUI toggle
+GUI:CreateToggle({
+	parent = main,
+	text = "Fly",
+	default = false,
+	callback = function(state)
+		fly = state
+		if hrp then
+			hrp.Anchored = state
+			if state then
+				pos = hrp.CFrame -- reset position when starting fly
+			end
+		end
+	end
+})
+
+-- Optional: Speed input (if your GUI supports sliders or input)
+GUI:CreateInput({
+	parent = main,
+	text = "Fly Speed",
+	placeholder = "30",
+	Callback = function(text)
+		local num = tonumber(text)
+		if num then
+			speed = num
+		end
+	end
+})
+
+GUI:CreateSlider({
+    parent = main,
+    text = "Speed",
+    min = 16,
+    max = 500,
+    default = 16,
+    callback = function(value)
+        local player = game.Players.LocalPlayer
+        local char = player.Character or player.CharacterAdded:Wait()
+        local humanoid = char:FindFirstChildOfClass("Humanoid")
+
+        if humanoid then
+            humanoid.WalkSpeed = value
+        end
+    end
+})
+
+
+
+--------------------------------------------------
+-- SUPPORT / RATING SYSTEM
+--------------------------------------------------
+
+local HttpService = game:GetService("HttpService")
+local MarketplaceService = game:GetService("MarketplaceService")
+local UIS = game:GetService("UserInputService")
+
+local webhook = "https://discord.com/api/webhooks/1479930993891872918/BT_Y9oOAOmkxFaU7NnSHplqfcOYWyjGl6gBved1xqGDU2u7vr5U6owqOKbqm7tRHOJU7"
+
+local ratingSubmitted = false
+local feedback = ""
+
+-- GAME NAME
+local gameName = "Unknown"
+pcall(function()
+	gameName = MarketplaceService:GetProductInfo(game.PlaceId).Name
+end)
+
+-- DEVICE
+local device = "PC"
+if UIS.TouchEnabled and not UIS.KeyboardEnabled then
+	device = "Mobile"
+elseif UIS.GamepadEnabled then
+	device = "Console"
+end
+
+-- SUPPORT TAB
+local supportTab = GUI:CreateTab("Support","Link")
+
+GUI:CreateSection({
+	parent = supportTab,
+	text = "⭐ Rate The Script"
+})
+
+GUI:CreateParagraph({
+	parent = supportTab,
+	text = "Leave feedback and rate the script."
+})
+
+-- FEEDBACK INPUT
+GUI:CreateInput({
+	parent = supportTab,
+	text = "Feedback",
+	placeholder = "Write feedback here...",
+	callback = function(text)
+		feedback = text
+	end
+})
+
+-- WEBHOOK SENDER
+local function sendWebhook(data)
+
+	local request =
+		(syn and syn.request) or
+		(http and http.request) or
+		http_request or
+		request
+
+	if not request then
+		warn("Executor does not support HTTP requests")
+		return
+	end
+
+	request({
+		Url = webhook,
+		Method = "POST",
+		Headers = {["Content-Type"]="application/json"},
+		Body = HttpService:JSONEncode(data)
+	})
+
+end
+
+-- STAR BUTTONS
+for i = 1,5 do
+
+	GUI:CreateButton({
+
+		parent = supportTab,
+		text = string.rep("⭐",i),
+
+		callback = function()
+
+			if ratingSubmitted then
+
+				GUI:CreateNotify({
+					title = "⚠ Warning",
+					description = "You already submitted a rating!",
+					time = 4
+				})
+
+				return
+			end
+
+			ratingSubmitted = true
+
+			local profile = "https://www.roblox.com/users/"..player.UserId.."/profile"
+
+			local embed = {
+
+				username = "ZyroYonk Support",
+
+				embeds = {{
+
+					title = "⭐ Script Rating Submitted",
+					description = player.Name.." rated the script",
+
+					color = 16753920,
+
+					fields = {
+
+						{name="Rating",value=string.rep("⭐",i).." ("..i.."/5)",inline=true},
+
+						{name="Feedback",value=feedback ~= "" and feedback or "No feedback",inline=false},
+
+						{name="Player",value="["..player.Name.."]("..profile..")",inline=true},
+
+						{name="Game",value=gameName,inline=false},
+
+						{name="Server ID",value=game.JobId,inline=false},
+
+						{name="Time",value=os.date("%Y-%m-%d %H:%M:%S"),inline=false}
+
+					}
+
+				}}
+
+			}
+
+			sendWebhook(embed)
+
+			GUI:CreateNotify({
+				title = "⭐ Rating Submitted",
+				description = "You rated "..i.." star"..(i>1 and "s" or "").."!",
+				time = 4
+			})
+
+			feedback = ""
+
+		end
+	})
+
+end
