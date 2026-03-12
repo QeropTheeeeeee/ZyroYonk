@@ -1,0 +1,576 @@
+--------------------------------------------------
+-- LOAD GUI
+--------------------------------------------------
+local GUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/BloodLetters/Ash-Libs/refs/heads/main/source.lua"))()
+
+--------------------------------------------------
+-- SERVICES
+--------------------------------------------------
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local HttpService = game:GetService("HttpService")
+
+local player = Players.LocalPlayer
+
+--------------------------------------------------
+-- CHARACTER HANDLER (RESPAWN SAFE)
+--------------------------------------------------
+local character
+local hrp
+
+local function updateCharacter(char)
+    character = char
+    hrp = character:WaitForChild("HumanoidRootPart")
+end
+
+updateCharacter(player.Character or player.CharacterAdded:Wait())
+player.CharacterAdded:Connect(updateCharacter)
+
+--------------------------------------------------
+-- REMOTES
+--------------------------------------------------
+local HitMob = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("HitMob")
+local BuyUpgrade = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("BuyUpgrade")
+local ConvertMana = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("ConvertMana")
+local EquipBest = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("EquipBest")
+
+--------------------------------------------------
+-- MOB FOLDER
+--------------------------------------------------
+local mobsFolder = workspace:FindFirstChild("Mobs")
+
+--------------------------------------------------
+-- GUI SETUP
+--------------------------------------------------
+GUI:CreateMain({
+    Name = "ZyroYonk",
+    title = "ZyroYonk",
+    ToggleUI = "K",
+    WindowIcon = "Home",
+})
+
+local main = GUI:CreateTab("Main","List")
+
+--------------------------------------------------
+-- SETTINGS
+--------------------------------------------------
+local Enabled = false
+local PullSpeed = 0.05
+local HitboxSize = Vector3.new(12,12,12)
+
+local AutoUpgrade = false
+local UpgradeDelay = 0.3
+
+local AutoConvertMana = false
+local ManaDelay = 0.5
+
+local AutoEquipBest = false
+local EquipDelay = 60
+
+--------------------------------------------------
+-- CREATE HITBOX
+--------------------------------------------------
+local function createHitbox(mob)
+    if mob:FindFirstChild("BrainrotHitbox") then return end
+    local hrpMob = mob:FindFirstChild("HumanoidRootPart")
+    if not hrpMob then return end
+
+    local hitbox = Instance.new("Part")
+    hitbox.Name = "BrainrotHitbox"
+    hitbox.Size = HitboxSize
+    hitbox.Transparency = 0.5
+    hitbox.Color = Color3.fromRGB(255,0,0)
+    hitbox.Anchored = true
+    hitbox.CanCollide = false
+    hitbox.Parent = mob
+
+    RunService.Heartbeat:Connect(function()
+        if hitbox and hrpMob then
+            hitbox.CFrame = hrpMob.CFrame
+        end
+    end)
+
+    hitbox.Touched:Connect(function(hit)
+        if character and hit.Parent == character then
+            pcall(function()
+                HitMob:FireServer(mob,1000000)
+            end)
+        end
+    end)
+end
+
+--------------------------------------------------
+-- PROCESS MOBS
+--------------------------------------------------
+local function processMobs()
+    if not mobsFolder or not hrp then return end
+    for _,mob in pairs(mobsFolder:GetChildren()) do
+        if mob:IsA("Model") then
+            createHitbox(mob)
+            local hrpMob = mob:FindFirstChild("HumanoidRootPart")
+            local humanoid = mob:FindFirstChildOfClass("Humanoid")
+            if hrpMob then
+                hrpMob.CFrame = hrp.CFrame * CFrame.new(0,0,-5)
+            end
+            if humanoid then
+                humanoid.Health = 0
+            end
+        end
+    end
+end
+
+--------------------------------------------------
+-- AUTO FUNCTIONS
+--------------------------------------------------
+local function buyUpgrades()
+    local upgrades = {
+        "Weapons Equipped",
+        "Spin Speed",
+        "Enemy Spawn Rate",
+        "Mana Multiplier",
+        "Kill Multiplier",
+        "Enemy Limit",
+        "Boss Spawn Chance",
+        "Damage Multiplier",
+        "Rng Luck",
+        "Skill Point Multiplier"
+    }
+    for _,upgrade in pairs(upgrades) do
+        pcall(function()
+            BuyUpgrade:InvokeServer(upgrade)
+        end)
+    end
+end
+
+local function convertMana()
+    pcall(function()
+        ConvertMana:InvokeServer(1)
+    end)
+end
+
+local function equipBest()
+    pcall(function()
+        EquipBest:FireServer()
+    end)
+end
+
+--------------------------------------------------
+-- TOGGLES
+--------------------------------------------------
+GUI:CreateToggle({
+    parent = main,
+    text = "Auto Bring Enemy",
+    state = false,
+    callback = function(value)
+        Enabled = value
+        if value then
+            task.spawn(function()
+                while Enabled do
+                    processMobs()
+                    task.wait(PullSpeed)
+                end
+            end)
+        end
+    end
+})
+
+GUI:CreateToggle({
+    parent = main,
+    text = "Auto Buy Upgrades",
+    state = false,
+    callback = function(value)
+        AutoUpgrade = value
+        if value then
+            task.spawn(function()
+                while AutoUpgrade do
+                    buyUpgrades()
+                    task.wait(UpgradeDelay)
+                end
+            end)
+        end
+    end
+})
+
+GUI:CreateToggle({
+    parent = main,
+    text = "Auto Convert Mana",
+    state = false,
+    callback = function(value)
+        AutoConvertMana = value
+        if value then
+            task.spawn(function()
+                while AutoConvertMana do
+                    convertMana()
+                    task.wait(ManaDelay)
+                end
+            end)
+        end
+    end
+})
+
+GUI:CreateToggle({
+    parent = main,
+    text = "Auto Equip Best (1 Min)",
+    state = false,
+    callback = function(value)
+        AutoEquipBest = value
+        if value then
+            task.spawn(function()
+                while AutoEquipBest do
+                    task.wait(EquipDelay)
+                    if AutoEquipBest then
+                        equipBest()
+                    end
+                end
+            end)
+        end
+    end
+})
+
+--------------------------------------------------
+-- TELEPORT AREAS
+--------------------------------------------------
+GUI:CreateSection({ parent = main, text = "Teleport Areas" })
+
+local function teleportTo(part)
+    if hrp and part then
+        hrp.CFrame = part.CFrame + Vector3.new(0,3,0)
+    end
+end
+
+local AreaButtons = {
+    ["Grassland"] = workspace.Areas.Grassland.SafeAreaSpawn,
+    ["Desert Biome"] = workspace.Areas["Desert Biome"].SafeAreaSpawn,
+    ["Jungle Biome"] = workspace.Areas["Jungle Biome"].SafeAreaSpawn,
+    ["Snow Biome"] = workspace.Areas["Snow Biome"].SafeAreaSpawn,
+    ["Volcano Island"] = workspace.Areas["Volcano Island"].SafeAreaSpawn,
+    ["Shadow Dungeon"] = workspace.Areas["Shadow Dungeon"].SafeAreaSpawn,
+    ["Shadow Realm"] = workspace.Areas["Shadow Realm"].SafeAreaSpawn
+}
+
+for name, area in pairs(AreaButtons) do
+    GUI:CreateButton({
+        parent = main,
+        text = name,
+        callback = function()
+            teleportTo(area)
+        end
+    })
+end
+
+--------------------------------------------------
+-- BOSS AREA BUTTONS
+--------------------------------------------------
+GUI:CreateSection({ parent = main, text = "Boss Area" })
+
+local function teleportBoss(area)
+    if not hrp or not area then return end
+    if area:IsA("BasePart") then
+        hrp.CFrame = area.CFrame + Vector3.new(0,3,0)
+    elseif area:IsA("Model") then
+        local primary = area.PrimaryPart or area:FindFirstChildWhichIsA("BasePart")
+        if primary then
+            hrp.CFrame = primary.CFrame + Vector3.new(0,3,0)
+        end
+    end
+end
+
+local BossAreas = {
+    ["Desert Boss Area"] = workspace.Areas["Desert Biome"].BossRaidArea,
+    ["Jungle Boss Area"] = workspace.Areas["Jungle Biome"].BossRaidArea,
+    ["Shadow Dungeon Boss"] = workspace.Areas["Shadow Dungeon"].BossRaidArea,
+    ["Snow Boss Area"] = workspace.Areas["Snow Biome"].BossRaidArea,
+    ["Volcano Boss Area"] = workspace.Areas["Volcano Island"].BossRaidArea
+}
+
+for name, area in pairs(BossAreas) do
+    GUI:CreateButton({
+        parent = main,
+        text = name,
+        callback = function()
+            teleportBoss(area)
+        end
+    })
+end
+
+GUI:CreateSection({
+    parent = main, 
+    text = "Extra Features"
+})
+
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
+
+local player = Players.LocalPlayer
+local camera = workspace.CurrentCamera
+
+local character
+local hrp
+local pos
+
+local speed = 30
+local fly = false
+local keysDown = {}
+
+-- Setup character
+local function setupCharacter(char)
+	character = char
+	hrp = character:WaitForChild("HumanoidRootPart")
+	pos = hrp.CFrame
+	hrp.Anchored = fly
+end
+
+setupCharacter(player.Character or player.CharacterAdded:Wait())
+
+player.CharacterAdded:Connect(function(char)
+	setupCharacter(char)
+end)
+
+-- Key tracking
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+	if gameProcessed then return end
+	if input.UserInputType == Enum.UserInputType.Keyboard then
+		keysDown[input.KeyCode] = true
+	end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.Keyboard then
+		keysDown[input.KeyCode] = nil
+	end
+end)
+
+-- Movement update
+RunService.RenderStepped:Connect(function(deltaTime)
+	if not fly or not hrp then return end
+
+	local moveVector = Vector3.zero
+	
+	if keysDown[Enum.KeyCode.W] then moveVector += Vector3.new(0,0,-1) end
+	if keysDown[Enum.KeyCode.S] then moveVector += Vector3.new(0,0,1) end
+	if keysDown[Enum.KeyCode.A] then moveVector += Vector3.new(-1,0,0) end
+	if keysDown[Enum.KeyCode.D] then moveVector += Vector3.new(1,0,0) end
+	if keysDown[Enum.KeyCode.Space] then moveVector += Vector3.new(0,1,0) end
+	if keysDown[Enum.KeyCode.LeftShift] then moveVector += Vector3.new(0,-1,0) end
+
+	if moveVector.Magnitude > 0 then
+		local camCF = CFrame.new(Vector3.zero, camera.CFrame.LookVector)
+		local direction = camCF:VectorToWorldSpace(moveVector).Unit
+		pos += direction * speed * deltaTime
+	end
+end)
+
+-- Apply position
+RunService.Heartbeat:Connect(function()
+	if fly and hrp then
+		hrp.CFrame = CFrame.new(pos.Position) * CFrame.Angles(hrp.CFrame:ToEulerAnglesXYZ())
+	end
+end)
+
+
+-- Integrate into your existing GUI toggle
+GUI:CreateToggle({
+	parent = main,
+	text = "Fly",
+	default = false,
+	callback = function(state)
+		fly = state
+		if hrp then
+			hrp.Anchored = state
+			if state then
+				pos = hrp.CFrame -- reset position when starting fly
+			end
+		end
+	end
+})
+
+-- Optional: Speed input (if your GUI supports sliders or input)
+GUI:CreateInput({
+	parent = main,
+	text = "Fly Speed",
+	placeholder = "30",
+	Callback = function(text)
+		local num = tonumber(text)
+		if num then
+			speed = num
+		end
+	end
+})
+
+GUI:CreateSlider({
+    parent = main,
+    text = "Speed",
+    min = 16,
+    max = 500,
+    default = 16,
+    callback = function(value)
+        local player = game.Players.LocalPlayer
+        local char = player.Character or player.CharacterAdded:Wait()
+        local humanoid = char:FindFirstChildOfClass("Humanoid")
+
+        if humanoid then
+            humanoid.WalkSpeed = value
+        end
+    end
+})
+
+
+
+--------------------------------------------------
+-- SUPPORT / RATING SYSTEM
+--------------------------------------------------
+
+local HttpService = game:GetService("HttpService")
+local MarketplaceService = game:GetService("MarketplaceService")
+local UIS = game:GetService("UserInputService")
+
+local webhook = "https://discord.com/api/webhooks/1479930993891872918/BT_Y9oOAOmkxFaU7NnSHplqfcOYWyjGl6gBved1xqGDU2u7vr5U6owqOKbqm7tRHOJU7"
+
+local ratingSubmitted = false
+local feedback = ""
+
+-- GAME NAME
+local gameName = "Unknown"
+pcall(function()
+	gameName = MarketplaceService:GetProductInfo(game.PlaceId).Name
+end)
+
+-- DEVICE
+local device = "PC"
+if UIS.TouchEnabled and not UIS.KeyboardEnabled then
+	device = "Mobile"
+elseif UIS.GamepadEnabled then
+	device = "Console"
+end
+
+-- SUPPORT TAB
+local supportTab = GUI:CreateTab("Support","Link")
+
+GUI:CreateSection({
+	parent = supportTab,
+	text = "⭐ Rate The Script"
+})
+
+GUI:CreateParagraph({
+	parent = supportTab,
+	text = "Write Feed Back IF you Want Update and rate the script."
+})
+
+-- FEEDBACK INPUT
+GUI:CreateInput({
+	parent = supportTab,
+	text = "Feedback",
+	placeholder = "Write feedback here...",
+	callback = function(text)
+		feedback = text
+	end
+})
+
+-- WEBHOOK SENDER
+local function sendWebhook(data)
+
+	local request =
+		(syn and syn.request) or
+		(http and http.request) or
+		http_request or
+		request
+
+	if not request then
+		warn("Executor does not support HTTP requests")
+		return
+	end
+
+	request({
+		Url = webhook,
+		Method = "POST",
+		Headers = {["Content-Type"]="application/json"},
+		Body = HttpService:JSONEncode(data)
+	})
+
+end
+
+-- STAR BUTTONS
+for i = 1,5 do
+
+	GUI:CreateButton({
+
+		parent = supportTab,
+		text = string.rep("⭐",i),
+
+		callback = function()
+
+			if ratingSubmitted then
+
+				GUI:CreateNotify({
+					title = "⚠ Warning",
+					description = "You already submitted a rating!",
+					time = 4
+				})
+
+				return
+			end
+
+			ratingSubmitted = true
+
+			local profile = "https://www.roblox.com/users/"..player.UserId.."/profile"
+
+			local embed = {
+
+				username = "ZyroYonk Support",
+
+				embeds = {{
+
+					title = "⭐ Script Rating Submitted",
+					description = player.Name.." rated the script",
+
+					color = 16753920,
+
+					fields = {
+
+						{name="Rating",value=string.rep("⭐",i).." ("..i.."/5)",inline=true},
+
+						{name="Feedback",value=feedback ~= "" and feedback or "No feedback",inline=false},
+
+						{name="Player",value="["..player.Name.."]("..profile..")",inline=true},
+
+						{name="Game",value=gameName,inline=false},
+
+						{name="Server ID",value=game.JobId,inline=false},
+
+						{name="Time",value=os.date("%Y-%m-%d %H:%M:%S"),inline=false}
+
+					}
+
+				}}
+
+			}
+
+			sendWebhook(embed)
+
+			GUI:CreateNotify({
+				title = "⭐ Rating Submitted",
+				description = "You rated "..i.." star"..(i>1 and "s" or "").."!",
+				time = 4
+			})
+
+			feedback = ""
+
+		end
+	})
+
+end
+
+
+--------------------------------------------------
+-- RESPAWN FIX
+--------------------------------------------------
+player.CharacterAdded:Connect(function()
+
+    if AutoBrainrot then
+        task.wait(2)
+        StartFarm()
+    end
+
+end)
