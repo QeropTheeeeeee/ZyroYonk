@@ -1,0 +1,442 @@
+--------------------------------------------------
+-- LOAD GUI
+--------------------------------------------------
+local GUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/BloodLetters/Ash-Libs/refs/heads/main/source.lua"))()
+
+--------------------------------------------------
+-- SERVICES
+--------------------------------------------------
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local hrp = character:WaitForChild("HumanoidRootPart")
+
+--------------------------------------------------
+-- HANDLE RESPAWN
+--------------------------------------------------
+player.CharacterAdded:Connect(function(char)
+    character = char
+    hrp = char:WaitForChild("HumanoidRootPart")
+end)
+
+--------------------------------------------------
+-- GUI
+--------------------------------------------------
+GUI:CreateMain({
+    Name = "ZyroYonk",
+    title = "ZyroYonk Brainrot",
+    ToggleUI = "K",
+    WindowIcon = "Home",
+})
+
+local main = GUI:CreateTab("Main","List")
+
+GUI:CreateSection({
+    parent = main,
+    text = "Auto Brainrot"
+})
+
+--------------------------------------------------
+-- TELEPORT TO WIN BUTTON HITBOX
+--------------------------------------------------
+local TeleportEnabled = false
+
+local function getHitbox()
+    local folder = workspace:FindFirstChild("WinGivingButtons")
+    if not folder then return nil end
+
+    local children = folder:GetChildren()
+    if #children < 18 then return nil end
+
+    local button = children[18]
+    if button then
+        return button:FindFirstChild("Hitbox")
+    end
+end
+
+GUI:CreateToggle({
+    parent = main,
+    text = "Teleport to Win Button",
+    state = false,
+    callback = function(value)
+
+        TeleportEnabled = value
+
+        if value then
+            task.spawn(function()
+                while TeleportEnabled do
+                    local hitbox = getHitbox()
+
+                    if hrp and hitbox then
+                        hrp.CFrame = hitbox.CFrame + Vector3.new(0,3,0)
+                    end
+
+                    task.wait(0.1)
+                end
+            end)
+        end
+
+    end
+})
+
+
+--------------------------------------------------
+-- AUTO REBIRTH TOGGLE
+--------------------------------------------------
+local AutoRebirthEnabled = false
+
+GUI:CreateToggle({
+    parent = main,
+    text = "Auto Rebirth",
+    state = false,
+    callback = function(value)
+        AutoRebirthEnabled = value
+
+        if value then
+            task.spawn(function()
+                local request_buy = ReplicatedStorage:WaitForChild("Libraries")
+                    :WaitForChild("Net")
+                    :WaitForChild("RF/request_buy")
+
+                while AutoRebirthEnabled do
+                    local args = {
+                        "Rebirth",
+                        {
+                            Price = 1,
+                            Currency = "Size",
+                            Amount = 1700000000000000000000000000000000000000000000000000
+                        }
+                    }
+
+                    -- call the remote safely
+                    local success, err = pcall(function()
+                        request_buy:InvokeServer(unpack(args))
+                    end)
+
+                    if not success then
+                        warn("AutoRebirth error:", err)
+                    end
+
+                    task.wait(0.1) -- small delay to prevent spamming too fast
+                end
+            end)
+        end
+    end
+})
+
+--------------------------------------------------
+-- AUTO UPGRADE TOGGLE
+--------------------------------------------------
+local AutoUpgradeEnabled = false
+
+GUI:CreateToggle({
+    parent = main,
+    text = "Auto Upgrade",
+    state = false,
+    callback = function(value)
+
+        AutoUpgradeEnabled = value
+
+        if value then
+            task.spawn(function()
+
+                local request_buy = ReplicatedStorage:WaitForChild("Libraries")
+                    :WaitForChild("Net")
+                    :WaitForChild("RF/request_buy")
+
+                while AutoUpgradeEnabled do
+
+                    local args = {
+                        "Upgrade",
+                        {
+                            Price = 1,
+                            Currency = "Wins",
+                            Amount = 100000000000000000000000000000000000000000000
+                        }
+                    }
+
+                    -- safe invoke
+                    pcall(function()
+                        request_buy:InvokeServer(unpack(args))
+                    end)
+
+                    task.wait(0) -- delay so it doesn't crash
+                end
+
+            end)
+        end
+
+    end
+})
+
+
+GUI:CreateSection({
+    parent = main, 
+    text = "Extra Features"
+})
+
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
+
+local player = Players.LocalPlayer
+local camera = workspace.CurrentCamera
+
+local character
+local hrp
+local pos
+
+local speed = 30
+local fly = false
+local keysDown = {}
+
+-- Setup character
+local function setupCharacter(char)
+	character = char
+	hrp = character:WaitForChild("HumanoidRootPart")
+	pos = hrp.CFrame
+	hrp.Anchored = fly
+end
+
+setupCharacter(player.Character or player.CharacterAdded:Wait())
+
+player.CharacterAdded:Connect(function(char)
+	setupCharacter(char)
+end)
+
+-- Key tracking
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+	if gameProcessed then return end
+	if input.UserInputType == Enum.UserInputType.Keyboard then
+		keysDown[input.KeyCode] = true
+	end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.Keyboard then
+		keysDown[input.KeyCode] = nil
+	end
+end)
+
+-- Movement update
+RunService.RenderStepped:Connect(function(deltaTime)
+	if not fly or not hrp then return end
+
+	local moveVector = Vector3.zero
+	
+	if keysDown[Enum.KeyCode.W] then moveVector += Vector3.new(0,0,-1) end
+	if keysDown[Enum.KeyCode.S] then moveVector += Vector3.new(0,0,1) end
+	if keysDown[Enum.KeyCode.A] then moveVector += Vector3.new(-1,0,0) end
+	if keysDown[Enum.KeyCode.D] then moveVector += Vector3.new(1,0,0) end
+	if keysDown[Enum.KeyCode.Space] then moveVector += Vector3.new(0,1,0) end
+	if keysDown[Enum.KeyCode.LeftShift] then moveVector += Vector3.new(0,-1,0) end
+
+	if moveVector.Magnitude > 0 then
+		local camCF = CFrame.new(Vector3.zero, camera.CFrame.LookVector)
+		local direction = camCF:VectorToWorldSpace(moveVector).Unit
+		pos += direction * speed * deltaTime
+	end
+end)
+
+-- Apply position
+RunService.Heartbeat:Connect(function()
+	if fly and hrp then
+		hrp.CFrame = CFrame.new(pos.Position) * CFrame.Angles(hrp.CFrame:ToEulerAnglesXYZ())
+	end
+end)
+
+
+-- Integrate into your existing GUI toggle
+GUI:CreateToggle({
+	parent = main,
+	text = "Fly",
+	default = false,
+	callback = function(state)
+		fly = state
+		if hrp then
+			hrp.Anchored = state
+			if state then
+				pos = hrp.CFrame -- reset position when starting fly
+			end
+		end
+	end
+})
+
+-- Optional: Speed input (if your GUI supports sliders or input)
+GUI:CreateInput({
+	parent = main,
+	text = "Fly Speed",
+	placeholder = "30",
+	Callback = function(text)
+		local num = tonumber(text)
+		if num then
+			speed = num
+		end
+	end
+})
+
+GUI:CreateSlider({
+    parent = main,
+    text = "Speed",
+    min = 16,
+    max = 500,
+    default = 16,
+    callback = function(value)
+        local player = game.Players.LocalPlayer
+        local char = player.Character or player.CharacterAdded:Wait()
+        local humanoid = char:FindFirstChildOfClass("Humanoid")
+
+        if humanoid then
+            humanoid.WalkSpeed = value
+        end
+    end
+})
+
+
+
+--------------------------------------------------
+-- SUPPORT / RATING SYSTEM
+--------------------------------------------------
+
+local HttpService = game:GetService("HttpService")
+local MarketplaceService = game:GetService("MarketplaceService")
+local UIS = game:GetService("UserInputService")
+
+local webhook = "https://discord.com/api/webhooks/1479930993891872918/BT_Y9oOAOmkxFaU7NnSHplqfcOYWyjGl6gBved1xqGDU2u7vr5U6owqOKbqm7tRHOJU7"
+
+local ratingSubmitted = false
+local feedback = ""
+
+-- GAME NAME
+local gameName = "Unknown"
+pcall(function()
+	gameName = MarketplaceService:GetProductInfo(game.PlaceId).Name
+end)
+
+-- DEVICE
+local device = "PC"
+if UIS.TouchEnabled and not UIS.KeyboardEnabled then
+	device = "Mobile"
+elseif UIS.GamepadEnabled then
+	device = "Console"
+end
+
+-- SUPPORT TAB
+local supportTab = GUI:CreateTab("Support","Link")
+
+GUI:CreateSection({
+	parent = supportTab,
+	text = "⭐ Rate The Script"
+})
+
+GUI:CreateParagraph({
+	parent = supportTab,
+	text = "Leave feedback and rate the script."
+})
+
+-- FEEDBACK INPUT
+GUI:CreateInput({
+	parent = supportTab,
+	text = "Feedback",
+	placeholder = "Write feedback here...",
+	callback = function(text)
+		feedback = text
+	end
+})
+
+-- WEBHOOK SENDER
+local function sendWebhook(data)
+
+	local request =
+		(syn and syn.request) or
+		(http and http.request) or
+		http_request or
+		request
+
+	if not request then
+		warn("Executor does not support HTTP requests")
+		return
+	end
+
+	request({
+		Url = webhook,
+		Method = "POST",
+		Headers = {["Content-Type"]="application/json"},
+		Body = HttpService:JSONEncode(data)
+	})
+
+end
+
+-- STAR BUTTONS
+for i = 1,5 do
+
+	GUI:CreateButton({
+
+		parent = supportTab,
+		text = string.rep("⭐",i),
+
+		callback = function()
+
+			if ratingSubmitted then
+
+				GUI:CreateNotify({
+					title = "⚠ Warning",
+					description = "You already submitted a rating!",
+					time = 4
+				})
+
+				return
+			end
+
+			ratingSubmitted = true
+
+			local profile = "https://www.roblox.com/users/"..player.UserId.."/profile"
+
+			local embed = {
+
+				username = "ZyroYonk Support",
+
+				embeds = {{
+
+					title = "⭐ Script Rating Submitted",
+					description = player.Name.." rated the script",
+
+					color = 16753920,
+
+					fields = {
+
+						{name="Rating",value=string.rep("⭐",i).." ("..i.."/5)",inline=true},
+
+						{name="Feedback",value=feedback ~= "" and feedback or "No feedback",inline=false},
+
+						{name="Player",value="["..player.Name.."]("..profile..")",inline=true},
+
+						{name="Game",value=gameName,inline=false},
+
+						{name="Server ID",value=game.JobId,inline=false},
+
+						{name="Time",value=os.date("%Y-%m-%d %H:%M:%S"),inline=false}
+
+					}
+
+				}}
+
+			}
+
+			sendWebhook(embed)
+
+			GUI:CreateNotify({
+				title = "⭐ Rating Submitted",
+				description = "You rated "..i.." star"..(i>1 and "s" or "").."!",
+				time = 4
+			})
+
+			feedback = ""
+
+		end
+	})
+
+end
