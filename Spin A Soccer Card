@@ -1,0 +1,229 @@
+-- Fast load WindUI
+local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local player = Players.LocalPlayer
+
+-- Detect executor
+local executor = "Unknown Executor"
+if identifyexecutor then
+    executor = identifyexecutor()
+end
+
+-- ==============================
+-- Window
+-- ==============================
+local Window = WindUI:CreateWindow({
+    Title = "Spin A Soccer Card",
+    Icon = "rocket",
+    Author = "ZyroYonk",
+    Folder = "ZyroYonkHub",
+    Size = UDim2.fromOffset(250,250),
+    Theme = "Midnight"
+})
+
+WindUI:Notify({
+    Title = "⚡ Executor Detected",
+    Content = "You are using: "..executor,
+    Duration = 5
+})
+
+-- ==============================
+-- TAB
+-- ==============================
+local SpawnTab = Window:Tab({
+    Title = "Spawn Collector",
+    Icon = "list"
+})
+
+--------------------------------------------------
+-- VARIABLES
+--------------------------------------------------
+local SelectedOpenPacks = {}
+local SelectedBuyPacks = {}
+
+local AutoOpen = false
+local AutoBuy = false
+
+--------------------------------------------------
+-- MULTI SELECT PACKS TO OPEN
+--------------------------------------------------
+SpawnTab:Dropdown({
+    Title = "Select Packs To Buy",
+    Multi = true,
+    Values = {
+        "Bronze","Silver","Gold",
+        "Platinum","Diamond","Toxic",
+        "Shadow","Infernal","Corrupted",
+        "Cosmic","Eclipse","Hades",
+        "Heaven","Chaos","Ordian",
+        "Alpha","Omega"
+    },
+    Default = {},
+    Callback = function(v)
+        SelectedOpenPacks = v
+    end
+})
+
+--------------------------------------------------
+-- AUTO OPEN PACK
+--------------------------------------------------
+SpawnTab:Toggle({
+    Title = "Auto Open Pack",
+    Default = false,
+    Callback = function(state)
+        AutoOpen = state
+
+        task.spawn(function()
+            while AutoOpen do
+                for _,pack in pairs(SelectedOpenPacks) do
+                    ReplicatedStorage.Remotes.OpenPack:FireServer(pack)
+                end
+                task.wait(0.2)
+            end
+        end)
+    end
+})
+
+--------------------------------------------------
+-- MULTI SELECT PACKS TO BUY
+--------------------------------------------------
+SpawnTab:Dropdown({
+    Title = "Select Packs To Buy",
+    Multi = true,
+    Values = {
+        "Bronze","Silver","Gold",
+        "Platinum","Diamond","Toxic",
+        "Shadow","Infernal","Corrupted",
+        "Cosmic","Eclipse","Hades",
+        "Heaven","Chaos","Ordian",
+        "Alpha","Omega"
+    },
+    Default = {},
+    Callback = function(v)
+        SelectedBuyPacks = v
+    end
+})
+
+--------------------------------------------------
+-- AUTO BUY PACK
+--------------------------------------------------
+SpawnTab:Toggle({
+    Title = "Auto Buy Pack",
+    Default = false,
+    Callback = function(state)
+        AutoBuy = state
+
+        task.spawn(function()
+            while AutoBuy do
+                for _,pack in pairs(SelectedBuyPacks) do
+                    ReplicatedStorage.Remotes.BuyPack:FireServer(pack)
+                end
+                task.wait(0.5)
+            end
+        end)
+    end
+})
+
+--------------------------------------------------
+-- AUTO COLLECT SLOTS 1-10
+--------------------------------------------------
+local AutoCollectSlots = false
+
+SpawnTab:Toggle({
+    Title = "Auto Collect",
+    Default = false,
+    Callback = function(state)
+        AutoCollectSlots = state
+
+        task.spawn(function()
+            while AutoCollectSlots do
+                for slot = 1, 10 do
+                    local args = {slot}
+                    game:GetService("ReplicatedStorage")
+                        :WaitForChild("Remotes")
+                        :WaitForChild("CollectSlot")
+                        :FireServer(unpack(args))
+                end
+                task.wait(0.3) -- adjust speed if needed
+            end
+        end)
+    end
+})
+
+--------------------------------------------------
+-- AUTO REBIRTH
+--------------------------------------------------
+local AutoRebirth = false
+
+SpawnTab:Toggle({
+    Title = "Auto Rebirth",
+    Default = false,
+    Callback = function(state)
+        AutoRebirth = state
+
+        task.spawn(function()
+            while AutoRebirth do
+                game:GetService("ReplicatedStorage")
+                    :WaitForChild("Remotes")
+                    :WaitForChild("Rebirth")
+                    :FireServer()
+
+                task.wait(0.5) -- adjust speed if needed
+            end
+        end)
+    end
+})
+
+-- Create Tab
+local MainTab = Window:Tab({
+    Title = "Support",
+    Icon = "heart"
+})
+
+-- Paragraph (THIS WILL SHOW)
+MainTab:Paragraph({
+    Title = "Support Our Project ❤️",
+    Desc = "If you enjoy using this Script, please join our Discord server. Your support helps us improve and create better scripts for everyone! And dont forget to follow my Rscript"
+})
+
+-- Copy Button
+MainTab:Button({
+    Title = "Copy Discord Link",
+    Callback = function()
+
+        local link = "https://discord.gg/R7KF6k4pn8"
+
+        if setclipboard then
+            setclipboard(link)
+        end
+
+        WindUI:Notify({
+            Title = "Link Copied ✅",
+            Content = "Thanks for supporting us! The link is now in your clipboard.",
+            Duration = 4
+        })
+
+    end
+})
+
+-- Copy Button
+MainTab:Button({
+    Title = "Copy Link To Follow My Rscript",
+    Callback = function()
+
+        local link = "https://rscripts.net/@ZyroYonk"
+
+        if setclipboard then
+            setclipboard(link)
+        end
+
+        WindUI:Notify({
+            Title = "Link Copied ✅",
+            Content = "Thanks for supporting us! The link is now in your clipboard.",
+            Duration = 4
+        })
+
+    end
+})
