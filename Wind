@@ -1,0 +1,149 @@
+local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local HttpService = game:GetService("HttpService")
+
+local WindUI
+
+do
+    -- Attempt to load WindUI either from local script or URL
+    local ok, result = pcall(function()
+        return require("./src/Init")
+    end)
+
+    if ok then
+        WindUI = result
+    else
+        if RunService:IsStudio() then
+            WindUI = require(ReplicatedStorage:WaitForChild("WindUI"):WaitForChild("Init"))
+        else
+            WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
+        end
+    end
+end
+
+-- Window Setup with Fully Glassy Effect
+local Window = WindUI:CreateWindow({
+    Title = ".ftgs hub | Glassy UI",
+    Folder = "ftgshub",
+    Icon = "",  -- No icon for a clean, glassy look
+    NewElements = true,
+    HideSearchBar = false,
+    OpenButton = {
+        Title = "Open .ftgs hub UI",
+        CornerRadius = UDim.new(1, 0),
+        StrokeThickness = 3,
+        Enabled = true,
+        Draggable = true,
+        OnlyMobile = false,
+        Scale = 0.5,
+        Color = ColorSequence.new(
+            Color3.fromHex("#FF0000"),  -- Red color for the open button
+            Color3.fromHex("#FF3333")   -- Lighter red for the button
+        ),
+    },
+    Topbar = {
+        Height = 44,
+        ButtonsType = "Mac", -- Mac style for the window
+    },
+    WindowTransparency = 1,  -- Fully transparent window
+    WindowBlur = true,  -- Enable blur for the frosted glass effect
+    WindowBackground = Color3.fromRGB(0, 0, 0),  -- Completely transparent with blur
+    BackgroundColor = Color3.fromRGB(0, 0, 0),  -- Dark black background for better contrast
+})
+
+-- Tags Section with High Contrast
+do
+    Window:Tag({
+        Title = "v1.6",
+        Icon = "",  -- No icon for the tag
+        Color = Color3.fromHex("#FF0000"),  -- Red color for version tag
+        Border = true,
+    })
+end
+
+-- Discord Integration with Glass Effect
+do
+    local InviteCode = "9X8qygcW"
+    local DiscordAPI = "https://discord.com/api/v10/invites/" .. InviteCode .. "?with_counts=true&with_expiration=true"
+
+    -- Send request to Discord API
+    local Response = HttpService:JSONDecode(
+        WindUI.Creator.Request and WindUI.Creator.Request({
+            Url = DiscordAPI,
+            Method = "GET",
+            Headers = {
+                ["User-Agent"] = "WindUI/Example",
+                ["Accept"] = "application/json",
+            },
+        }).Body or "{}"
+    )
+
+    -- Add a Discord Tab with Glass Effect
+    local DiscordTab = Window:Tab({
+        Title = "Discord",
+        Border = true,
+    })
+
+    -- If response is valid, display Discord info
+    if Response and Response.guild then
+        DiscordTab:Section({
+            Title = "Join our Discord server!",
+            TextSize = 20,
+        })
+
+        DiscordTab:Paragraph({
+            Title = tostring(Response.guild.name),
+            Desc = tostring(Response.guild.description),
+            Image = "https://cdn.discordapp.com/icons/"
+                .. Response.guild.id
+                .. "/"
+                .. Response.guild.icon
+                .. ".png?size=1024",  -- Display server icon
+            Thumbnail = "https://cdn.discordapp.com/banners/" .. Response.guild.id .. "/35981388401406a4b7dffd6f447a64c4.png?size=512", -- Banner Image
+            ImageSize = 48,
+            Buttons = {
+                {
+                    Title = "Copy link",
+                    Icon = "link",
+                    Callback = function()
+                        setclipboard("https://discord.gg/" .. InviteCode)  -- Copy the invite link
+                    end,
+                },
+            },
+        })
+    elseif RunService:IsStudio() or not writefile then
+        -- Display message for Studio Mode or when API is unavailable
+        DiscordTab:Paragraph({
+            Title = "Discord API is not available in Studio mode.",
+            TextSize = 20,
+            Justify = "Center",
+            Image = "solar:info-circle-bold",
+            Color = "Red",
+            Buttons = {
+                {
+                    Title = "Get/Copy Invite Link",
+                    Icon = "link",
+                    Callback = function()
+                        if setclipboard then
+                            setclipboard("https://discord.gg/" .. InviteCode)  -- Copy the invite link in Studio Mode
+                        else
+                            WindUI:Notify({
+                                Title = "Discord Invite Link",
+                                Content = "https://discord.gg/" .. InviteCode,
+                            })
+                        end
+                    end,
+                },
+            },
+        })
+    else
+        -- Display message when fetching Discord info fails
+        DiscordTab:Paragraph({
+            Title = "Failed to fetch Discord server info.",
+            TextSize = 20,
+            Justify = "Center",
+            Image = "solar:info-circle-bold",
+            Color = "Red",
+        })
+    end
+end
