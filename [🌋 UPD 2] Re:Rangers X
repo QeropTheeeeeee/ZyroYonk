@@ -1,0 +1,286 @@
+local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local player = Players.LocalPlayer
+local playerName = player.Name
+
+-- Detect executor
+local executor = "Unknown Executor"
+if identifyexecutor then
+    executor = identifyexecutor()
+end
+
+-- Window
+local Window = WindUI:CreateWindow({
+    Title = "[NEW] Brainrot Heroes 🏹",
+    Icon = "rocket",
+    Author = "ZyroYonk v0.2",
+    Folder = "ZyroYonkHub",
+    Size = UDim2.fromOffset(250,250),
+    Theme = "Midnight"
+})
+
+WindUI:Notify({
+    Title = "⚡ Executor Detected",
+    Content = "You are using: "..executor,
+    Duration = 5
+})
+
+local SpawnTab = Window:Tab({
+    Title = "Main",
+    Icon = "list"
+})
+
+SpawnTab:Section({
+    Title = "Main Features"
+})
+
+--------------------------------------------------
+-- VARIABLES
+--------------------------------------------------
+
+local AutoDeploy = false
+local AutoUpgrade = false
+local SpeedGamepass = false
+local VoteNext = false
+local VoteRetry = false
+
+-- Get all deployable units for the local player
+local function GetDeployableUnits()
+    local success, collectionFolder = pcall(function()
+        return ReplicatedStorage:WaitForChild("Player_Data")
+            :WaitForChild(playerName)
+            :WaitForChild("Collection")
+    end)
+    if not success or not collectionFolder then return {} end
+
+    local deployableUnits = {}
+    for _, unit in ipairs(collectionFolder:GetChildren()) do
+        -- Check if unit has a deployable instance (this usually works for any game)
+        if unit:IsA("Folder") or unit:IsA("Model") then
+            table.insert(deployableUnits, unit)
+        end
+    end
+    return deployableUnits
+end
+
+--------------------------------------------------
+-- AUTO DEPLOY
+--------------------------------------------------
+
+SpawnTab:Toggle({
+    Title = "Auto Deploy All Units",
+    Default = false,
+    Callback = function(state)
+        AutoDeploy = state
+
+        if state then
+            task.spawn(function()
+                while AutoDeploy do
+                    local units = GetDeployableUnits()
+                    for _, unit in ipairs(units) do
+                        local success, err = pcall(function()
+                            ReplicatedStorage:WaitForChild("Remote")
+                            :WaitForChild("Server")
+                            :WaitForChild("Units")
+                            :WaitForChild("Deployment")
+                            :FireServer(unit)
+                        end)
+                        if not success then
+                            warn("Failed to deploy unit:", unit.Name, err)
+                        end
+                    end
+                    task.wait(1) -- wait 1 second between loops
+                end
+            end)
+        end
+    end
+})
+
+--------------------------------------------------
+-- AUTO UPGRADE
+--------------------------------------------------
+
+SpawnTab:Toggle({
+    Title = "Auto Upgrade All Units",
+    Default = false,
+    Callback = function(state)
+        AutoUpgrade = state
+
+        if state then
+            task.spawn(function()
+                while AutoUpgrade do
+                    local units = GetDeployableUnits()
+                    for _, unit in ipairs(units) do
+                        local success, err = pcall(function()
+                            ReplicatedStorage:WaitForChild("Remote")
+                            :WaitForChild("Server")
+                            :WaitForChild("Units")
+                            :WaitForChild("Upgrade")
+                            :FireServer(unit)
+                        end)
+                        if not success then
+                            warn("Failed to upgrade unit:", unit.Name, err)
+                        end
+                    end
+                    task.wait(1)
+                end
+            end)
+        end
+    end
+})
+
+--------------------------------------------------
+-- VOTE NEXT TOGGLE
+--------------------------------------------------
+
+SpawnTab:Toggle({
+    Title = "Vote Next Game",
+    Default = false,
+    Callback = function(state)
+        VoteNext = state
+
+        if state then
+            task.spawn(function()
+                while VoteNext do
+                    local success, err = pcall(function()
+                        ReplicatedStorage:WaitForChild("Remote")
+                        :WaitForChild("Server")
+                        :WaitForChild("OnGame")
+                        :WaitForChild("Voting")
+                        :WaitForChild("VoteNext")
+                        :FireServer()
+                    end)
+                    if not success then
+                        warn("Failed to vote for next game:", err)
+                    end
+                    task.wait(10) -- wait 10 seconds before trying again (or adjust as needed)
+                end
+            end)
+        end
+    end
+})
+
+--------------------------------------------------
+-- VOTE RETRY TOGGLE
+--------------------------------------------------
+
+SpawnTab:Toggle({
+    Title = "Vote Retry Game",
+    Default = false,
+    Callback = function(state)
+        VoteRetry = state
+
+        if state then
+            task.spawn(function()
+                while VoteRetry do
+                    local success, err = pcall(function()
+                        ReplicatedStorage:WaitForChild("Remote")
+                        :WaitForChild("Server")
+                        :WaitForChild("OnGame")
+                        :WaitForChild("Voting")
+                        :WaitForChild("VoteRetry")
+                        :FireServer()
+                    end)
+                    if not success then
+                        warn("Failed to retry vote:", err)
+                    end
+                    task.wait(10) -- wait 10 seconds before trying again (or adjust as needed)
+                end
+            end)
+        end
+    end
+})
+
+--------------------------------------------------
+-- SPEED GAMEPASS TOGGLE
+--------------------------------------------------
+
+SpawnTab:Toggle({
+    Title = "Activate Speed Gamepass",
+    Default = false,
+    Callback = function(state)
+        SpeedGamepass = state
+
+        if state then
+            task.spawn(function()
+                while SpeedGamepass do
+                    -- Fire Speed Gamepass event with argument 2
+                    local success1, err1 = pcall(function()
+                        ReplicatedStorage:WaitForChild("Remote")
+                        :WaitForChild("SpeedGamepass")
+                        :FireServer(2)
+                    end)
+                    if not success1 then
+                        warn("Failed to activate Speed Gamepass (2):", err1)
+                    end
+
+                    -- Fire Speed Gamepass event with argument 3
+                    local success2, err2 = pcall(function()
+                        ReplicatedStorage:WaitForChild("Remote")
+                        :WaitForChild("SpeedGamepass")
+                        :FireServer(3)
+                    end)
+                    if not success2 then
+                        warn("Failed to activate Speed Gamepass (3):", err2)
+                    end
+
+                    task.wait(10) -- wait 10 seconds before trying again (or adjust as needed)
+                end
+            end)
+        end
+    end
+})
+
+-- Create Tab
+local MainTab = Window:Tab({
+    Title = "Support",
+    Icon = "heart"
+})
+
+-- Paragraph (THIS WILL SHOW)
+MainTab:Paragraph({
+    Title = "Support Our Project ❤️",
+    Desc = "If you enjoy using this Script, please join our Discord server. Your support helps us improve and create better scripts for everyone! And dont forget to follow my Rscript"
+})
+
+-- Copy Button
+MainTab:Button({
+    Title = "Copy Discord Link",
+    Callback = function()
+
+        local link = "https://discord.gg/R7KF6k4pn8"
+
+        if setclipboard then
+            setclipboard(link)
+        end
+
+        WindUI:Notify({
+            Title = "Link Copied ✅",
+            Content = "Thanks for supporting us! The link is now in your clipboard.",
+            Duration = 4
+        })
+
+    end
+})
+
+-- Copy Button
+MainTab:Button({
+    Title = "Copy Link To Follow My Rscript",
+    Callback = function()
+
+        local link = "https://rscripts.net/@ZyroYonk"
+
+        if setclipboard then
+            setclipboard(link)
+        end
+
+        WindUI:Notify({
+            Title = "Link Copied ✅",
+            Content = "Thanks for supporting us! The link is now in your clipboard.",
+            Duration = 4
+        })
+
+    end
+})
