@@ -1,0 +1,386 @@
+local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
+
+local Players = game:GetService("Players")
+local UIS = game:GetService("UserInputService")
+local HttpService = game:GetService("HttpService")
+
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local hrp = character:WaitForChild("HumanoidRootPart")
+local vim = game:GetService("VirtualInputManager")
+
+-------------------------------------------------
+-- VARIABLES
+-------------------------------------------------
+local guiVisible = false
+local WindowInstance
+
+local selectedDifficulty = nil
+local autoFarmRunning = false
+local autoUpgradeRunning = false
+local autoBaseRunning = false
+
+-------------------------------------------------
+-- DIFFICULTY MAP
+-------------------------------------------------
+local difficultyMap = {
+    ["Easy"] = workspace.Bases.Base1,
+    ["Normal"] = workspace.Bases.Base2,
+    ["Medium"] = workspace.Bases.Base3,
+    ["Hard"] = workspace.Bases.Base4,
+    ["Extreme"] = workspace.Bases.Base5,
+    ["Insane"] = workspace.Bases.Base6,
+    ["Nightmare"] = workspace.Bases.Base7,
+    ["Ultimate"] = workspace.Bases.Base8,
+    ["Pot Hotspot"] = workspace.Bases.Base9,
+    ["Pyramid"] = workspace.Bases.Base10,
+}
+
+-------------------------------------------------
+-- HOLD E FUNCTION
+-------------------------------------------------
+local function holdE()
+    vim:SendKeyEvent(true, Enum.KeyCode.E, false, game)
+    task.wait(0.1)
+    vim:SendKeyEvent(false, Enum.KeyCode.E, false, game)
+end
+
+-------------------------------------------------
+-- GET PLAYER PLOT
+-------------------------------------------------
+local function getMyPlot()
+    local closest, dist = nil, math.huge
+    for _, obj in pairs(workspace:GetChildren()) do
+        if obj.Name:match("^Plot_") and obj:FindFirstChild("Spawn") then
+            local d = (hrp.Position - obj.Spawn.Position).Magnitude
+            if d < dist then
+                dist = d
+                closest = obj
+            end
+        end
+    end
+    return closest
+end
+
+local function teleportPlot()
+    local plot = getMyPlot()
+    if plot then
+        hrp.CFrame = plot.Spawn.CFrame + Vector3.new(0,3,0)
+    end
+end
+
+-------------------------------------------------
+-- AUTO FARM LOOP (SLOT1 → SLOT10)
+-------------------------------------------------
+local function teleportAllSlots()
+    local base = difficultyMap[selectedDifficulty]
+    if not base then return end
+
+    local slots = base:FindFirstChild("Slots")
+    if not slots then return end
+
+    for i = 1, 10 do
+        if not autoFarmRunning then break end
+
+        local slot = slots:FindFirstChild("Slot"..i)
+        if slot and slot:FindFirstChild("Stand") then
+            local target = slot.Stand:GetChildren()[2]
+            if target then
+                hrp.CFrame = target.CFrame + Vector3.new(0,3,0)
+                task.wait(0.3)
+                holdE()
+                task.wait(0.2)
+                teleportPlot()
+                task.wait(0.5)
+            end
+        end
+    end
+end
+
+local function autoFarmLoop()
+    while autoFarmRunning do
+        teleportAllSlots()
+        task.wait(0.3)
+    end
+end
+
+-------------------------------------------------
+-- AUTO UPGRADE LOOP
+-------------------------------------------------
+local function autoUpgradeLoop()
+    while autoUpgradeRunning do
+        for i = 1, 10 do
+            game.ReplicatedStorage.Events.RequestFloorPurchase:FireServer("Floor"..i)
+            task.wait(0.5)
+        end
+        task.wait(1)
+    end
+end
+
+-------------------------------------------------
+-- AUTO BASE LOOP
+-------------------------------------------------
+local function autoBaseLoop()
+    while autoBaseRunning do
+        for i = 2, 10 do
+            game.ReplicatedStorage.Events.RequestBasePurchase:FireServer("Base"..i)
+            task.wait(0.5)
+        end
+        task.wait(1)
+    end
+end
+
+-------------------------------------------------
+-- GUI FUNCTION
+-------------------------------------------------
+local function showGUI()
+
+    local Window = WindUI:CreateWindow({
+        Title = "Steal The Brainrot Base",
+        Icon = "snowflake",
+        Author = "Credits : ZyroYonk",
+        Folder = "ZyroYonkHub",
+        Size = UDim2.fromOffset(270, 300),
+        Theme = "Red",
+
+        User = {
+            Enabled = true,
+            Anonymous = false,
+            Callback = function()
+                print("Profile clicked:", player.Name)
+            end,
+        },
+    })
+
+    WindowInstance = Window
+
+    -------------------------------------------------
+    -- TAGS
+    -------------------------------------------------
+    Window:Tag({
+        Title = "v0.0.1",
+        Icon = "star",
+        Color = Color3.fromRGB(255,221,0),
+        Position = UDim2.new(1,-5,0,5),
+        Size = UDim2.fromOffset(60,20)
+    })
+
+    Window:Tag({
+        Title = "Join Our Discord",
+        Icon = "heart",
+        Color = Color3.fromRGB(0,255,100),
+        Position = UDim2.new(1,-5,0,30),
+        Size = UDim2.fromOffset(120,20)
+    })
+
+    -------------------------------------------------
+    -- AUTO FARM TAB
+    -------------------------------------------------
+    local TabFarm = Window:Tab({Title="Auto Farm", Icon="zap"})
+
+    TabFarm:Dropdown({
+        Title="Difficulty",
+        Values={"Easy","Normal","Medium","Hard","Extreme","Insane","Nightmare","Ultimate","Pot Hotspot","Pyramid"},
+        Callback=function(v) selectedDifficulty=v end
+    })
+
+    TabFarm:Toggle({
+        Title="Auto Farm Brainrots",
+        Callback=function(state)
+            if state then
+                if not selectedDifficulty then return end
+                autoFarmRunning = true
+                task.spawn(autoFarmLoop)
+            else
+                autoFarmRunning = false
+            end
+        end
+    })
+
+    -------------------------------------------------
+    -- UPGRADE TAB
+    -------------------------------------------------
+    local TabUp = Window:Tab({Title="Auto Upgrade", Icon="list"})
+
+    TabUp:Toggle({
+        Title="Auto Upgrade Floors",
+        Callback=function(s)
+            autoUpgradeRunning=s
+            if s then task.spawn(autoUpgradeLoop) end
+        end
+    })
+
+    TabUp:Toggle({
+        Title="Auto Upgrade Bases",
+        Callback=function(s)
+            autoBaseRunning=s
+            if s then task.spawn(autoBaseLoop) end
+        end
+    })
+
+    -------------------------------------------------
+    -- ❤️ SUPPORT TAB (DISCORD + COUNTDOWN)
+    -------------------------------------------------
+    local InviteCode = "9X8qygcW"
+    local API = "https://discord.com/api/v10/invites/"..InviteCode.."?with_counts=true"
+
+    local SupportTab = Window:Tab({Title="Support", Icon="heart"})
+
+    SupportTab:Section({
+        Title = "Support the Script ❤️",
+        Desc = "Join our Discord and stay updated!"
+    })
+
+    local data
+    pcall(function()
+        data = HttpService:JSONDecode(game:HttpGet(API))
+    end)
+
+    if data and data.guild then
+        SupportTab:Paragraph({
+            Title = data.guild.name,
+            Desc = data.guild.description or "No description",
+            Image = "https://cdn.discordapp.com/icons/"..data.guild.id.."/"..data.guild.icon..".png?size=1024",
+            ImageSize = 48,
+            Buttons = {
+                {
+                    Title = "Copy Invite",
+                    Callback = function()
+                        if setclipboard then
+                            setclipboard("https://discord.gg/"..InviteCode)
+                            WindUI:Notify({
+                                Title="Copied!",
+                                Content="Discord invite copied",
+                                Duration=3
+                            })
+                        end
+                    end
+                }
+            }
+        })
+    else
+        SupportTab:Paragraph({
+            Title = "ZyroYonk Community",
+            Desc = "https://discord.gg/"..InviteCode
+        })
+    end
+
+    -------------------------------------------------
+    -- SUPPORTED GAMES
+    -------------------------------------------------
+    SupportTab:Paragraph({
+        Title="Supported Games",
+        Desc=[[
+• Spin A Brainrots
+• Sails For Brainrots
+• Jump To Steal Lucky Block
+• Grow Big Every Seconds
+• Spin A Soccer For Brainrot
+• Survive Lava For Brainrot
+• Swing For Brainrot
+• Untitled Melee Rng
+• Brainrots Heroes
+• Re:Rangers X
+        ]]
+    })
+
+    -------------------------------------------------
+    -- ⏳ 12H COUNTDOWN (WAIT FOR UPDATE)
+    -------------------------------------------------
+    local countdownSeconds = 12 * 60 * 60 -- 12 hours
+
+    local TimerParagraph = SupportTab:Paragraph({
+        Title = "⏳ Next Update Countdown",
+        Desc = "Wait for the next update…"
+    })
+
+    local function formatTime(sec)
+        local h = math.floor(sec / 3600)
+        local m = math.floor((sec % 3600) / 60)
+        local s = sec % 60
+        return string.format("%02d:%02d:%02d", h, m, s)
+    end
+
+    task.spawn(function()
+        local timeLeft = countdownSeconds
+        while timeLeft > 0 do
+            TimerParagraph:Set({
+                Title = "⏳ Next Update Countdown",
+                Desc = "Next update will be uploaded in: " .. formatTime(timeLeft) .. "\nJoin our Discord to be notified!"
+            })
+            task.wait(1)
+            timeLeft -= 1
+        end
+
+        TimerParagraph:Set({
+            Title = "🎉 Update Released!",
+            Desc = "The new update has been uploaded!\nCheck Discord for details."
+        })
+
+        WindUI:Notify({
+            Title = "Update Released!",
+            Content = "The new update is live 🚀 Join Discord to see it!",
+            Duration = 5
+        })
+    end)
+
+    -------------------------------------------------
+    -- UPDATE INFO PARAGRAPH
+    -------------------------------------------------
+    SupportTab:Paragraph({
+        Title = "📢 Update Info",
+        Desc = [[
+I’m actively working on new features and improvements 🔥
+
+• Auto systems getting faster
+• More supported games coming
+• UI upgrades and smooth performance
+
+⏳ Next update will be uploaded when the timer reaches zero.
+Join our Discord to be notified instantly!
+        ]]
+    })
+
+    guiVisible = true
+end
+
+-------------------------------------------------
+-- TOGGLE GUI (RIGHT CTRL)
+-------------------------------------------------
+UIS.InputBegan:Connect(function(i,g)
+    if g then return end
+    if i.KeyCode==Enum.KeyCode.RightControl then
+        if WindowInstance then
+            guiVisible = not guiVisible
+            WindowInstance:Toggle(guiVisible)
+        end
+    end
+end)
+
+-------------------------------------------------
+-- POPUP BEFORE GUI
+-------------------------------------------------
+WindUI:Popup({
+    Title = "Click Continue for Full Features",
+    Icon = "solar:check-circle-bold",
+    Content = "Get access to all features of ZyroYonk Hub and start using it right away! Its Keyless So Safe ",
+    Buttons = {
+        {
+            Title = "Cancel",
+            Callback = function()
+                print("Cancel button clicked.")
+            end,
+            Variant = "Tertiary",
+            Color = Color3.fromRGB(255, 0, 0) -- Red color for Cancel button
+        },
+        {
+            Title = "Continue",
+            Icon = "arrow-right",
+            Callback = function()
+                showGUI()
+            end,
+            Variant = "Primary",
+            Color = Color3.fromRGB(255, 0, 0) -- Red color for Continue button
+        }
+    }
+})
