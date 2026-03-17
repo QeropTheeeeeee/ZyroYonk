@@ -1,0 +1,436 @@
+local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
+
+local Players = game:GetService("Players")
+local HttpService = game:GetService("HttpService")
+local RunService = game:GetService("RunService")
+
+local player = Players.LocalPlayer
+local playerName = player.Name
+
+-- Detect executor
+local executor = "Unknown Executor"
+if identifyexecutor then
+    executor = identifyexecutor()
+end
+
+-------------------------------------------------
+-- MAIN GUI
+-------------------------------------------------
+local function showGUI()
+
+    local Window = WindUI:CreateWindow({
+        Title = "ZyroYonk Hub",
+        Icon = "snowflake",
+        Author = "ZyroYonk",
+        Folder = "ZyroYonkHub",
+        Size = UDim2.fromOffset(270,300),
+        Theme = "Red",
+
+        User = {
+            Enabled = true,
+            Anonymous = false,
+            Callback = function()
+                print("Profile clicked:", player.Name)
+            end,
+        },
+    })
+
+    -------------------------------------------------
+    -- VERSION TAG
+    -------------------------------------------------
+    Window:Tag({
+        Title = "v0.0.1",
+        Icon = "star",
+        Color = Color3.fromRGB(255, 221, 0),
+        Position = UDim2.new(1, -5, 0, 5),
+        Size = UDim2.fromOffset(60, 20)
+    })
+
+	-------------------------------------------------
+    -- VERSION TAG
+    -------------------------------------------------
+    Window:Tag({
+        Title = "Join Our Discord",
+        Icon = "heart",
+        Color = Color3.fromRGB(15, 255, 80),
+        Position = UDim2.new(1, -5, 0, 5),
+        Size = UDim2.fromOffset(60, 20)
+    })
+
+
+-------------------------------------------------
+-- AUTO SATCHEL & ACTION TAB
+-------------------------------------------------
+local SatchelTab = Window:Tab({
+    Title = "Auto Upgrade",
+    Icon = "building",
+})
+
+-------------------------------------------------
+-- VARIABLES
+-------------------------------------------------
+local autoSatchel = false
+local autoActionOld = false
+local autoActionAlt = false
+local autoActionNew = false
+local autoRebirth = false
+local autoFloorAction = false
+
+-------------------------------------------------
+-- REMOTE
+-------------------------------------------------
+local remote = game:GetService("ReplicatedStorage")
+    :WaitForChild("Modules")
+    :WaitForChild("Packets")
+    :WaitForChild("Packet")
+    :WaitForChild("RemoteEvent")
+
+-------------------------------------------------
+-- FUNCTIONS
+-------------------------------------------------
+local function fireSatchel()
+    remote:FireServer(buffer.fromstring("\"\028\v\006Source\v\016SatchelEquipBest\000"))
+    remote:FireServer(buffer.fromstring("\018\028\v\006Action\v\fRequestState\000"))
+end
+
+local function fireActionOld()
+    remote:FireServer(buffer.fromstring("\018\005\005"))
+    remote:FireServer(buffer.fromstring("\018\028\v\006Action\v\fRequestState\000"))
+end
+
+local function fireActionAlt()
+    remote:FireServer(buffer.fromstring("\018\005\001"))
+    remote:FireServer(buffer.fromstring("\018\028\v\006Action\v\fRequestState\000"))
+end
+
+local function fireActionNew()
+    remote:FireServer(buffer.fromstring("\018\005\004"))
+    remote:FireServer(buffer.fromstring("\018\028\v\006Action\v\fRequestState\000"))
+end
+
+local function fireRebirth()
+    -- Rebirth
+    remote:FireServer(buffer.fromstring("\022\028\v\006Action\v\aRebirth\000"))
+
+    -- Multiple state syncs (your full script)
+    remote:FireServer(buffer.fromstring("\018\028\v\006Action\v\fRequestState\000"))
+    remote:FireServer(buffer.fromstring("\018\028\v\006Action\v\fRequestState\000\018\028\v\006Action\v\fRequestState\000"))
+    remote:FireServer(buffer.fromstring("$\028\v\006Action\v\fRequestState\000\018\028\v\006Action\v\fRequestState\000#\v\004Sync\029\v\004Sync\028\000#\v\004Sync"))
+end
+
+local function fireFloorAction()
+    remote:FireServer(buffer.fromstring(" \028\v\005Floor\005\002\000"))
+    remote:FireServer(buffer.fromstring("\018\028\v\006Action\v\fRequestState\000"))
+end
+
+-------------------------------------------------
+-- TOGGLES
+-------------------------------------------------
+SatchelTab:Toggle({
+    Title = "Auto Equip Best",
+    Callback = function(state)
+        autoSatchel = state
+        if state then
+            task.spawn(function()
+                while autoSatchel do
+                    pcall(fireSatchel)
+                    task.wait(1)
+                end
+            end)
+        end
+    end
+})
+
+SatchelTab:Toggle({
+    Title = "Auto Upgrade Size",
+    Callback = function(state)
+        autoActionOld = state
+        if state then
+            task.spawn(function()
+                while autoActionOld do
+                    pcall(fireActionOld)
+                    task.wait(1)
+                end
+            end)
+        end
+    end
+})
+
+SatchelTab:Toggle({
+    Title = "Auto Upgrade Speed",
+    Callback = function(state)
+        autoActionAlt = state
+        if state then
+            task.spawn(function()
+                while autoActionAlt do
+                    pcall(fireActionAlt)
+                    task.wait(1)
+                end
+            end)
+        end
+    end
+})
+
+SatchelTab:Toggle({
+    Title = "Auto Upgrade Speed 5",
+    Callback = function(state)
+        autoActionNew = state
+        if state then
+            task.spawn(function()
+                while autoActionNew do
+                    pcall(fireActionNew)
+                    task.wait(1)
+                end
+            end)
+        end
+    end
+})
+
+SatchelTab:Toggle({
+    Title = "Auto Rebirth",
+    Callback = function(state)
+        autoRebirth = state
+        if state then
+            task.spawn(function()
+                while autoRebirth do
+                    pcall(fireRebirth)
+                    task.wait(2) -- slower to avoid spam issues
+                end
+            end)
+        end
+    end
+})
+
+SatchelTab:Toggle({
+    Title = "Auto Buy Floor",
+    Callback = function(state)
+        autoFloorAction = state
+        if state then
+            task.spawn(function()
+                while autoFloorAction do
+                    pcall(fireFloorAction)
+                    task.wait(1) -- 1-second delay
+                end
+            end)
+        end
+    end
+})
+    -------------------------------------------------
+    -- AUTO FARM TAB
+    -------------------------------------------------
+    local FarmTab = Window:Tab({
+        Title = "Auto Farm Brainrots",
+        Icon = "repeat",
+    })
+
+    local selectedZone = nil
+    local selectedPlot = nil
+    local farming = false
+
+    local world = workspace:WaitForChild("_WorldVehicles")
+    local plots = workspace:WaitForChild("Plots")
+
+    local zones = {
+        Common = world:WaitForChild("CommonZone"),
+        Uncommon = world:WaitForChild("UncommonZone"),
+        Rare = world:WaitForChild("RareZone"),
+        Epic = world:WaitForChild("EpicZone"),
+        Legendary = world:WaitForChild("LegendaryZone"),
+        Mythical = world:WaitForChild("MythicalZone"),
+        Secret = world:WaitForChild("SecretZone"),
+        Divine = world:WaitForChild("DivineZone"),
+        Godly = world:WaitForChild("GodlyZone"),
+    }
+
+    local plotList = {
+        ["Plot 1"] = "1",
+        ["Plot 2"] = "2",
+        ["Plot 3"] = "3",
+        ["Plot 4"] = "4",
+        ["Plot 5"] = "5",
+    }
+
+    local function holdE(prompt, duration)
+        prompt:InputHoldBegin()
+        task.wait(duration)
+        prompt:InputHoldEnd()
+    end
+
+    local function getHRP()
+        local char = player.Character or player.CharacterAdded:Wait()
+        return char:WaitForChild("HumanoidRootPart")
+    end
+
+    local function getTarget(zone)
+        for _, child in ipairs(zone:GetChildren()) do
+            if child:IsA("BasePart") then
+                return child
+            elseif child:IsA("Model") then
+                for _, v in ipairs(child:GetChildren()) do
+                    if v:IsA("BasePart") then
+                        return v
+                    end
+                end
+            end
+        end
+    end
+
+    local function collect()
+        local zone = zones[selectedZone]
+        local plotId = plotList[selectedPlot]
+
+        if not zone or not plotId then return end
+
+        local hrp = getHRP()
+        local target = getTarget(zone)
+        local returnPart = plots[plotId].Multipliers
+
+        if target then
+            hrp.CFrame = target.CFrame + Vector3.new(0,3,0)
+            RunService.RenderStepped:Wait()
+            task.wait(0.5)
+
+            local prompt = target:FindFirstChildWhichIsA("ProximityPrompt")
+            if prompt then
+                holdE(prompt, 0.6)
+
+                if returnPart then
+                    hrp.CFrame = returnPart.CFrame + Vector3.new(0,3,0)
+                end
+            end
+        end
+    end
+
+    FarmTab:Dropdown({
+        Title = "Select Zone",
+        Values = {
+            "Common","Uncommon","Rare","Epic",
+            "Legendary","Mythical","Secret","Divine","Godly"
+        },
+        Callback = function(value)
+            selectedZone = value
+        end
+    })
+
+    FarmTab:Dropdown({
+        Title = "Select Plot",
+        Values = {
+            "Plot 1","Plot 2","Plot 3","Plot 4","Plot 5"
+        },
+        Callback = function(value)
+            selectedPlot = value
+        end
+    })
+
+    FarmTab:Toggle({
+        Title = "Start Auto Farm",
+        Desc = "Requires Zone + Plot selected",
+        Callback = function(state)
+
+            if state and (not selectedZone or not selectedPlot) then
+                WindUI:Notify({
+                    Title = "Missing Selection!",
+                    Content = "Select BOTH Zone and Plot first.",
+                    Duration = 4
+                })
+                return
+            end
+
+            farming = state
+
+            if farming then
+                task.spawn(function()
+                    while farming do
+                        pcall(collect)
+                        task.wait(0.5)
+                    end
+                end)
+            end
+        end
+    })
+
+    -------------------------------------------------
+    -- SUPPORT TAB (DISCORD RESTORED)
+    -------------------------------------------------
+    local InviteCode = "9X8qygcW"
+    local DiscordAPI = "https://discord.com/api/v10/invites/"..InviteCode.."?with_counts=true&with_expiration=true"
+
+    local SupportTab = Window:Tab({
+        Title = "Support",
+        Icon = "heart",
+    })
+
+    SupportTab:Section({
+        Title = "Support the Script ❤️",
+        Desc = "Join our Discord and stay updated!"
+    })
+
+    do
+        local Response = HttpService:JSONDecode(
+            WindUI.Creator.Request and WindUI.Creator.Request({
+                Url = DiscordAPI,
+                Method = "GET",
+                Headers = {
+                    ["User-Agent"] = "WindUI",
+                    ["Accept"] = "application/json",
+                },
+            }).Body or "{}"
+        )
+
+        if Response and Response.guild then
+            SupportTab:Paragraph({
+                Title = tostring(Response.guild.name),
+                Desc = tostring(Response.guild.description),
+                Image = "https://cdn.discordapp.com/icons/"
+                    .. Response.guild.id
+                    .. "/"
+                    .. Response.guild.icon
+                    .. ".png?size=1024",
+                ImageSize = 48,
+                Buttons = {
+                    {
+                        Title = "Copy Invite",
+                        Callback = function()
+                            if setclipboard then
+                                setclipboard("https://discord.gg/"..InviteCode)
+                                WindUI:Notify({
+                                    Title = "Copied!",
+                                    Content = "Discord invite copied.",
+                                    Duration = 3
+                                })
+                            end
+                        end,
+                    }
+                }
+            })
+        end
+    end
+end
+
+-------------------------------------------------
+-- POPUP BEFORE GUI
+-------------------------------------------------
+WindUI:Popup({
+    Title = "Click Continue for Full Features",
+    Icon = "solar:check-circle-bold",
+    Content = "Get access to all features of ZyroYonk Hub and start using it right away! Its Keyless So Safe ",
+    Buttons = {
+        {
+            Title = "Cancel",
+            Callback = function()
+                print("Cancel button clicked.")
+            end,
+            Variant = "Tertiary",
+            Color = Color3.fromRGB(255, 0, 0) -- Red color for Cancel button
+        },
+        {
+            Title = "Continue",
+            Icon = "arrow-right",
+            Callback = function()
+                showGUI()
+            end,
+            Variant = "Primary",
+            Color = Color3.fromRGB(255, 0, 0) -- Red color for Continue button
+        }
+    }
+})
