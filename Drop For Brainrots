@@ -1,0 +1,371 @@
+local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
+
+local Players = game:GetService("Players")
+local HttpService = game:GetService("HttpService")
+local UIS = game:GetService("UserInputService")
+
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
+
+-------------------------------------------------
+-- VARIABLES
+-------------------------------------------------
+local guiVisible = false
+local WindowInstance = nil
+
+local brainrotsFolder = workspace:WaitForChild("BrainrotsOnMap")
+
+local selectedBrainrots = {}  
+local brainrotLoop = false
+
+-- ✅ UPDATED brainrot list
+local brainrotList = {
+    "Dragon Cannelloni",
+    "La Grande Combinasion",
+    "Esok Sekola",               -- New brainrot added
+    "Job job job Sahur",         -- New brainrot added
+    "Skibidi Toilet",            -- New brainrot added
+    "Chicleteira Bicicleteira",  -- New brainrot added
+    "Graipussi Medussi",         -- New brainrot added
+    "Starberry Elephant"         -- New brainrot added
+}
+
+-- Auto Collect Variables
+local autoCollect = false
+local selectedPlot = "Plot1"  -- Default Plot
+
+-- Function to teleport to the collector part in the selected plot
+local function teleportToPodium(plotName)
+    local plot = workspace.Plots:WaitForChild(plotName)
+    if plot then
+        local podiums = plot:FindFirstChild("Podiums")
+        if podiums then
+            for i = 1, 30 do
+                local podium = podiums:FindFirstChild("Podium" .. i)
+                if podium then
+                    local collectorPart = podium:FindFirstChild("CollectorPart")
+                    if collectorPart then
+                        game:GetService("Players").LocalPlayer.Character:WaitForChild("HumanoidRootPart").CFrame = collectorPart.CFrame + Vector3.new(0, 3, 0)
+                        task.wait(0.2) -- Prevent spam teleporting
+                    end
+                end
+            end
+        end
+    end
+end
+
+-- Function to auto collect from the selected plot's podiums
+local function autoCollectMoney()
+    while autoCollect do
+        teleportToPodium(selectedPlot)
+        task.wait(1) -- Loop delay (adjust if you want faster collection)
+    end
+end
+
+-------------------------------------------------
+-- FUNCTIONS (Brainrot Farming)
+-------------------------------------------------
+local function getPart(obj)
+    if obj:IsA("BasePart") then
+        return obj
+    elseif obj:IsA("Model") then
+        return obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart")
+    else
+        return obj:FindFirstChildWhichIsA("BasePart", true)
+    end
+end
+
+local function teleportTo(part)
+    humanoidRootPart.CFrame = part.CFrame + Vector3.new(0, 3, 0)
+end
+
+local function holdE()
+    local vim = game:GetService("VirtualInputManager")
+    vim:SendKeyEvent(true, Enum.KeyCode.E, false, game)
+    task.wait(0.6)
+    vim:SendKeyEvent(false, Enum.KeyCode.E, false, game)
+end
+
+local function claimBrainrot()
+    game:GetService("ReplicatedStorage")
+        :WaitForChild("Remotes")
+        :WaitForChild("Gameplay")
+        :WaitForChild("CarryUIEvent")
+        :FireServer("Claim")
+end
+
+local function farmBrainrot()
+    while brainrotLoop do
+        for _, name in pairs(selectedBrainrots) do
+            if not brainrotLoop then break end
+
+            local target = brainrotsFolder:FindFirstChild(name)
+
+            if target then
+                local part = getPart(target)
+                if part then
+                    teleportTo(part)
+                    task.wait(1)
+                    holdE()
+                    claimBrainrot()
+                    task.wait(1)
+                end
+            end
+        end
+        task.wait(0.5)
+    end
+end
+
+-------------------------------------------------
+-- GUI: Adding the Plot Dropdown, Auto Collect, and Auto Farm Toggles
+-------------------------------------------------
+local function showGUI()
+
+    -- MAIN GUI
+    local Window = WindUI:CreateWindow({
+        Title = "Drop For Brainrots",
+        Icon = "snowflake",
+        Author = "Credits : ZyroYonk",
+        Folder = "ZyroYonkHub",
+        Size = UDim2.fromOffset(270, 300),
+        Theme = "Red",
+
+        User = {
+            Enabled = true,
+            Anonymous = false,
+            Callback = function()
+                print("Profile clicked:", player.Name)
+            end,
+        },
+    })
+
+    -------------------------------------------------
+    -- VERSION TAGS
+    -------------------------------------------------
+    Window:Tag({
+        Title = "v0.0.1",
+        Icon = "star",
+        Color = Color3.fromRGB(255, 221, 0),
+        Position = UDim2.new(1, -5, 0, 5),
+        Size = UDim2.fromOffset(60, 20)
+    })
+
+    Window:Tag({
+        Title = "Join Our Discord",
+        Icon = "heart",
+        Color = Color3.fromRGB(15, 255, 80),
+        Position = UDim2.new(1, -5, 0, 5),
+        Size = UDim2.fromOffset(60, 20)
+    })
+
+    -------------------------------------------------
+    -- 🧠 BRAINROT TAB
+    -------------------------------------------------
+    local BrainrotTab = Window:Tab({
+        Title = "Brainrots",
+        Icon = "zap",
+    })
+
+    BrainrotTab:Section({
+        Title = "Auto Brainrot Farm",
+        Desc = "Select and auto farm brainrots"
+    })
+
+    BrainrotTab:Dropdown({
+        Title = "Select Brainrots",
+        Values = brainrotList,
+        Multi = true,
+        Callback = function(values)
+            selectedBrainrots = values
+        end
+    })
+
+    BrainrotTab:Toggle({
+        Title = "Auto Farm",
+        Callback = function(state)
+            brainrotLoop = state
+            if state then task.spawn(farmBrainrot) end
+        end
+    })
+
+    -------------------------------------------------
+    -- ⚙️ UPGRADE TAB
+    -------------------------------------------------
+    local UpgradeTab = Window:Tab({
+        Title = "Upgrades",
+        Icon = "settings",
+    })
+
+    UpgradeTab:Section({
+        Title = "Auto Upgrades",
+        Desc = "Automatically upgrade everything"
+    })
+
+    -- Auto Collect Toggle
+    UpgradeTab:Toggle({
+        Title = "Auto Collect Money",
+        Callback = function(state)
+            autoCollect = state
+            if state then
+                task.spawn(autoCollectMoney)
+            end
+        end
+    })
+
+    -- Plot selection dropdown (Plot1 to Plot4)
+    UpgradeTab:Dropdown({
+        Title = "Select Plot",
+        Values = {"Plot1", "Plot2", "Plot3", "Plot4"},  -- Only allowing Plot1 to Plot4
+        Callback = function(value)
+            selectedPlot = value
+        end
+    })
+
+    -- Other Auto Upgrade Toggles (if necessary, adjust)
+    UpgradeTab:Toggle({
+        Title = "Auto Upgrade Plot",
+        Callback = function(state)
+            autoPlot = state
+            if state then task.spawn(autoPlotUpgrade) end
+        end
+    })
+
+    UpgradeTab:Toggle({
+        Title = "Auto Upgrade Speed",
+        Callback = function(state)
+            autoSpeed = state
+            if state then task.spawn(autoSpeedUpgrade) end
+        end
+    })
+
+    UpgradeTab:Toggle({
+        Title = "Auto Upgrade Carry",
+        Callback = function(state)
+            autoCarry = state
+            if state then task.spawn(autoCarryUpgrade) end
+        end
+    })
+
+    UpgradeTab:Toggle({
+        Title = "Auto Rebirth",
+        Callback = function(state)
+            autoRebirth = state
+            if state then task.spawn(autoRebirthFunc) end
+        end
+    })
+
+    -------------------------------------------------
+    -- ❤️ SUPPORT TAB
+    -------------------------------------------------
+    local InviteCode = "9X8qygcW"
+    local DiscordAPI = "https://discord.com/api/v10/invites/"..InviteCode.."?with_counts=true&with_expiration=true"
+
+    local SupportTab = Window:Tab({
+        Title = "Support",
+        Icon = "heart",
+    })
+
+    SupportTab:Section({
+        Title = "Support the Script ❤️",
+        Desc = "Join our Discord and stay updated!"
+    })
+
+    do
+        local Response = HttpService:JSONDecode(
+            WindUI.Creator.Request and WindUI.Creator.Request({
+                Url = DiscordAPI,
+                Method = "GET",
+                Headers = {
+                    ["User-Agent"] = "WindUI",
+                    ["Accept"] = "application/json",
+                },
+            }).Body or "{}"
+        )
+
+        if Response and Response.guild then
+            SupportTab:Paragraph({
+                Title = tostring(Response.guild.name),
+                Desc = tostring(Response.guild.description),
+                Image = "https://cdn.discordapp.com/icons/"
+                    .. Response.guild.id
+                    .. "/"
+                    .. Response.guild.icon
+                    .. ".png?size=1024",
+                ImageSize = 48,
+                Buttons = {
+                    {
+                        Title = "Copy Invite",
+                        Callback = function()
+                            if setclipboard then
+                                setclipboard("https://discord.gg/"..InviteCode)
+                                WindUI:Notify({
+                                    Title = "Copied!",
+                                    Content = "Discord invite copied.",
+                                    Duration = 3
+                                })
+                            end
+                        end,
+                        Color = Color3.fromRGB(255, 0, 0), -- Red color
+                        HoverColor = Color3.fromRGB(255, 85, 85) -- Light red hover effect
+                    }
+                }
+            })
+        end
+    end
+
+    -- Adding ZyroYonk Supported Games to Support Tab with Bullet Points
+    SupportTab:Paragraph({
+        Title = "ZyroYonk Supported Games",
+        Desc = [[
+• Spin A Brainrots 
+• Sails For Brainrots 
+• Jump To Steal Lucky Block 
+• Grow Big Every Seconds 
+• Spin A Soccer For Brainrot 
+• Survive Lava For Brainrot 
+• Swing For Brainrot 
+• Untitled Melee Rng 
+• [ NEW ] Brainrots Heroes 
+• [🌋 UPD 2] Re:Rangers X
+        ]]
+    })
+
+    guiVisible = true
+end
+
+-------------------------------------------------
+-- TOGGLE KEY
+-------------------------------------------------
+UIS.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+
+    if input.KeyCode == Enum.KeyCode.RightControl then
+        if WindowInstance then
+            guiVisible = not guiVisible
+            WindowInstance:Toggle(guiVisible)
+        end
+    end
+end)
+
+-------------------------------------------------
+-- POPUP
+-------------------------------------------------
+WindUI:Popup({
+    Title = "Click Continue",
+    Content = "Open ZyroYonk Hub",
+    Buttons = {
+        {
+            Title = "Cancel",
+            Callback = function()
+                print("Cancelled")
+            end
+        },
+        {
+            Title = "Continue",
+            Callback = function()
+                showGUI()
+            end
+        }
+    }
+})
