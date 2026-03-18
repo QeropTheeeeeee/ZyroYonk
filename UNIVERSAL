@@ -1,0 +1,11 @@
+local scripts = {
+    [82397737462020] = "https://pastefy.app/script1/raw",
+}
+
+local url = scripts[game.PlaceId]
+
+if url then
+    loadstring(game:HttpGet(url))()
+else
+    warn("Unsupported game")
+end
