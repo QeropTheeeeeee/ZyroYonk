@@ -1,0 +1,561 @@
+local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local player = Players.LocalPlayer
+
+local executor = "Unknown Executor"
+if identifyexecutor then
+    executor = identifyexecutor()
+end
+
+-------------------------------------------------
+-- TELEPORT FUNCTION
+-------------------------------------------------
+local function teleportToPlot(plotName)
+    local character = player.Character or player.CharacterAdded:Wait()
+    local root = character:WaitForChild("HumanoidRootPart", 10)
+    if not root then return end
+
+    local plot = workspace:WaitForChild("Plots"):WaitForChild(plotName)
+
+    local targetCFrame
+    for _, v in pairs(plot:GetDescendants()) do
+        if v:IsA("BasePart") then
+            targetCFrame = v.CFrame + Vector3.new(0, 5, 0)
+            break
+        end
+    end
+
+    if targetCFrame then
+        root.CFrame = targetCFrame
+    end
+end
+
+-------------------------------------------------
+-- MAIN GUI
+-------------------------------------------------
+local function showGUI()
+    local Window = WindUI:CreateWindow({
+        Title = "ZyroYonk Hub",
+        Icon = "snowflake",
+        Author = "ZyroYonk",
+        Folder = "ZyroYonkHub",
+        Size = UDim2.fromOffset(270, 300),
+        Theme = "Red",
+        User = {
+            Enabled = true,
+            Anonymous = false,
+            Callback = function()
+                print("Profile clicked:", player.Name)
+            end,
+        },
+    })
+
+    Window:Tag({
+        Title = "v0.0.1",
+        Icon = "star",
+        Color = Color3.fromRGB(255, 221, 0),
+        Position = UDim2.new(1, -5, 0, 5),
+        Size = UDim2.fromOffset(60, 20)
+    })
+
+    Window:Tag({
+        Title = "Join Our Discord",
+        Icon = "heart",
+        Color = Color3.fromRGB(15, 255, 80),
+        Position = UDim2.new(1, -5, 0, 5),
+        Size = UDim2.fromOffset(60, 20)
+    })
+
+    -------------------------------------------------
+    -- TAB: AUTO COLLECT + TELEPORT
+    -------------------------------------------------
+    local FarmTab = Window:Tab({
+        Title = "Auto Farm",
+        Icon = "map-pin",
+    })
+
+    FarmTab:Paragraph({
+        Title = "Reminder Kindly Read To Understand",
+        Desc = "It Functional First Move And Go Wait The Noob Collect You And Select to it and on the toggle they Automaticly Farming Special Etc Any Rarity You Select Join Our Discord To Update More",
+    })
+
+    local selectedPlot = "1"
+    local selectedBase = "base1"
+    local autoEnabled = false
+
+    -- Plot dropdown 1-5
+    FarmTab:Dropdown({
+        Title = "Select Plot",
+        Description = "Teleport to this plot after collected",
+        Values = { "1", "2", "3", "4", "5" },
+        Multi = false,
+        Default = "1",
+        Callback = function(selected)
+            selectedPlot = selected
+        end,
+    })
+
+    -- Base dropdown base1-base13
+    local baseValues = {}
+    for i = 1, 13 do
+        table.insert(baseValues, "base" .. i)
+    end
+
+    FarmTab:Dropdown({
+        Title = "Select Lucky Block",
+        Description = "Which lucky block to open after collected",
+        Values = baseValues,
+        Multi = false,
+        Default = "base1",
+        Callback = function(selected)
+            selectedBase = selected
+        end,
+    })
+
+    -- Connect ONCE outside the toggle so it never stacks
+    player.CharacterAdded:Connect(function(character)
+        if not autoEnabled then return end
+
+        -- Wait for character to fully load
+        local humanoid = character:WaitForChild("Humanoid", 10)
+        local root = character:WaitForChild("HumanoidRootPart", 10)
+        if not humanoid or not root then return end
+
+        -- Wait for humanoid to be fully alive
+        humanoid.StateChanged:Wait()
+        task.wait(2)   -- smooth delay before firing remote
+
+        pcall(function()
+            ReplicatedStorage
+                :WaitForChild("Packages")
+                :WaitForChild("_Index")
+                :WaitForChild("sleitnick_knit@1.7.0")
+                :WaitForChild("knit")
+                :WaitForChild("Services")
+                :WaitForChild("RunningService")
+                :WaitForChild("RF")
+                :WaitForChild("OpenLuckyBlock")
+                :InvokeServer(selectedBase)
+        end)
+
+        task.wait(1.5) -- smooth delay before teleporting
+
+        teleportToPlot(selectedPlot)
+    end)
+
+    FarmTab:Toggle({
+        Title = "Auto Collect + Teleport",
+        Description = "Detects when collected -> opens block -> teleports plot",
+        Default = false,
+        Callback = function(state)
+            autoEnabled = state
+        end,
+    })
+
+    FarmTab:Button({
+        Title = "Reset Character",
+        Description = "Respawns your character",
+        Callback = function()
+            player.Character:FindFirstChildOfClass("Humanoid").Health = 0
+        end,
+    })
+
+    -------------------------------------------------
+    -- TAB: AUTO UPGRADE
+    -------------------------------------------------
+    local UpgradeTab = Window:Tab({
+        Title = "Auto Upgrade",
+        Icon = "star",
+    })
+
+    local rebirthEnabled = false
+    local placeBestEnabled = false
+    local upgradeSpeedEnabled = false
+
+    local RF = ReplicatedStorage
+        :WaitForChild("Packages")
+        :WaitForChild("_Index")
+        :WaitForChild("sleitnick_knit@1.7.0")
+        :WaitForChild("knit")
+        :WaitForChild("Services")
+
+    -- Auto Rebirth
+    UpgradeTab:Toggle({
+        Title = "Auto Rebirth",
+        Description = "Automatically rebirths as fast as possible",
+        Default = false,
+        Callback = function(state)
+            rebirthEnabled = state
+            if state then
+                task.spawn(function()
+                    while rebirthEnabled do
+                        pcall(function()
+                            RF:WaitForChild("RebirthService")
+                                :WaitForChild("RF")
+                                :WaitForChild("Rebirth")
+                                :InvokeServer()
+                        end)
+                        task.wait(0.5)
+                    end
+                end)
+            end
+        end,
+    })
+
+    -- Auto Place Best
+    UpgradeTab:Toggle({
+        Title = "Auto Place Best",
+        Description = "Automatically places your best item",
+        Default = false,
+        Callback = function(state)
+            placeBestEnabled = state
+            if state then
+                task.spawn(function()
+                    while placeBestEnabled do
+                        pcall(function()
+                            RF:WaitForChild("ContainerService")
+                                :WaitForChild("RF")
+                                :WaitForChild("PlaceBest")
+                                :InvokeServer()
+                        end)
+                        task.wait(0.5)
+                    end
+                end)
+            end
+        end,
+    })
+
+    -- Auto Upgrade Speed
+    UpgradeTab:Toggle({
+        Title = "Auto Upgrade Speed",
+        Description = "Automatically upgrades your movement speed",
+        Default = false,
+        Callback = function(state)
+            upgradeSpeedEnabled = state
+            if state then
+                task.spawn(function()
+                    while upgradeSpeedEnabled do
+                        pcall(function()
+                            RF:WaitForChild("UpgradesService")
+                                :WaitForChild("RF")
+                                :WaitForChild("Upgrade")
+                                :InvokeServer("MovementSpeed", 1)
+                        end)
+                        task.wait(0.5)
+                    end
+                end)
+            end
+        end,
+    })
+
+    -- Auto Upgrade Brainrot
+    local upgradeBrainrotEnabled = false
+
+    UpgradeTab:Toggle({
+        Title = "Auto Upgrade Brainrot",
+        Description = "Loops through all brainrot slots 1 to 30 and upgrades them",
+        Default = false,
+        Callback = function(state)
+            upgradeBrainrotEnabled = state
+            if state then
+                task.spawn(function()
+                    while upgradeBrainrotEnabled do
+                        for slot = 1, 30 do
+                            if not upgradeBrainrotEnabled then break end
+                            pcall(function()
+                                RF:WaitForChild("ContainerService")
+                                    :WaitForChild("RF")
+                                    :WaitForChild("UpgradeBrainrot")
+                                    :InvokeServer(tostring(slot))
+                            end)
+                            task.wait(0.1)
+                        end
+                        task.wait(0.5)
+                    end
+                end)
+            end
+        end,
+    })
+
+    -- Auto Upgrade Plot
+    local upgradePlotEnabled = false
+
+    UpgradeTab:Toggle({
+        Title = "Auto Upgrade Plot",
+        Description = "Automatically buys container upgrades for your plot",
+        Default = false,
+        Callback = function(state)
+            upgradePlotEnabled = state
+            if state then
+                task.spawn(function()
+                    while upgradePlotEnabled do
+                        pcall(function()
+                            RF:WaitForChild("ContainerService")
+                                :WaitForChild("RF")
+                                :WaitForChild("BuyContainer")
+                                :InvokeServer()
+                        end)
+                        task.wait(0.5)
+                    end
+                end)
+            end
+        end,
+    })
+
+    -------------------------------------------------
+    -- TAB: MISC
+    -------------------------------------------------
+    local MiscTab = Window:Tab({
+        Title = "Misc",
+        Icon = "settings",
+    })
+
+    local flyEnabled = false
+    local flySpeed = 50
+    local flyConnection = nil
+    local speedEnabled = false
+    local walkSpeed = 50
+    local speedConnection = nil
+
+    local function stopFly()
+        flyEnabled = false
+        if flyConnection then flyConnection:Disconnect() flyConnection = nil end
+        local character = player.Character
+        if character then
+            local root = character:FindFirstChild("HumanoidRootPart")
+            local humanoid = character:FindFirstChild("Humanoid")
+            if humanoid then humanoid.PlatformStand = false end
+            if root then
+                local bv = root:FindFirstChildOfClass("BodyVelocity")
+                local bg = root:FindFirstChildOfClass("BodyGyro")
+                if bv then bv:Destroy() end
+                if bg then bg:Destroy() end
+            end
+        end
+    end
+
+    local function startFly()
+        local character = player.Character
+        if not character then return end
+        local root = character:FindFirstChild("HumanoidRootPart")
+        local humanoid = character:FindFirstChild("Humanoid")
+        if not root or not humanoid then return end
+
+        humanoid.PlatformStand = true
+
+        local bv = Instance.new("BodyVelocity")
+        bv.Velocity = Vector3.new(0, 0, 0)
+        bv.MaxForce = Vector3.new(1e9, 1e9, 1e9)
+        bv.Parent = root
+
+        local bg = Instance.new("BodyGyro")
+        bg.MaxTorque = Vector3.new(1e9, 1e9, 1e9)
+        bg.P = 1e4
+        bg.D = 100
+        bg.CFrame = root.CFrame
+        bg.Parent = root
+
+        local UserInputService = game:GetService("UserInputService")
+        flyConnection = game:GetService("RunService").Heartbeat:Connect(function()
+            if not flyEnabled then return end
+            local camera = workspace.CurrentCamera
+            local moveDir = Vector3.new(0, 0, 0)
+            if UserInputService:IsKeyDown(Enum.KeyCode.W) then moveDir += camera.CFrame.LookVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.S) then moveDir -= camera.CFrame.LookVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.A) then moveDir -= camera.CFrame.RightVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.D) then moveDir += camera.CFrame.RightVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.Space) then moveDir += Vector3.new(0,1,0) end
+            if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then moveDir -= Vector3.new(0,1,0) end
+            if moveDir.Magnitude > 0 then moveDir = moveDir.Unit end
+            bv.Velocity = moveDir * flySpeed
+            bg.CFrame = camera.CFrame
+        end)
+    end
+
+    local function startSpeed()
+        if speedConnection then speedConnection:Disconnect() end
+        speedConnection = game:GetService("RunService").Heartbeat:Connect(function()
+            if not speedEnabled then return end
+            local character = player.Character
+            if not character then return end
+            local humanoid = character:FindFirstChild("Humanoid")
+            if humanoid then humanoid.WalkSpeed = walkSpeed end
+        end)
+    end
+
+    local function stopSpeed()
+        speedEnabled = false
+        if speedConnection then speedConnection:Disconnect() speedConnection = nil end
+        local character = player.Character
+        if character then
+            local humanoid = character:FindFirstChild("Humanoid")
+            if humanoid then humanoid.WalkSpeed = 16 end
+        end
+    end
+
+    MiscTab:Section({ Title = "Fly" })
+
+    MiscTab:Input({
+        Title = "Fly Speed",
+        Description = "Set fly speed then toggle Fly on (default 50)",
+        Default = "50",
+        Placeholder = "Enter fly speed...",
+        Callback = function(value)
+            local num = tonumber(value)
+            if num then flySpeed = num end
+        end,
+    })
+
+    MiscTab:Toggle({
+        Title = "Fly",
+        Description = "WASD to move, Space = up, Shift = down",
+        Default = false,
+        Callback = function(state)
+            flyEnabled = state
+            if state then startFly() else stopFly() end
+        end,
+    })
+
+    MiscTab:Section({ Title = "Speed" })
+
+    MiscTab:Input({
+        Title = "Walk Speed",
+        Description = "Set walk speed then toggle Speed on (default 16)",
+        Default = "50",
+        Placeholder = "Enter walk speed...",
+        Callback = function(value)
+            local num = tonumber(value)
+            if num then walkSpeed = num end
+        end,
+    })
+
+    MiscTab:Toggle({
+        Title = "Speed",
+        Description = "Set your walk speed to the value above",
+        Default = false,
+        Callback = function(state)
+            speedEnabled = state
+            if state then startSpeed() else stopSpeed() end
+        end,
+    })
+
+    -------------------------------------------------
+    -- TAB: SUPPORT
+    -------------------------------------------------
+    local HttpService = game:GetService("HttpService")
+    local InviteCode = "9X8qygcW"
+    local DiscordAPI = "https://discord.com/api/v10/invites/" .. InviteCode .. "?with_counts=true&with_expiration=true"
+
+    local SupportTab = Window:Tab({
+        Title = "Support",
+        Icon = "heart",
+    })
+
+    SupportTab:Section({
+        Title = "Support the Script ❤️",
+        Desc = "Join our Discord and stay updated!"
+    })
+
+    do
+        local function httpGet(url)
+            local body = nil
+            if syn and syn.request then
+                pcall(function() body = syn.request({ Url = url, Method = "GET" }).Body end)
+            elseif http and http.request then
+                pcall(function() body = http.request({ Url = url, Method = "GET" }).Body end)
+            elseif request then
+                pcall(function() body = request({ Url = url, Method = "GET" }).Body end)
+            elseif http_request then
+                pcall(function() body = http_request({ Url = url, Method = "GET" }).Body end)
+            end
+            return body
+        end
+
+        local Response = {}
+        local raw = httpGet(DiscordAPI)
+        if raw then
+            pcall(function() Response = HttpService:JSONDecode(raw) end)
+        end
+
+        local onlineCount = "?"
+        local totalCount  = "?"
+        local iconUrl     = nil
+        local guildName   = "ZyroYonk Hub"
+
+        if Response and Response.guild then
+            guildName   = tostring(Response.guild.name or guildName)
+            onlineCount = tostring(Response.approximate_presence_count or "?")
+            totalCount  = tostring(Response.approximate_member_count  or "?")
+            if Response.guild.id and Response.guild.icon then
+                iconUrl = "https://cdn.discordapp.com/icons/"
+                    .. tostring(Response.guild.id) .. "/"
+                    .. tostring(Response.guild.icon) .. ".png?size=256"
+            end
+        end
+
+        local cardProps = {
+            Title     = guildName,
+            Desc      = "🟢 Online: " .. onlineCount .. "   👥 Members: " .. totalCount,
+            ImageSize = 52,
+            Buttons   = {
+                {
+                    Title = "Copy Invite",
+                    Callback = function()
+                        if setclipboard then
+                            setclipboard("https://discord.gg/" .. InviteCode)
+                            WindUI:Notify({
+                                Title    = "Copied!",
+                                Content  = "Discord invite link copied to clipboard.",
+                                Duration = 3,
+                                Icon     = "clipboard-check",
+                            })
+                        end
+                    end,
+                }
+            }
+        }
+        if iconUrl then cardProps.Image = iconUrl end
+        SupportTab:Paragraph(cardProps)
+
+        SupportTab:Paragraph({
+            Title = "🟢 Members Currently Online",
+            Desc  = onlineCount .. " people are active in the server right now",
+        })
+
+        SupportTab:Paragraph({
+            Title = "👥 Total Server Members",
+            Desc  = totalCount .. " members have joined ZyroYonk Hub",
+        })
+
+    end
+
+end
+
+-------------------------------------------------
+-- POPUP (RED) BEFORE GUI
+-------------------------------------------------
+WindUI:Popup({
+    Title = "Click Continue for Full Features",
+    Icon = "solar:check-circle-bold",
+    Content = "Get access to all features of ZyroYonk Hub and start using it right away! Its Keyless So Safe",
+    Buttons = {
+        {
+            Title = "Cancel",
+            Callback = function()
+                print("Cancel button clicked.")
+            end,
+            Variant = "Tertiary",
+            Color = Color3.fromRGB(255, 0, 0),
+        },
+        {
+            Title = "Continue",
+            Icon = "arrow-right",
+            Callback = function()
+                showGUI()
+            end,
+            Variant = "Primary",
+            Color = Color3.fromRGB(255, 0, 0),
+        }
+    }
+})
