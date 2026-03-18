@@ -1,11 +1,11 @@
-local scripts = {
-    [82397737462020] = "https://pastefy.app/script1/raw",
-}
+local allowedPlaceId = 1234567890
 
-local url = scripts[game.PlaceId]
-
-if url then
-    loadstring(game:HttpGet(url))()
+if game.PlaceId == allowedPlaceId then
+    loadstring(game:HttpGet("https://pastefy.app/DZf7XndY/raw"))()
 else
-    warn("Unsupported game")
+    game:GetService("StarterGui"):SetCore("SendNotification", {
+        Title = "Wrong Game",
+        Text = "This script won't work here!",
+        Duration = 5
+    })
 end
