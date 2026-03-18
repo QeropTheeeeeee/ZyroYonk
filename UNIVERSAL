@@ -1,8 +1,16 @@
-local allowedPlaceId = 1234567890
+-- TABLE OF GAMES + SCRIPTS
+local scripts = {
+    [82397737462020] = "https://pastefy.app/DZf7XndY/raw",
+}
 
-if game.PlaceId == allowedPlaceId then
-    loadstring(game:HttpGet("https://pastefy.app/DZf7XndY/raw"))()
+local placeId = game.PlaceId
+local url = scripts[placeId]
+
+if url then
+    -- ✅ CORRECT GAME → LOAD SCRIPT
+    loadstring(game:HttpGet(url))()
 else
+    -- ❌ WRONG GAME
     game:GetService("StarterGui"):SetCore("SendNotification", {
         Title = "Wrong Game",
         Text = "This script won't work here!",
