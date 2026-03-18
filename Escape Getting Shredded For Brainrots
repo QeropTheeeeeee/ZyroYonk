@@ -1,0 +1,647 @@
+local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local VirtualInputManager = game:GetService("VirtualInputManager")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local HttpService = game:GetService("HttpService")
+
+local player = Players.LocalPlayer
+
+-------------------------------------------------
+-- EXECUTOR DETECTION + NOTIFY
+-------------------------------------------------
+local executor = "Unknown Executor"
+if identifyexecutor then
+    executor = identifyexecutor()
+elseif KRNL_LOADED then
+    executor = "KRNL"
+elseif syn then
+    executor = "Synapse X"
+elseif fluxus then
+    executor = "Fluxus"
+elseif is_sirhurt_closure then
+    executor = "SirHurt"
+elseif getexecutorname then
+    executor = getexecutorname()
+end
+
+task.wait(1)
+WindUI:Notify({
+    Title = "Executor Detected",
+    Content = "Running on: " .. executor,
+    Duration = 5,
+    Icon = "cpu",
+})
+
+-------------------------------------------------
+-- INSTANT TELEPORT BYPASS
+-------------------------------------------------
+local function instantTP(targetCFrame)
+    local character = player.Character
+    if not character then return end
+    local root = character:FindFirstChild("HumanoidRootPart")
+    local humanoid = character:FindFirstChild("Humanoid")
+    if not root or not humanoid then return end
+
+    humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
+    humanoid:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, false)
+    humanoid:ChangeState(Enum.HumanoidStateType.Seated)
+
+    root.Velocity = Vector3.new(0, 0, 0)
+    root.RotVelocity = Vector3.new(0, 0, 0)
+
+    for i = 1, 3 do
+        root.CFrame = targetCFrame
+        task.wait()
+    end
+
+    humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
+    humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, true)
+    humanoid:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, true)
+end
+
+-------------------------------------------------
+-- INSTANT COLLECT
+-------------------------------------------------
+local function instantCollect(mob)
+    local remoteNames = {
+        "Interact", "Collect", "Upgrade", "Purchase",
+        "CollectEvent", "InteractEvent", "UpgradeEvent",
+        "RE/Interact", "RE/Collect", "RE/Upgrade",
+    }
+
+    for _, name in ipairs(remoteNames) do
+        local re = mob:FindFirstChild(name, true)
+        if re and re:IsA("RemoteEvent") then
+            pcall(function() re:FireServer(mob) end)
+            return
+        end
+        local rf = mob:FindFirstChild(name, true)
+        if rf and rf:IsA("RemoteFunction") then
+            pcall(function() rf:InvokeServer(mob) end)
+            return
+        end
+    end
+
+    for _, name in ipairs(remoteNames) do
+        local re = ReplicatedStorage:FindFirstChild(name, true)
+        if re and re:IsA("RemoteEvent") then
+            pcall(function() re:FireServer(mob) end)
+            return
+        end
+    end
+
+    VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.E, false, game)
+    task.wait(0.6)
+    VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.E, false, game)
+end
+
+-------------------------------------------------
+-- INSTANT CLAIM
+-------------------------------------------------
+local function instantClaim()
+    pcall(function()
+        ReplicatedStorage
+            :WaitForChild("Packages")
+            :WaitForChild("Net")
+            :WaitForChild("RE/SafeZoneEvent")
+            :FireServer()
+    end)
+end
+
+-------------------------------------------------
+-- MOB PACKS
+-------------------------------------------------
+local PACKS = {
+    ["OG"] = {
+        "W or L",
+        "Tuff Toucan",
+        "Job Job Job Sahur",
+        "La Karkerkar Combinasion",
+        "Swaggy Bros",
+    },
+    ["Secret"] = {
+        "Esok Sekolah",
+        "Karkerkar Kurkur",
+        "Spaghetti Tualetti",
+        "Guest 666",
+    },
+    ["Mythic"] = {
+        "Eviledon",
+        "Bunito Bunito Spinito",
+        "Alessio",
+        "Chillin Chili",
+        "Dragon Cannelloni",
+    },
+}
+
+-------------------------------------------------
+-- FLY SYSTEM
+-------------------------------------------------
+local flyEnabled = false
+local flySpeed = 50
+local flyConnection = nil
+
+local function stopFly()
+    flyEnabled = false
+    if flyConnection then
+        flyConnection:Disconnect()
+        flyConnection = nil
+    end
+    local character = player.Character
+    if character then
+        local root = character:FindFirstChild("HumanoidRootPart")
+        local humanoid = character:FindFirstChild("Humanoid")
+        if humanoid then humanoid.PlatformStand = false end
+        if root then
+            local bv = root:FindFirstChildOfClass("BodyVelocity")
+            local bg = root:FindFirstChildOfClass("BodyGyro")
+            if bv then bv:Destroy() end
+            if bg then bg:Destroy() end
+        end
+    end
+end
+
+local function startFly()
+    local character = player.Character
+    if not character then return end
+    local root = character:FindFirstChild("HumanoidRootPart")
+    local humanoid = character:FindFirstChild("Humanoid")
+    if not root or not humanoid then return end
+
+    local oldBV = root:FindFirstChildOfClass("BodyVelocity")
+    local oldBG = root:FindFirstChildOfClass("BodyGyro")
+    if oldBV then oldBV:Destroy() end
+    if oldBG then oldBG:Destroy() end
+
+    humanoid.PlatformStand = true
+
+    local bv = Instance.new("BodyVelocity")
+    bv.Velocity = Vector3.new(0, 0, 0)
+    bv.MaxForce = Vector3.new(1e9, 1e9, 1e9)
+    bv.Parent = root
+
+    local bg = Instance.new("BodyGyro")
+    bg.MaxTorque = Vector3.new(1e9, 1e9, 1e9)
+    bg.P = 1e4
+    bg.D = 100
+    bg.CFrame = root.CFrame
+    bg.Parent = root
+
+    flyConnection = RunService.Heartbeat:Connect(function()
+        if not flyEnabled then return end
+        local camera = workspace.CurrentCamera
+        local moveDir = Vector3.new(0, 0, 0)
+
+        if UserInputService:IsKeyDown(Enum.KeyCode.W) then
+            moveDir = moveDir + camera.CFrame.LookVector
+        end
+        if UserInputService:IsKeyDown(Enum.KeyCode.S) then
+            moveDir = moveDir - camera.CFrame.LookVector
+        end
+        if UserInputService:IsKeyDown(Enum.KeyCode.A) then
+            moveDir = moveDir - camera.CFrame.RightVector
+        end
+        if UserInputService:IsKeyDown(Enum.KeyCode.D) then
+            moveDir = moveDir + camera.CFrame.RightVector
+        end
+        if UserInputService:IsKeyDown(Enum.KeyCode.Space) then
+            moveDir = moveDir + Vector3.new(0, 1, 0)
+        end
+        if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then
+            moveDir = moveDir - Vector3.new(0, 1, 0)
+        end
+
+        if moveDir.Magnitude > 0 then
+            moveDir = moveDir.Unit
+        end
+
+        bv.Velocity = moveDir * flySpeed
+        bg.CFrame = camera.CFrame
+    end)
+end
+
+player.CharacterAdded:Connect(function()
+    task.wait(1)
+    if flyEnabled then startFly() end
+end)
+
+-------------------------------------------------
+-- SPEED SYSTEM
+-------------------------------------------------
+local speedEnabled = false
+local walkSpeed = 50
+local speedConnection = nil
+
+local function startSpeed()
+    if speedConnection then speedConnection:Disconnect() end
+    speedConnection = RunService.Heartbeat:Connect(function()
+        if not speedEnabled then return end
+        local character = player.Character
+        if not character then return end
+        local humanoid = character:FindFirstChild("Humanoid")
+        if humanoid then humanoid.WalkSpeed = walkSpeed end
+    end)
+end
+
+local function stopSpeed()
+    speedEnabled = false
+    if speedConnection then
+        speedConnection:Disconnect()
+        speedConnection = nil
+    end
+    local character = player.Character
+    if character then
+        local humanoid = character:FindFirstChild("Humanoid")
+        if humanoid then humanoid.WalkSpeed = 16 end
+    end
+end
+
+-------------------------------------------------
+-- MAIN GUI
+-------------------------------------------------
+local function showGUI()
+    local Window = WindUI:CreateWindow({
+        Title = "ZyroYonk Hub",
+        Icon = "snowflake",
+        Author = "ZyroYonk",
+        Folder = "ZyroYonkHub",
+        Size = UDim2.fromOffset(250, 250),
+        Theme = "Red",
+        User = {
+            Enabled = true,
+            Anonymous = false,
+            Callback = function()
+                print("Profile clicked:", player.Name)
+            end,
+        },
+    })
+
+    Window:Tag({
+        Title = "v0.0.1",
+        Icon = "star",
+        Color = Color3.fromRGB(255, 221, 0),
+        Position = UDim2.new(1, -5, 0, 5),
+        Size = UDim2.fromOffset(60, 20)
+    })
+
+    Window:Tag({
+        Title = "Join Our Discord",
+        Icon = "heart",
+        Color = Color3.fromRGB(15, 255, 80),
+        Position = UDim2.new(1, -5, 0, 5),
+        Size = UDim2.fromOffset(60, 20)
+    })
+
+    -------------------------------------------------
+    -- TAB 1: AUTO FARM BRAINROT
+    -------------------------------------------------
+    local FarmTab = Window:Tab({
+        Title = "Auto Farm Brainrot",
+        Icon = "building",
+    })
+
+    local selectedPack = "OG"
+    local autoFarmEnabled = false
+
+    FarmTab:Dropdown({
+        Title = "Select Brainrot",
+        Description = "OG = 5 | Secret = 4 | Mythic = 5",
+        Values = { "OG", "Secret", "Mythic" },
+        Multi = false,
+        Default = "OG",
+        Callback = function(selected)
+            selectedPack = selected
+            print("Pack selected:", selected)
+        end,
+    })
+
+    local function farmMob(mobName)
+        local mobFolder = workspace:FindFirstChild("Mobs")
+        if not mobFolder then return end
+        local mob = mobFolder:FindFirstChild(mobName)
+        if not mob then warn("Mob not found:", mobName) return end
+        local mobRoot = mob:FindFirstChild("HumanoidRootPart") or mob.PrimaryPart
+        if not mobRoot then return end
+
+        instantTP(mobRoot.CFrame + Vector3.new(0, 0, 3))
+        task.wait(0.1)
+        instantCollect(mob)
+        task.wait(0.05)
+        instantClaim()
+        task.wait(0.2)
+    end
+
+    FarmTab:Toggle({
+        Title = "Auto Collect Brainrot",
+        Description = "Farms selected pack instantly",
+        Default = false,
+        Callback = function(state)
+            autoFarmEnabled = state
+            if state then
+                task.spawn(function()
+                    while autoFarmEnabled do
+                        local mobs = PACKS[selectedPack]
+                        if mobs then
+                            for _, mobName in ipairs(mobs) do
+                                if not autoFarmEnabled then break end
+                                farmMob(mobName)
+                            end
+                        else
+                            task.wait(1)
+                        end
+                        task.wait(0.1)
+                    end
+                end)
+            end
+        end,
+    })
+
+    -------------------------------------------------
+    -- TAB 2: AUTO UPGRADE
+    -------------------------------------------------
+    local UpgradeTab = Window:Tab({
+        Title = "Auto Upgrade",
+        Icon = "star",
+    })
+
+    local autoUpgradeEnabled = false
+    local autoSpeedEnabled = false
+    local autoCarryEnabled = false
+    local autoRebirthEnabled = false
+
+    UpgradeTab:Toggle({
+        Title = "Auto Upgrade Base",
+        Description = "Fires RE/UpgradeBase every 0.1s",
+        Default = false,
+        Callback = function(state)
+            autoUpgradeEnabled = state
+            if state then
+                task.spawn(function()
+                    while autoUpgradeEnabled do
+                        pcall(function()
+                            ReplicatedStorage
+                                :WaitForChild("Packages")
+                                :WaitForChild("Net")
+                                :WaitForChild("RE/UpgradeBase")
+                                :FireServer()
+                        end)
+                        task.wait(0.1)
+                    end
+                end)
+            end
+        end,
+    })
+
+    UpgradeTab:Toggle({
+        Title = "Auto Buy Speed",
+        Description = "Fires RE/RequestStatsUpgrade Stats1 every 0.1s",
+        Default = false,
+        Callback = function(state)
+            autoSpeedEnabled = state
+            if state then
+                task.spawn(function()
+                    while autoSpeedEnabled do
+                        pcall(function()
+                            local args = { "Stats1", 1 }
+                            ReplicatedStorage
+                                :WaitForChild("Packages")
+                                :WaitForChild("Net")
+                                :WaitForChild("RE/RequestStatsUpgrade")
+                                :FireServer(unpack(args))
+                        end)
+                        task.wait(0.1)
+                    end
+                end)
+            end
+        end,
+    })
+
+    UpgradeTab:Toggle({
+        Title = "Auto Upgrade Carry",
+        Description = "Fires RE/RequestStatsUpgrade CarryMax every 0.1s",
+        Default = false,
+        Callback = function(state)
+            autoCarryEnabled = state
+            if state then
+                task.spawn(function()
+                    while autoCarryEnabled do
+                        pcall(function()
+                            local args = { "CarryMax", 1 }
+                            ReplicatedStorage
+                                :WaitForChild("Packages")
+                                :WaitForChild("Net")
+                                :WaitForChild("RE/RequestStatsUpgrade")
+                                :FireServer(unpack(args))
+                        end)
+                        task.wait(0.1)
+                    end
+                end)
+            end
+        end,
+    })
+
+    UpgradeTab:Toggle({
+        Title = "Auto Rebirth",
+        Description = "Fires RE/RequestRebirth every 0.1s",
+        Default = false,
+        Callback = function(state)
+            autoRebirthEnabled = state
+            if state then
+                task.spawn(function()
+                    while autoRebirthEnabled do
+                        pcall(function()
+                            ReplicatedStorage
+                                :WaitForChild("Packages")
+                                :WaitForChild("Net")
+                                :WaitForChild("RE/RequestRebirth")
+                                :FireServer()
+                        end)
+                        task.wait(0.1)
+                    end
+                end)
+            end
+        end,
+    })
+
+    -------------------------------------------------
+    -- TAB 3: MISC  (Fly + Speed + GUI Keybind)
+    -------------------------------------------------
+    local MiscTab = Window:Tab({
+        Title = "Misc",
+        Icon = "settings",
+    })
+
+    -- ── FLY SECTION ───────────────────────────────
+    MiscTab:Section({
+        Title = "Fly",
+    })
+
+    MiscTab:Input({
+        Title = "Fly Speed",
+        Description = "Set fly speed then toggle Fly on (default 50)",
+        Default = "50",
+        Placeholder = "Enter fly speed...",
+        Callback = function(value)
+            local num = tonumber(value)
+            if num then flySpeed = num end
+        end,
+    })
+
+    MiscTab:Toggle({
+        Title = "Fly",
+        Description = "WASD to move, Space = up, Shift = down",
+        Default = false,
+        Callback = function(state)
+            flyEnabled = state
+            if state then startFly() else stopFly() end
+        end,
+    })
+
+    -- ── SPEED SECTION ─────────────────────────────
+    MiscTab:Section({
+        Title = "Speed",
+    })
+
+    MiscTab:Input({
+        Title = "Walk Speed",
+        Description = "Set walk speed then toggle Speed on (default 16)",
+        Default = "50",
+        Placeholder = "Enter walk speed...",
+        Callback = function(value)
+            local num = tonumber(value)
+            if num then walkSpeed = num end
+        end,
+    })
+
+    MiscTab:Toggle({
+        Title = "Speed",
+        Description = "Set your walk speed to the value above",
+        Default = false,
+        Callback = function(state)
+            speedEnabled = state
+            if state then startSpeed() else stopSpeed() end
+        end,
+    })
+
+    -------------------------------------------------
+    -- TAB 4: SUPPORT
+    -------------------------------------------------
+    local InviteCode = "9X8qygcW"
+    local DiscordAPI = "https://discord.com/api/v10/invites/" .. InviteCode .. "?with_counts=true&with_expiration=true"
+
+    local SupportTab = Window:Tab({
+        Title = "Support",
+        Icon = "heart",
+    })
+
+    SupportTab:Section({
+        Title = "Support the Script ❤️",
+        Desc = "Join our Discord and stay updated!"
+    })
+
+    do
+        local Response = {}
+        pcall(function()
+            Response = HttpService:JSONDecode(
+                WindUI.Creator.Request and WindUI.Creator.Request({
+                    Url = DiscordAPI,
+                    Method = "GET",
+                    Headers = {
+                        ["User-Agent"] = "WindUI",
+                        ["Accept"] = "application/json",
+                    },
+                }).Body or "{}"
+            )
+        end)
+
+        if Response and Response.guild then
+            local onlineCount = tostring(Response.approximate_presence_count or "?")
+            local totalCount  = tostring(Response.approximate_member_count  or "?")
+
+            SupportTab:Paragraph({
+                Title = tostring(Response.guild.name),
+                Desc  = "🟢 Online: " .. onlineCount .. "  |  👥 Total Members: " .. totalCount,
+                Image = "https://cdn.discordapp.com/icons/"
+                    .. Response.guild.id .. "/"
+                    .. Response.guild.icon .. ".png?size=1024",
+                ImageSize = 48,
+                Buttons = {
+                    {
+                        Title = "Copy Invite",
+                        Callback = function()
+                            if setclipboard then
+                                setclipboard("https://discord.gg/" .. InviteCode)
+                                WindUI:Notify({
+                                    Title = "Copied!",
+                                    Content = "Discord invite copied.",
+                                    Duration = 3,
+                                })
+                            end
+                        end,
+                    }
+                }
+            })
+
+            -- Extra stat labels
+            SupportTab:Paragraph({
+                Title = "🟢 Members Online",
+                Desc  = onlineCount .. " people are online right now",
+            })
+
+            SupportTab:Paragraph({
+                Title = "👥 Total Members",
+                Desc  = totalCount .. " members in the server",
+            })
+        else
+            SupportTab:Paragraph({
+                Title = "ZyroYonk Hub",
+                Desc  = "Join our Discord for updates and support!",
+                Buttons = {
+                    {
+                        Title = "Copy Invite",
+                        Callback = function()
+                            if setclipboard then
+                                setclipboard("https://discord.gg/" .. InviteCode)
+                                WindUI:Notify({
+                                    Title = "Copied!",
+                                    Content = "Discord invite copied.",
+                                    Duration = 3,
+                                })
+                            end
+                        end,
+                    }
+                }
+            })
+        end
+    end
+end
+
+-------------------------------------------------
+-- POPUP (RED) BEFORE GUI
+-------------------------------------------------
+WindUI:Popup({
+    Title = "Click Continue for Full Features",
+    Icon = "solar:check-circle-bold",
+    Content = "Get access to all features of ZyroYonk Hub and start using it right away! Its Keyless So Safe",
+    Buttons = {
+        {
+            Title = "Cancel",
+            Callback = function()
+                print("Cancel button clicked.")
+            end,
+            Variant = "Tertiary",
+            Color = Color3.fromRGB(255, 0, 0),
+        },
+        {
+            Title = "Continue",
+            Icon = "arrow-right",
+            Callback = function()
+                showGUI()
+            end,
+            Variant = "Primary",
+            Color = Color3.fromRGB(255, 0, 0),
+        }
+    }
+})
