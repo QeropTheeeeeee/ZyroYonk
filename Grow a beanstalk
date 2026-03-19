@@ -1,0 +1,929 @@
+local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local HttpService = game:GetService("HttpService")
+local player = Players.LocalPlayer
+
+local selectedZone = "1"
+local selectedPlot = "1"
+local autoEnabled = false
+local autoUpgradeEnabled = false
+local autoCarryEnabled = false
+local autoBeanstalkEnabled = false
+local autoSpeedEnabled = false
+local autoClimbEnabled = false
+local autoRebirthEnabled = false
+local autoSellEnabled = false
+local candyZone = "1"
+local candyPlot = "1"
+local candyEnabled = false
+local flyEnabled = false
+local flySpeed = 50
+local flyConnection = nil
+local speedEnabled = false
+local walkSpeed = 50
+local speedConnection = nil
+
+-------------------------------------------------
+-- DETECT EXECUTOR
+-------------------------------------------------
+local executor = "Unknown Executor"
+if identifyexecutor then
+    executor = identifyexecutor()
+elseif getexecutorname then
+    executor = getexecutorname()
+elseif syn then
+    executor = "Synapse X"
+elseif KRNL_LOADED then
+    executor = "Krnl"
+elseif pebc then
+    executor = "Electron"
+elseif fluxus then
+    executor = "Fluxus"
+end
+
+local zoneMap = {
+    ["Common"]       = "1",
+    ["Rare"]         = "2",
+    ["Legendary"]    = "3",
+    ["Mythic"]       = "4",
+    ["Exotic"]       = "5",
+    ["Secret"]       = "6",
+    ["Secret+Divine"]= "7",
+    ["Divine+Omega"] = "8",
+}
+
+-------------------------------------------------
+-- HELPERS
+-------------------------------------------------
+local function getRoot()
+    local char = player.Character
+    return char and char:FindFirstChild("HumanoidRootPart")
+end
+
+local function getPartFrom(obj)
+    if obj:IsA("BasePart") then return obj end
+    if obj:IsA("Model") then
+        return obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart", true)
+    end
+    return obj:FindFirstChildWhichIsA("BasePart", true)
+end
+
+-------------------------------------------------
+-- STEP 1: Teleport to selected CharacterZone
+-------------------------------------------------
+local function teleportToCharacterZone()
+    local ok, zone = pcall(function()
+        return workspace.CharacterZones[selectedZone]
+    end)
+    if ok and zone then
+        local root = getRoot()
+        if root then
+            root.CFrame = zone.CFrame + Vector3.new(0, 5, 0)
+            print("[Step 1] ✅ Teleported to CharacterZones[" .. selectedZone .. "]")
+            return true
+        end
+    end
+    warn("[Step 1] ❌ CharacterZones[" .. selectedZone .. "] not found!")
+    return false
+end
+
+-------------------------------------------------
+-- STEP 2: Detect closest spawn to player
+-------------------------------------------------
+local function waitForNormalSpawn()
+    local Normal = workspace
+        :WaitForChild("Debris", 999)
+        :WaitForChild("Server", 999)
+        :WaitForChild("Characters", 999)
+        :WaitForChild("Normal", 999)
+
+    local result = nil
+
+    local function getClosestPart()
+        local root = getRoot()
+        if not root then return nil end
+        local closest, closestDist = nil, math.huge
+        for _, child in ipairs(Normal:GetChildren()) do
+            local part = getPartFrom(child)
+            if part then
+                local dist = (part.Position - root.Position).Magnitude
+                if dist < closestDist then
+                    closestDist = dist
+                    closest = part
+                end
+            end
+        end
+        return closest
+    end
+
+    result = getClosestPart()
+
+    if not result then
+        local connection
+        connection = Normal.ChildAdded:Connect(function(child)
+            if result then return end
+            task.wait(0.15)
+            local part = getClosestPart()
+            if part then result = part end
+        end)
+        while autoEnabled and not result do
+            task.wait(0.05)
+        end
+        connection:Disconnect()
+    end
+
+    return result
+end
+
+-------------------------------------------------
+-- STEP 3: Teleport to spawn + Hold E 1 second
+-------------------------------------------------
+local function holdE(part)
+    local root = getRoot()
+    if not root or not part then return false end
+    root.CFrame = part.CFrame + Vector3.new(0, 4, 0)
+    task.wait(0.2)
+    if keypress and keyrelease then
+        keypress(0x45)
+        task.wait(1.0)
+        keyrelease(0x45)
+        task.wait(0.2)
+        return true
+    else
+        warn("[Step 3] ❌ keypress/keyrelease not supported!")
+        return false
+    end
+end
+
+-------------------------------------------------
+-- STEP 4: Teleport to selected Plot
+-------------------------------------------------
+local function teleportToMyPlot()
+    local ok, spawn = pcall(function()
+        return workspace.Plots[selectedPlot].Positions.Spawn
+    end)
+    if ok and spawn then
+        local root = getRoot()
+        if root then
+            root.CFrame = spawn.CFrame + Vector3.new(0, 5, 0)
+            return true
+        end
+    end
+    return false
+end
+
+-------------------------------------------------
+-- FARM LOOP
+-------------------------------------------------
+local function startLoop()
+    task.spawn(function()
+        while autoEnabled do
+            local ok = teleportToCharacterZone()
+            if not ok then task.wait(1) continue end
+            task.wait(0.2)
+            local spawnPart = waitForNormalSpawn()
+            if not autoEnabled then break end
+            local held = false
+            if spawnPart then held = holdE(spawnPart) end
+            if held then
+                task.wait(0.2)
+                teleportToMyPlot()
+                task.wait(0.5)
+            else
+                task.wait(0.5)
+            end
+        end
+        print("Farm loop stopped.")
+    end)
+end
+
+-------------------------------------------------
+-- AUTO CLAIM EARNINGS
+-------------------------------------------------
+local function startUpgradeLoop()
+    task.spawn(function()
+        while autoUpgradeEnabled do
+            for slot = 1, 30 do
+                if not autoUpgradeEnabled then break end
+                pcall(function()
+                    ReplicatedStorage:WaitForChild("Remotes")
+                        :WaitForChild("Server")
+                        :WaitForChild("Plot")
+                        :InvokeServer("ClaimEarnings", { SlotId = slot })
+                end)
+                task.wait(0.1)
+            end
+            task.wait(1)
+        end
+    end)
+end
+
+-------------------------------------------------
+-- AUTO BUY CARRY
+-------------------------------------------------
+local function startCarryLoop()
+    task.spawn(function()
+        while autoCarryEnabled do
+            pcall(function()
+                ReplicatedStorage:WaitForChild("Remotes")
+                    :WaitForChild("Server")
+                    :WaitForChild("Upgrade")
+                    :FireServer("UpgradeCarry", { UpgradeId = 1 })
+            end)
+            task.wait(0.5)
+        end
+    end)
+end
+
+-------------------------------------------------
+-- AUTO BUY BEANSTALK
+-------------------------------------------------
+local function startBeanstalkLoop()
+    task.spawn(function()
+        while autoBeanstalkEnabled do
+            pcall(function()
+                ReplicatedStorage:WaitForChild("Remotes")
+                    :WaitForChild("Server")
+                    :WaitForChild("Upgrade")
+                    :FireServer("Upgrade", { UpgradeId = 1, UpgradeType = "Beanstalk" })
+            end)
+            task.wait(0.5)
+        end
+    end)
+end
+
+-------------------------------------------------
+-- AUTO BUY SPEED
+-------------------------------------------------
+local function startSpeedLoop()
+    task.spawn(function()
+        while autoSpeedEnabled do
+            pcall(function()
+                ReplicatedStorage:WaitForChild("Remotes")
+                    :WaitForChild("Server")
+                    :WaitForChild("Upgrade")
+                    :FireServer("Upgrade", { UpgradeId = 1, UpgradeType = "Speed" })
+            end)
+            task.wait(0.5)
+        end
+    end)
+end
+
+-------------------------------------------------
+-- AUTO BUY CLIMB SPEED
+-------------------------------------------------
+local function startClimbLoop()
+    task.spawn(function()
+        while autoClimbEnabled do
+            pcall(function()
+                ReplicatedStorage:WaitForChild("Remotes")
+                    :WaitForChild("Server")
+                    :WaitForChild("Upgrade")
+                    :FireServer("Upgrade", { UpgradeId = 1, UpgradeType = "Climbing" })
+            end)
+            task.wait(0.5)
+        end
+    end)
+end
+
+-------------------------------------------------
+-- AUTO REBIRTH
+-------------------------------------------------
+local function startRebirthLoop()
+    task.spawn(function()
+        while autoRebirthEnabled do
+            pcall(function()
+                ReplicatedStorage:WaitForChild("Remotes")
+                    :WaitForChild("Server")
+                    :WaitForChild("Rebirth")
+                    :FireServer("Rebirth")
+            end)
+            task.wait(1)
+        end
+    end)
+end
+
+-------------------------------------------------
+-- AUTO SELL ALL
+-------------------------------------------------
+local function startSellLoop()
+    task.spawn(function()
+        while autoSellEnabled do
+            pcall(function()
+                ReplicatedStorage:WaitForChild("Remotes")
+                    :WaitForChild("Server")
+                    :WaitForChild("Sell")
+                    :InvokeServer("InventorySell")
+            end)
+            task.wait(0.5)
+        end
+    end)
+end
+
+-------------------------------------------------
+-- CANDY CANE LOOP
+-------------------------------------------------
+local function startCandyLoop()
+    task.spawn(function()
+        local Normal = workspace
+            :WaitForChild("Debris")
+            :WaitForChild("Server")
+            :WaitForChild("Characters")
+            :WaitForChild("Normal")
+
+        while candyEnabled do
+            local ok, zone = pcall(function()
+                return workspace.CharacterZones[candyZone]
+            end)
+            if ok and zone then
+                local root = getRoot()
+                if root then
+                    root.CFrame = zone.CFrame + Vector3.new(0, 5, 0)
+                end
+            else
+                task.wait(1) continue
+            end
+
+            task.wait(0.3)
+
+            local candyMain = nil
+
+            for _, child in ipairs(Normal:GetChildren()) do
+                local main = child:FindFirstChild("Main")
+                if main and main:IsA("BasePart") then
+                    candyMain = main
+                    break
+                end
+            end
+
+            if not candyMain then
+                local connection
+                connection = Normal.ChildAdded:Connect(function(child)
+                    if candyMain then return end
+                    task.wait(0.15)
+                    local main = child:FindFirstChild("Main")
+                        or child:WaitForChild("Main", 3)
+                    if main and main:IsA("BasePart") then
+                        candyMain = main
+                    end
+                end)
+                while candyEnabled and not candyMain do
+                    task.wait(0.05)
+                end
+                connection:Disconnect()
+            end
+
+            if not candyEnabled then break end
+
+            local root = getRoot()
+            if root and candyMain then
+                root.CFrame = candyMain.CFrame + Vector3.new(0, 4, 0)
+                task.wait(0.2)
+                if keypress and keyrelease then
+                    keypress(0x45)
+                    task.wait(1.0)
+                    keyrelease(0x45)
+                    task.wait(0.2)
+                else
+                    warn("[Candy] ❌ keypress/keyrelease not supported!")
+                    task.wait(0.5)
+                    continue
+                end
+            end
+
+            local ok2, spawn = pcall(function()
+                return workspace.Plots[candyPlot].Positions.Spawn
+            end)
+            if ok2 and spawn then
+                local root2 = getRoot()
+                if root2 then
+                    root2.CFrame = spawn.CFrame + Vector3.new(0, 5, 0)
+                end
+            end
+
+            task.wait(0.5)
+        end
+        print("[Candy] Stopped.")
+    end)
+end
+
+-------------------------------------------------
+-- FLY
+-------------------------------------------------
+local function stopFly()
+    flyEnabled = false
+    if flyConnection then flyConnection:Disconnect() flyConnection = nil end
+    local character = player.Character
+    if character then
+        local root = character:FindFirstChild("HumanoidRootPart")
+        local humanoid = character:FindFirstChild("Humanoid")
+        if humanoid then humanoid.PlatformStand = false end
+        if root then
+            local bv = root:FindFirstChildOfClass("BodyVelocity")
+            local bg = root:FindFirstChildOfClass("BodyGyro")
+            if bv then bv:Destroy() end
+            if bg then bg:Destroy() end
+        end
+    end
+end
+
+local function startFly()
+    local character = player.Character
+    if not character then return end
+    local root = character:FindFirstChild("HumanoidRootPart")
+    local humanoid = character:FindFirstChild("Humanoid")
+    if not root or not humanoid then return end
+
+    humanoid.PlatformStand = true
+
+    local bv = Instance.new("BodyVelocity")
+    bv.Velocity = Vector3.new(0, 0, 0)
+    bv.MaxForce = Vector3.new(1e9, 1e9, 1e9)
+    bv.Parent = root
+
+    local bg = Instance.new("BodyGyro")
+    bg.MaxTorque = Vector3.new(1e9, 1e9, 1e9)
+    bg.P = 1e4
+    bg.D = 100
+    bg.CFrame = root.CFrame
+    bg.Parent = root
+
+    flyConnection = RunService.Heartbeat:Connect(function()
+        if not flyEnabled then return end
+        local camera = workspace.CurrentCamera
+        local moveDir = Vector3.new(0, 0, 0)
+        if UserInputService:IsKeyDown(Enum.KeyCode.W) then moveDir += camera.CFrame.LookVector end
+        if UserInputService:IsKeyDown(Enum.KeyCode.S) then moveDir -= camera.CFrame.LookVector end
+        if UserInputService:IsKeyDown(Enum.KeyCode.A) then moveDir -= camera.CFrame.RightVector end
+        if UserInputService:IsKeyDown(Enum.KeyCode.D) then moveDir += camera.CFrame.RightVector end
+        if UserInputService:IsKeyDown(Enum.KeyCode.Space) then moveDir += Vector3.new(0, 1, 0) end
+        if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then moveDir -= Vector3.new(0, 1, 0) end
+        if moveDir.Magnitude > 0 then moveDir = moveDir.Unit end
+        bv.Velocity = moveDir * flySpeed
+        bg.CFrame = camera.CFrame
+    end)
+end
+
+-------------------------------------------------
+-- SPEED
+-------------------------------------------------
+local function startSpeed()
+    if speedConnection then speedConnection:Disconnect() end
+    speedConnection = RunService.Heartbeat:Connect(function()
+        if not speedEnabled then return end
+        local character = player.Character
+        if not character then return end
+        local humanoid = character:FindFirstChild("Humanoid")
+        if humanoid then humanoid.WalkSpeed = walkSpeed end
+    end)
+end
+
+local function stopSpeed()
+    speedEnabled = false
+    if speedConnection then speedConnection:Disconnect() speedConnection = nil end
+    local character = player.Character
+    if character then
+        local humanoid = character:FindFirstChild("Humanoid")
+        if humanoid then humanoid.WalkSpeed = 16 end
+    end
+end
+
+-------------------------------------------------
+-- GUI WINDOW
+-------------------------------------------------
+local Window = WindUI:CreateWindow({
+    Title = "ZyroYonk Hub",
+    Icon = "snowflake",
+    Author = "ZyroYonk",
+    Folder = "ZyroYonkHub",
+    Size = UDim2.fromOffset(270, 400),
+    Theme = "Red",
+    Transparency = 0.15,
+    User = {
+        Enabled = true,
+        Anonymous = false,
+        Callback = function()
+            print("Profile clicked:", player.Name)
+        end,
+    },
+})
+
+Window:Tag({
+    Title = "v0.0.1",
+    Icon = "star",
+    Color = Color3.fromRGB(255, 221, 0),
+    Position = UDim2.new(1, -5, 0, 5),
+    Size = UDim2.fromOffset(60, 20)
+})
+
+Window:Tag({
+    Title = "Join Our Discord",
+    Icon = "heart",
+    Color = Color3.fromRGB(15, 255, 80),
+    Position = UDim2.new(1, -5, 0, 5),
+    Size = UDim2.fromOffset(60, 20)
+})
+
+-------------------------------------------------
+-- STARTUP NOTIFICATIONS
+-------------------------------------------------
+task.wait(1)
+
+WindUI:Notify({
+    Title = "✅ ZyroYonk Hub Loaded!",
+    Content = "Welcome back, " .. player.Name .. "! Hub is ready to use.",
+    Duration = 5,
+    Icon = "snowflake",
+})
+
+task.wait(1.5)
+
+WindUI:Notify({
+    Title = "🖥️ Executor Detected",
+    Content = "You are using: " .. executor,
+    Duration = 5,
+    Icon = "cpu",
+})
+
+task.wait(1.5)
+
+WindUI:Notify({
+    Title = "🎮 Game Detected",
+    Content = "Game: " .. game:GetService("MarketplaceService"):GetProductInfo(game.PlaceId).Name,
+    Duration = 5,
+    Icon = "gamepad-2",
+})
+
+-------------------------------------------------
+-- TAB 1: Auto Farm
+-------------------------------------------------
+local FarmTab = Window:Tab({
+    Title = "Auto Farm Brainrots",
+    Icon = "building",
+})
+
+FarmTab:Dropdown({
+    Title = "Select Zone",
+    Icon = "map-pin",
+    Values = {
+        "Common", "Rare", "Legendary", "Mythic",
+        "Exotic", "Secret", "Secret+Divine", "Divine+Omega"
+    },
+    Default = "Common",
+    Callback = function(value)
+        selectedZone = zoneMap[value] or "1"
+    end,
+})
+
+FarmTab:Dropdown({
+    Title = "Select Plot",
+    Icon = "home",
+    Values = {"1", "2", "3", "4", "5"},
+    Default = "1",
+    Callback = function(value)
+        selectedPlot = value
+    end,
+})
+
+FarmTab:Toggle({
+    Title = "Auto Farm",
+    Icon = "zap",
+    Default = false,
+    Callback = function(state)
+        autoEnabled = state
+        if autoEnabled then
+            startLoop()
+            WindUI:Notify({
+                Title = "🌾 Auto Farm Started",
+                Content = "Farming Zone: " .. selectedZone .. " | Plot: " .. selectedPlot,
+                Duration = 3,
+                Icon = "zap",
+            })
+        else
+            WindUI:Notify({
+                Title = "⛔ Auto Farm Stopped",
+                Content = "Farm loop has been disabled.",
+                Duration = 3,
+                Icon = "x-circle",
+            })
+        end
+    end,
+})
+
+-------------------------------------------------
+-- TAB 2: Auto Upgrade
+-------------------------------------------------
+local UpgradeTab = Window:Tab({
+    Title = "Auto Upgrade",
+    Icon = "trending-up",
+})
+
+UpgradeTab:Toggle({
+    Title = "Auto Claim Earnings",
+    Icon = "dollar-sign",
+    Default = false,
+    Callback = function(state)
+        autoUpgradeEnabled = state
+        if autoUpgradeEnabled then startUpgradeLoop() end
+    end,
+})
+
+UpgradeTab:Toggle({
+    Title = "Auto Buy Carry",
+    Icon = "package",
+    Default = false,
+    Callback = function(state)
+        autoCarryEnabled = state
+        if autoCarryEnabled then startCarryLoop() end
+    end,
+})
+
+UpgradeTab:Toggle({
+    Title = "Auto Buy Beanstalk",
+    Icon = "cpu",
+    Default = false,
+    Callback = function(state)
+        autoBeanstalkEnabled = state
+        if autoBeanstalkEnabled then startBeanstalkLoop() end
+    end,
+})
+
+UpgradeTab:Toggle({
+    Title = "Auto Buy Speed",
+    Icon = "wind",
+    Default = false,
+    Callback = function(state)
+        autoSpeedEnabled = state
+        if autoSpeedEnabled then startSpeedLoop() end
+    end,
+})
+
+UpgradeTab:Toggle({
+    Title = "Auto Buy Climb Speed",
+    Icon = "arrow-up",
+    Default = false,
+    Callback = function(state)
+        autoClimbEnabled = state
+        if autoClimbEnabled then startClimbLoop() end
+    end,
+})
+
+UpgradeTab:Toggle({
+    Title = "Auto Rebirth",
+    Icon = "refresh-cw",
+    Default = false,
+    Callback = function(state)
+        autoRebirthEnabled = state
+        if autoRebirthEnabled then startRebirthLoop() end
+    end,
+})
+
+UpgradeTab:Toggle({
+    Title = "Auto Sell All",
+    Icon = "shopping-cart",
+    Default = false,
+    Callback = function(state)
+        autoSellEnabled = state
+        if autoSellEnabled then startSellLoop() end
+    end,
+})
+
+-------------------------------------------------
+-- TAB 3: Candy
+-------------------------------------------------
+local CandyTab = Window:Tab({
+    Title = "Auto Farm Candy",
+    Icon = "gift",
+})
+
+CandyTab:Dropdown({
+    Title = "Select Zone",
+    Icon = "map-pin",
+    Values = {
+        "Common", "Rare", "Legendary", "Mythic",
+        "Exotic", "Secret", "Secret+Divine", "Divine+Omega"
+    },
+    Default = "Common",
+    Callback = function(value)
+        candyZone = zoneMap[value] or "1"
+    end,
+})
+
+CandyTab:Dropdown({
+    Title = "Select Plot",
+    Icon = "home",
+    Values = {"1", "2", "3", "4", "5"},
+    Default = "1",
+    Callback = function(value)
+        candyPlot = value
+    end,
+})
+
+CandyTab:Toggle({
+    Title = "Auto Candy Cane",
+    Icon = "star",
+    Default = false,
+    Callback = function(state)
+        candyEnabled = state
+        if candyEnabled then
+            startCandyLoop()
+            WindUI:Notify({
+                Title = "🍬 Candy Cane Farm Started",
+                Content = "Detecting candy in Zone: " .. candyZone,
+                Duration = 3,
+                Icon = "star",
+            })
+        else
+            WindUI:Notify({
+                Title = "⛔ Candy Farm Stopped",
+                Content = "Candy loop has been disabled.",
+                Duration = 3,
+                Icon = "x-circle",
+            })
+        end
+    end,
+})
+
+-------------------------------------------------
+-- TAB 4: Misc
+-------------------------------------------------
+local MiscTab = Window:Tab({
+    Title = "Misc",
+    Icon = "settings",
+})
+
+MiscTab:Section({ Title = "Fly" })
+
+MiscTab:Input({
+    Title = "Fly Speed",
+    Description = "Set fly speed (default 50)",
+    Default = "50",
+    Placeholder = "Enter fly speed...",
+    Callback = function(value)
+        local num = tonumber(value)
+        if num then flySpeed = num end
+    end,
+})
+
+MiscTab:Toggle({
+    Title = "Fly",
+    Description = "WASD to move | Space = up | Shift = down",
+    Default = false,
+    Callback = function(state)
+        flyEnabled = state
+        if state then
+            startFly()
+            WindUI:Notify({
+                Title = "🚀 Fly Enabled",
+                Content = "Speed: " .. flySpeed .. " | WASD to move",
+                Duration = 3,
+                Icon = "wind",
+            })
+        else
+            stopFly()
+            WindUI:Notify({
+                Title = "⛔ Fly Disabled",
+                Content = "You are back on the ground.",
+                Duration = 3,
+                Icon = "x-circle",
+            })
+        end
+    end,
+})
+
+MiscTab:Section({ Title = "Speed" })
+
+MiscTab:Input({
+    Title = "Walk Speed",
+    Description = "Set walk speed (default 16)",
+    Default = "50",
+    Placeholder = "Enter walk speed...",
+    Callback = function(value)
+        local num = tonumber(value)
+        if num then walkSpeed = num end
+    end,
+})
+
+MiscTab:Toggle({
+    Title = "Speed",
+    Description = "Sets your walk speed",
+    Default = false,
+    Callback = function(state)
+        speedEnabled = state
+        if state then
+            startSpeed()
+            WindUI:Notify({
+                Title = "⚡ Speed Enabled",
+                Content = "WalkSpeed set to: " .. walkSpeed,
+                Duration = 3,
+                Icon = "zap",
+            })
+        else
+            stopSpeed()
+            WindUI:Notify({
+                Title = "⛔ Speed Disabled",
+                Content = "WalkSpeed reset to 16.",
+                Duration = 3,
+                Icon = "x-circle",
+            })
+        end
+    end,
+})
+
+-------------------------------------------------
+-- TAB 5: Support
+-------------------------------------------------
+local InviteCode = "9X8qygcW"
+local DiscordAPI = "https://discord.com/api/v10/invites/" .. InviteCode .. "?with_counts=true&with_expiration=true"
+
+local SupportTab = Window:Tab({
+    Title = "Support",
+    Icon = "heart",
+})
+
+SupportTab:Section({ Title = "Support the Script ❤️" })
+
+do
+    local function httpGet(url)
+        local body = nil
+        if syn and syn.request then
+            pcall(function() body = syn.request({ Url = url, Method = "GET" }).Body end)
+        elseif http and http.request then
+            pcall(function() body = http.request({ Url = url, Method = "GET" }).Body end)
+        elseif request then
+            pcall(function() body = request({ Url = url, Method = "GET" }).Body end)
+        elseif http_request then
+            pcall(function() body = http_request({ Url = url, Method = "GET" }).Body end)
+        end
+        return body
+    end
+
+    local Response = {}
+    local raw = httpGet(DiscordAPI)
+    if raw then
+        pcall(function() Response = HttpService:JSONDecode(raw) end)
+    end
+
+    local onlineCount = "?"
+    local totalCount  = "?"
+    local iconUrl     = nil
+    local guildName   = "ZyroYonk Hub"
+
+    if Response and Response.guild then
+        guildName   = tostring(Response.guild.name or guildName)
+        onlineCount = tostring(Response.approximate_presence_count or "?")
+        totalCount  = tostring(Response.approximate_member_count or "?")
+        if Response.guild.id and Response.guild.icon then
+            iconUrl = "https://cdn.discordapp.com/icons/"
+                .. tostring(Response.guild.id) .. "/"
+                .. tostring(Response.guild.icon) .. ".png?size=256"
+        end
+    end
+
+    local cardProps = {
+        Title     = guildName,
+        Desc      = "🟢 Online: " .. onlineCount .. "   👥 Members: " .. totalCount,
+        ImageSize = 52,
+        Buttons   = {
+            {
+                Title = "Copy Invite",
+                Callback = function()
+                    if setclipboard then
+                        setclipboard("https://discord.gg/" .. InviteCode)
+                        WindUI:Notify({
+                            Title    = "📋 Copied!",
+                            Content  = "Discord invite link copied to clipboard!",
+                            Duration = 3,
+                            Icon     = "clipboard-check",
+                        })
+                    end
+                end,
+            }
+        }
+    }
+    if iconUrl then cardProps.Image = iconUrl end
+    SupportTab:Paragraph(cardProps)
+
+    SupportTab:Paragraph({
+        Title = "🖥️ Your Executor",
+        Desc  = executor,
+    })
+
+    SupportTab:Paragraph({
+        Title = "👤 Logged in as",
+        Desc  = player.Name .. " (ID: " .. tostring(player.UserId) .. ")",
+    })
+
+    SupportTab:Paragraph({
+        Title = "🟢 Members Currently Online",
+        Desc  = onlineCount .. " people are active right now",
+    })
+
+    SupportTab:Paragraph({
+        Title = "👥 Total Server Members",
+        Desc  = totalCount .. " members have joined ZyroYonk Hub",
+    })
+end
