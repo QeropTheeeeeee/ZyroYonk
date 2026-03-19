@@ -26,24 +26,6 @@ local speedEnabled = false
 local walkSpeed = 50
 local speedConnection = nil
 
--------------------------------------------------
--- DETECT EXECUTOR
--------------------------------------------------
-local executor = "Unknown Executor"
-if identifyexecutor then
-    executor = identifyexecutor()
-elseif getexecutorname then
-    executor = getexecutorname()
-elseif syn then
-    executor = "Synapse X"
-elseif KRNL_LOADED then
-    executor = "Krnl"
-elseif pebc then
-    executor = "Electron"
-elseif fluxus then
-    executor = "Fluxus"
-end
-
 local zoneMap = {
     ["Common"]       = "1",
     ["Rare"]         = "2",
@@ -342,6 +324,7 @@ local function startCandyLoop()
                 local root = getRoot()
                 if root then
                     root.CFrame = zone.CFrame + Vector3.new(0, 5, 0)
+                    print("[Candy] ✅ Teleported to Zone:", candyZone)
                 end
             else
                 task.wait(1) continue
@@ -401,6 +384,7 @@ local function startCandyLoop()
                 local root2 = getRoot()
                 if root2 then
                     root2.CFrame = spawn.CFrame + Vector3.new(0, 5, 0)
+                    print("[Candy] ✅ Teleported to Plot:", candyPlot)
                 end
             end
 
@@ -492,16 +476,15 @@ local function stopSpeed()
 end
 
 -------------------------------------------------
--- GUI WINDOW
+-- GUI
 -------------------------------------------------
 local Window = WindUI:CreateWindow({
     Title = "ZyroYonk Hub",
     Icon = "snowflake",
     Author = "ZyroYonk",
     Folder = "ZyroYonkHub",
-    Size = UDim2.fromOffset(270, 400),
-    Theme = "Red",
-    Transparency = 0.15,
+    Size = UDim2.fromOffset(250, 250),
+    Theme = "Violet",
     User = {
         Enabled = true,
         Anonymous = false,
@@ -525,36 +508,6 @@ Window:Tag({
     Color = Color3.fromRGB(15, 255, 80),
     Position = UDim2.new(1, -5, 0, 5),
     Size = UDim2.fromOffset(60, 20)
-})
-
--------------------------------------------------
--- STARTUP NOTIFICATIONS
--------------------------------------------------
-task.wait(1)
-
-WindUI:Notify({
-    Title = "✅ ZyroYonk Hub Loaded!",
-    Content = "Welcome back, " .. player.Name .. "! Hub is ready to use.",
-    Duration = 5,
-    Icon = "snowflake",
-})
-
-task.wait(1.5)
-
-WindUI:Notify({
-    Title = "🖥️ Executor Detected",
-    Content = "You are using: " .. executor,
-    Duration = 5,
-    Icon = "cpu",
-})
-
-task.wait(1.5)
-
-WindUI:Notify({
-    Title = "🎮 Game Detected",
-    Content = "Game: " .. game:GetService("MarketplaceService"):GetProductInfo(game.PlaceId).Name,
-    Duration = 5,
-    Icon = "gamepad-2",
 })
 
 -------------------------------------------------
@@ -594,22 +547,7 @@ FarmTab:Toggle({
     Default = false,
     Callback = function(state)
         autoEnabled = state
-        if autoEnabled then
-            startLoop()
-            WindUI:Notify({
-                Title = "🌾 Auto Farm Started",
-                Content = "Farming Zone: " .. selectedZone .. " | Plot: " .. selectedPlot,
-                Duration = 3,
-                Icon = "zap",
-            })
-        else
-            WindUI:Notify({
-                Title = "⛔ Auto Farm Stopped",
-                Content = "Farm loop has been disabled.",
-                Duration = 3,
-                Icon = "x-circle",
-            })
-        end
+        if autoEnabled then startLoop() end
     end,
 })
 
@@ -728,22 +666,7 @@ CandyTab:Toggle({
     Default = false,
     Callback = function(state)
         candyEnabled = state
-        if candyEnabled then
-            startCandyLoop()
-            WindUI:Notify({
-                Title = "🍬 Candy Cane Farm Started",
-                Content = "Detecting candy in Zone: " .. candyZone,
-                Duration = 3,
-                Icon = "star",
-            })
-        else
-            WindUI:Notify({
-                Title = "⛔ Candy Farm Stopped",
-                Content = "Candy loop has been disabled.",
-                Duration = 3,
-                Icon = "x-circle",
-            })
-        end
+        if candyEnabled then startCandyLoop() end
     end,
 })
 
@@ -774,23 +697,7 @@ MiscTab:Toggle({
     Default = false,
     Callback = function(state)
         flyEnabled = state
-        if state then
-            startFly()
-            WindUI:Notify({
-                Title = "🚀 Fly Enabled",
-                Content = "Speed: " .. flySpeed .. " | WASD to move",
-                Duration = 3,
-                Icon = "wind",
-            })
-        else
-            stopFly()
-            WindUI:Notify({
-                Title = "⛔ Fly Disabled",
-                Content = "You are back on the ground.",
-                Duration = 3,
-                Icon = "x-circle",
-            })
-        end
+        if state then startFly() else stopFly() end
     end,
 })
 
@@ -813,23 +720,7 @@ MiscTab:Toggle({
     Default = false,
     Callback = function(state)
         speedEnabled = state
-        if state then
-            startSpeed()
-            WindUI:Notify({
-                Title = "⚡ Speed Enabled",
-                Content = "WalkSpeed set to: " .. walkSpeed,
-                Duration = 3,
-                Icon = "zap",
-            })
-        else
-            stopSpeed()
-            WindUI:Notify({
-                Title = "⛔ Speed Disabled",
-                Content = "WalkSpeed reset to 16.",
-                Duration = 3,
-                Icon = "x-circle",
-            })
-        end
+        if state then startSpeed() else stopSpeed() end
     end,
 })
 
@@ -844,7 +735,9 @@ local SupportTab = Window:Tab({
     Icon = "heart",
 })
 
-SupportTab:Section({ Title = "Support the Script ❤️" })
+SupportTab:Section({
+    Title = "Support the Script ❤️",
+})
 
 do
     local function httpGet(url)
@@ -894,8 +787,8 @@ do
                     if setclipboard then
                         setclipboard("https://discord.gg/" .. InviteCode)
                         WindUI:Notify({
-                            Title    = "📋 Copied!",
-                            Content  = "Discord invite link copied to clipboard!",
+                            Title    = "Copied!",
+                            Content  = "Discord invite link copied to clipboard.",
                             Duration = 3,
                             Icon     = "clipboard-check",
                         })
@@ -906,16 +799,6 @@ do
     }
     if iconUrl then cardProps.Image = iconUrl end
     SupportTab:Paragraph(cardProps)
-
-    SupportTab:Paragraph({
-        Title = "🖥️ Your Executor",
-        Desc  = executor,
-    })
-
-    SupportTab:Paragraph({
-        Title = "👤 Logged in as",
-        Desc  = player.Name .. " (ID: " .. tostring(player.UserId) .. ")",
-    })
 
     SupportTab:Paragraph({
         Title = "🟢 Members Currently Online",
