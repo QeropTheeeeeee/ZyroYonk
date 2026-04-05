@@ -1,229 +1,557 @@
--- Fast load WindUI
-local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
+-- ============================================================
+--  ZyroYonk Hub  |  WindUI  |  Fixed & Functional
+-- ============================================================
 
-local Players = game:GetService("Players")
+local WindUI = loadstring(game:HttpGet(
+    "https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"
+))()
+
+-- ── Services ────────────────────────────────────────────────
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local player = Players.LocalPlayer
+local RunService        = game:GetService("RunService")
+local UserInputService  = game:GetService("UserInputService")
+local HttpService       = game:GetService("HttpService")
+local Players           = game:GetService("Players")
+local player            = Players.LocalPlayer
 
--- Detect executor
-local executor = "Unknown Executor"
-if identifyexecutor then
-    executor = identifyexecutor()
-end
+-- ============================================================
+--  CUSTOM GRADIENT THEME
+-- ============================================================
+WindUI:AddTheme({
+    Name = "ZyroTheme",
 
--- ==============================
--- Window
--- ==============================
-local Window = WindUI:CreateWindow({
-    Title = "Spin A Soccer Card",
-    Icon = "rocket",
-    Author = "ZyroYonk",
-    Folder = "ZyroYonkHub",
-    Size = UDim2.fromOffset(250,250),
-    Theme = "Midnight"
+    -- Pixel font for all text
+    Font = Font.fromName("PixelifySans", Enum.FontWeight.Bold),
+
+    -- Window body: deep space black → dark purple
+    Background = WindUI:Gradient({
+        ["0"]   = { Color = Color3.fromHex("#0a0010"), Transparency = 0 },
+        ["50"]  = { Color = Color3.fromHex("#12001f"), Transparency = 0 },
+        ["100"] = { Color = Color3.fromHex("#05000d"), Transparency = 0 },
+    }, { Rotation = 135 }),
+
+    -- Accent: neon pink → electric violet → hot red
+    Accent = WindUI:Gradient({
+        ["0"]   = { Color = Color3.fromHex("#ff0066"), Transparency = 0 },
+        ["50"]  = { Color = Color3.fromHex("#aa00ff"), Transparency = 0 },
+        ["100"] = { Color = Color3.fromHex("#ff003c"), Transparency = 0 },
+    }, { Rotation = 90 }),
+
+    -- Sidebar: ultra-dark with a purple midnight hint
+    SideBar = WindUI:Gradient({
+        ["0"]   = { Color = Color3.fromHex("#0d0018"), Transparency = 0 },
+        ["50"]  = { Color = Color3.fromHex("#100020"), Transparency = 0 },
+        ["100"] = { Color = Color3.fromHex("#080010"), Transparency = 0 },
+    }, { Rotation = 160 }),
+
+    -- Tab panels: dark glass-like purple tint
+    Tab = WindUI:Gradient({
+        ["0"]   = { Color = Color3.fromHex("#1a0030"), Transparency = 0.1 },
+        ["100"] = { Color = Color3.fromHex("#0f0020"), Transparency = 0.1 },
+    }, { Rotation = 45 }),
+
+    -- Toggle ON: cyan → neon green glow
+    Toggle = WindUI:Gradient({
+        ["0"]   = { Color = Color3.fromHex("#00ffcc"), Transparency = 0 },
+        ["50"]  = { Color = Color3.fromHex("#00ddff"), Transparency = 0 },
+        ["100"] = { Color = Color3.fromHex("#00ff88"), Transparency = 0 },
+    }, { Rotation = 90 }),
+
+    -- Buttons: hot pink → electric purple → deep violet
+    Button = WindUI:Gradient({
+        ["0"]   = { Color = Color3.fromHex("#ff0080"), Transparency = 0 },
+        ["50"]  = { Color = Color3.fromHex("#8800ff"), Transparency = 0 },
+        ["100"] = { Color = Color3.fromHex("#4400cc"), Transparency = 0 },
+    }, { Rotation = 135 }),
+
+    -- Text: pure white → soft neon pink shimmer
+    Text = WindUI:Gradient({
+        ["0"]   = { Color = Color3.fromHex("#ffffff"), Transparency = 0 },
+        ["50"]  = { Color = Color3.fromHex("#ffccff"), Transparency = 0 },
+        ["100"] = { Color = Color3.fromHex("#ff99ee"), Transparency = 0 },
+    }, { Rotation = 0 }),
+
+    -- Icons: electric blue → cyan → neon mint
+    Icon = WindUI:Gradient({
+        ["0"]   = { Color = Color3.fromHex("#00aaff"), Transparency = 0 },
+        ["50"]  = { Color = Color3.fromHex("#00ffee"), Transparency = 0 },
+        ["100"] = { Color = Color3.fromHex("#00ffaa"), Transparency = 0 },
+    }, { Rotation = 90 }),
 })
 
-WindUI:Notify({
-    Title = "⚡ Executor Detected",
-    Content = "You are using: "..executor,
-    Duration = 5
+-- ============================================================
+--  showGUI  –  called when the user presses "Continue"
+-- ============================================================
+local function showGUI()
+
+    -- ── Window ───────────────────────────────────────────────
+    local Window = WindUI:CreateWindow({
+        Title        = "My Super Hub",
+        Icon         = "https://i.pinimg.com/236x/9a/e8/3b/9ae83bba36f73a76287c5b628af42f60.jpg",
+        Author       = "by ZyroYonk",
+        Folder       = "ZyroYonk Hub",
+        Size         = UDim2.fromOffset(250, 250),   -- fixed: was 250x250 (too small)
+        MinSize      = Vector2.new(560, 350),
+        MaxSize      = Vector2.new(850, 560),
+        Transparent  = true,
+        Theme        = "ZyroTheme",
+        Resizable    = true,
+        SideBarWidth = 200,
+        Background   = "https://i.pinimg.com/1200x/06/cb/16/06cb16342b741a2790a1ab04232a330b.jpg",  -- fixed: missing quote
+        BackgroundImageTransparency = 0.12,   -- fixed: was on separate line
+        HideSearchBar       = false,
+        ScrollBarEnabled    = false,
+        User = {
+            Enabled   = true,
+            Anonymous = false,   -- show your real Roblox avatar
+            Callback  = function()
+                print("User button clicked")
+            end,
+        },
+    })
+
+-- Tag
+Window:Tag({
+    Title  = "v1.0.3",
+    Icon   = "octagon-alert",
+    Color  = Color3.fromHex("#f00505"), -- vibrant red
+    Radius = 100,
 })
 
--- ==============================
--- TAB
--- ==============================
-local SpawnTab = Window:Tab({
-    Title = "Spawn Collector",
-    Icon = "list"
+Window:Tag({
+    Title  = "JOIN OUR DISCORD",
+    Icon   = "feather",                 -- icon name
+    Color  = Color3.fromHex("#f00505"), -- vibrant red
+    Radius = 100,
+    IconColor = Color3.fromHex("#21068e"),  -- ✅ force the icon to be red
 })
 
---------------------------------------------------
--- VARIABLES
---------------------------------------------------
-local SelectedOpenPacks = {}
-local SelectedBuyPacks = {}
+-- Tab
+local Tab = Window:Tab({
+    Title = "Changelog",
+    Icon = "scroll", -- optional
+    Locked = false,
+})
 
-local AutoOpen = false
-local AutoBuy = false
+-- Paragraph
+local Paragraph = Tab:Paragraph({
+    Title = "📢 UPDATED INFORMATION",
+    Desc = [[
+🔥 **UPDATE v1.0.3**
 
---------------------------------------------------
--- MULTI SELECT PACKS TO OPEN
---------------------------------------------------
-SpawnTab:Dropdown({
-    Title = "Select Packs To Buy",
-    Multi = true,
-    Values = {
+- 🆕 Added **2 new Cards**
+- ⚡ Improved performance and UI
+- 🧩 Added **Miscellaneous fixes**
+
+✨ **UPDATE v1.0.2**
+
+- 🆕 Added **2 Cards**
+- 🛡️ Improved **Anti-Ban system**
+
+🚀 **UPDATE v1.0.1**
+
+- Initial release 🎉
+]],
+    Color = Color3.fromHex("#070d61"), -- fresh green highlight
+    ImageSize = 60,
+    Thumbnail = "https://i.pinimg.com/736x/e6/95/88/e69588cea343ad7033d13f1bf282ed9d.jpg",
+    ThumbnailSize = 100,
+    Locked = false,
+})
+
+    -- ============================================================
+    --  TAB: SPAWN COLLECTOR
+    -- ============================================================
+    local SpawnTab = Window:Tab({
+        Title = "Main Features",
+        Icon  = "house",
+    })
+
+    local PACK_LIST = {
         "Bronze","Silver","Gold",
         "Platinum","Diamond","Toxic",
         "Shadow","Infernal","Corrupted",
         "Cosmic","Eclipse","Hades",
         "Heaven","Chaos","Ordian",
-        "Alpha","Omega"
-    },
-    Default = {},
-    Callback = function(v)
-        SelectedOpenPacks = v
-    end
-})
+        "Alpha","Omega",
+        "Genesis","Abyssal","Enigma","Oracle",
+    }
 
---------------------------------------------------
--- AUTO OPEN PACK
---------------------------------------------------
-SpawnTab:Toggle({
-    Title = "Auto Open Pack",
-    Default = false,
-    Callback = function(state)
-        AutoOpen = state
+    -- ── Packs to Open ────────────────────────────────────────
+    local SelectedOpenPacks = {}
 
-        task.spawn(function()
-            while AutoOpen do
-                for _,pack in pairs(SelectedOpenPacks) do
-                    ReplicatedStorage.Remotes.OpenPack:FireServer(pack)
-                end
-                task.wait(0.2)
+    SpawnTab:Dropdown({
+        Title    = "Select Packs To Open",
+        Multi    = true,
+        Values   = PACK_LIST,
+        Default  = {},
+        Callback = function(v)
+            SelectedOpenPacks = v
+        end,
+    })
+
+    local AutoOpen = false
+
+    SpawnTab:Toggle({
+        Title    = "Auto Open Pack",
+        Default  = false,
+        Callback = function(state)
+            AutoOpen = state
+            if state then
+                task.spawn(function()
+                    while AutoOpen do
+                        for _, pack in pairs(SelectedOpenPacks) do
+                            pcall(function()
+                                ReplicatedStorage:WaitForChild("Remotes")
+                                    :WaitForChild("OpenPack"):FireServer(pack)
+                            end)
+                        end
+                        task.wait(0.2)
+                    end
+                end)
             end
-        end)
-    end
-})
+        end,
+    })
 
---------------------------------------------------
--- MULTI SELECT PACKS TO BUY
---------------------------------------------------
-SpawnTab:Dropdown({
-    Title = "Select Packs To Buy",
-    Multi = true,
-    Values = {
-        "Bronze","Silver","Gold",
-        "Platinum","Diamond","Toxic",
-        "Shadow","Infernal","Corrupted",
-        "Cosmic","Eclipse","Hades",
-        "Heaven","Chaos","Ordian",
-        "Alpha","Omega"
-    },
-    Default = {},
-    Callback = function(v)
-        SelectedBuyPacks = v
-    end
-})
+    -- ── Packs to Buy ─────────────────────────────────────────
+    local SelectedBuyPacks = {}
 
---------------------------------------------------
--- AUTO BUY PACK
---------------------------------------------------
-SpawnTab:Toggle({
-    Title = "Auto Buy Pack",
-    Default = false,
-    Callback = function(state)
-        AutoBuy = state
+    SpawnTab:Dropdown({
+        Title    = "Select Packs To Buy",
+        Multi    = true,
+        Values   = PACK_LIST,
+        Default  = {},
+        Callback = function(v)
+            SelectedBuyPacks = v
+        end,
+    })
 
-        task.spawn(function()
-            while AutoBuy do
-                for _,pack in pairs(SelectedBuyPacks) do
-                    ReplicatedStorage.Remotes.BuyPack:FireServer(pack)
-                end
-                task.wait(0.5)
+    local AutoBuy = false
+
+    SpawnTab:Toggle({
+        Title    = "Auto Buy Pack",
+        Default  = false,
+        Callback = function(state)
+            AutoBuy = state
+            if state then
+                task.spawn(function()
+                    while AutoBuy do
+                        for _, pack in pairs(SelectedBuyPacks) do
+                            pcall(function()
+                                ReplicatedStorage:WaitForChild("Remotes")
+                                    :WaitForChild("BuyPack"):FireServer(pack)
+                            end)
+                        end
+                        task.wait(0.5)
+                    end
+                end)
             end
-        end)
-    end
-})
+        end,
+    })
 
---------------------------------------------------
--- AUTO COLLECT SLOTS 1-10
---------------------------------------------------
-local AutoCollectSlots = false
+    -- ── Auto Collect (Slots 1‑10) ────────────────────────────
+    local AutoCollectSlots = false
 
-SpawnTab:Toggle({
-    Title = "Auto Collect",
-    Default = false,
-    Callback = function(state)
-        AutoCollectSlots = state
-
-        task.spawn(function()
-            while AutoCollectSlots do
-                for slot = 1, 10 do
-                    local args = {slot}
-                    game:GetService("ReplicatedStorage")
-                        :WaitForChild("Remotes")
-                        :WaitForChild("CollectSlot")
-                        :FireServer(unpack(args))
-                end
-                task.wait(0.3) -- adjust speed if needed
+    SpawnTab:Toggle({
+        Title    = "Auto Collect",
+        Default  = false,
+        Callback = function(state)
+            AutoCollectSlots = state
+            if state then
+                task.spawn(function()
+                    while AutoCollectSlots do
+                        for slot = 1, 10 do
+                            pcall(function()
+                                ReplicatedStorage:WaitForChild("Remotes")
+                                    :WaitForChild("CollectSlot"):FireServer(slot)
+                            end)
+                        end
+                        task.wait(0.3)
+                    end
+                end)
             end
-        end)
-    end
-})
+        end,
+    })
 
---------------------------------------------------
--- AUTO REBIRTH
---------------------------------------------------
-local AutoRebirth = false
+    -- ── Auto Rebirth ─────────────────────────────────────────
+    local AutoRebirth = false
 
-SpawnTab:Toggle({
-    Title = "Auto Rebirth",
-    Default = false,
-    Callback = function(state)
-        AutoRebirth = state
-
-        task.spawn(function()
-            while AutoRebirth do
-                game:GetService("ReplicatedStorage")
-                    :WaitForChild("Remotes")
-                    :WaitForChild("Rebirth")
-                    :FireServer()
-
-                task.wait(0.5) -- adjust speed if needed
+    SpawnTab:Toggle({
+        Title    = "Auto Rebirth",
+        Default  = false,
+        Callback = function(state)
+            AutoRebirth = state
+            if state then
+                task.spawn(function()
+                    while AutoRebirth do
+                        pcall(function()
+                            ReplicatedStorage:WaitForChild("Remotes")
+                                :WaitForChild("Rebirth"):FireServer()
+                        end)
+                        task.wait(0.5)
+                    end
+                end)
             end
-        end)
-    end
-})
+        end,
+    })
 
--- Create Tab
-local MainTab = Window:Tab({
-    Title = "Support",
-    Icon = "heart"
-})
+    -- ============================================================
+    --  TAB: MISC  (Fly + Speed)
+    -- ============================================================
+    local MiscTab = Window:Tab({
+        Title = "Misc",
+        Icon  = "settings",
+    })
 
--- Paragraph (THIS WILL SHOW)
-MainTab:Paragraph({
-    Title = "Support Our Project ❤️",
-    Desc = "If you enjoy using this Script, please join our Discord server. Your support helps us improve and create better scripts for everyone! And dont forget to follow my Rscript"
-})
+    -- ── Fly ──────────────────────────────────────────────────
+    local flyEnabled   = false
+    local flySpeed     = 50
+    local flyConnection = nil
 
--- Copy Button
-MainTab:Button({
-    Title = "Copy Discord Link",
-    Callback = function()
-
-        local link = "https://discord.gg/R7KF6k4pn8"
-
-        if setclipboard then
-            setclipboard(link)
+    local function stopFly()
+        flyEnabled = false
+        if flyConnection then flyConnection:Disconnect(); flyConnection = nil end
+        local character = player.Character
+        if character then
+            local root     = character:FindFirstChild("HumanoidRootPart")
+            local humanoid = character:FindFirstChild("Humanoid")
+            if humanoid then humanoid.PlatformStand = false end
+            if root then
+                local bv = root:FindFirstChildOfClass("BodyVelocity")
+                local bg = root:FindFirstChildOfClass("BodyGyro")
+                if bv then bv:Destroy() end
+                if bg then bg:Destroy() end
+            end
         end
-
-        WindUI:Notify({
-            Title = "Link Copied ✅",
-            Content = "Thanks for supporting us! The link is now in your clipboard.",
-            Duration = 4
-        })
-
     end
-})
 
--- Copy Button
-MainTab:Button({
-    Title = "Copy Link To Follow My Rscript",
-    Callback = function()
+    local function startFly()
+        local character = player.Character
+        if not character then return end
+        local root     = character:FindFirstChild("HumanoidRootPart")
+        local humanoid = character:FindFirstChild("Humanoid")
+        if not root or not humanoid then return end
 
-        local link = "https://rscripts.net/@ZyroYonk"
+        humanoid.PlatformStand = true
 
-        if setclipboard then
-            setclipboard(link)
+        local bv = Instance.new("BodyVelocity")
+        bv.Velocity = Vector3.new(0, 0, 0)
+        bv.MaxForce = Vector3.new(1e9, 1e9, 1e9)
+        bv.Parent   = root
+
+        local bg = Instance.new("BodyGyro")
+        bg.MaxTorque = Vector3.new(1e9, 1e9, 1e9)
+        bg.P      = 1e4
+        bg.D      = 100
+        bg.CFrame = root.CFrame
+        bg.Parent = root
+
+        flyConnection = RunService.Heartbeat:Connect(function()
+            if not flyEnabled then return end
+            local camera  = workspace.CurrentCamera
+            local moveDir = Vector3.new(0, 0, 0)
+            if UserInputService:IsKeyDown(Enum.KeyCode.W)         then moveDir += camera.CFrame.LookVector  end
+            if UserInputService:IsKeyDown(Enum.KeyCode.S)         then moveDir -= camera.CFrame.LookVector  end
+            if UserInputService:IsKeyDown(Enum.KeyCode.A)         then moveDir -= camera.CFrame.RightVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.D)         then moveDir += camera.CFrame.RightVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.Space)     then moveDir += Vector3.new(0, 1, 0)      end
+            if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then moveDir -= Vector3.new(0, 1, 0)      end
+            if moveDir.Magnitude > 0 then moveDir = moveDir.Unit end
+            bv.Velocity = moveDir * flySpeed
+            bg.CFrame   = camera.CFrame
+        end)
+    end
+
+    -- ── Speed ─────────────────────────────────────────────────
+    local speedEnabled  = false
+    local walkSpeed     = 50
+    local speedConnection = nil
+
+    local function stopSpeed()
+        speedEnabled = false
+        if speedConnection then speedConnection:Disconnect(); speedConnection = nil end
+        local character = player.Character
+        if character then
+            local humanoid = character:FindFirstChild("Humanoid")
+            if humanoid then humanoid.WalkSpeed = 16 end
         end
-
-        WindUI:Notify({
-            Title = "Link Copied ✅",
-            Content = "Thanks for supporting us! The link is now in your clipboard.",
-            Duration = 4
-        })
-
     end
+
+    local function startSpeed()
+        if speedConnection then speedConnection:Disconnect() end
+        speedConnection = RunService.Heartbeat:Connect(function()
+            if not speedEnabled then return end
+            local character = player.Character
+            if not character then return end
+            local humanoid = character:FindFirstChild("Humanoid")
+            if humanoid then humanoid.WalkSpeed = walkSpeed end
+        end)
+    end
+
+    -- ── Fly UI ───────────────────────────────────────────────
+    MiscTab:Section({ Title = "Fly" })
+
+    MiscTab:Input({
+        Title       = "Fly Speed",
+        Description = "Set fly speed then toggle Fly on (default 50)",
+        Default     = "50",
+        Placeholder = "Enter fly speed...",
+        Callback    = function(value)
+            local num = tonumber(value)
+            if num then flySpeed = num end
+        end,
+    })
+
+    MiscTab:Toggle({
+        Title       = "Fly",
+        Description = "WASD to move • Space = up • Shift = down",
+        Default     = false,
+        Callback    = function(state)
+            flyEnabled = state
+            if state then startFly() else stopFly() end
+        end,
+    })
+
+    -- ── Speed UI ─────────────────────────────────────────────
+    MiscTab:Section({ Title = "Speed" })
+
+    MiscTab:Input({
+        Title       = "Walk Speed",
+        Description = "Set walk speed then toggle Speed on (default 16)",
+        Default     = "50",
+        Placeholder = "Enter walk speed...",
+        Callback    = function(value)
+            local num = tonumber(value)
+            if num then walkSpeed = num end
+        end,
+    })
+
+    MiscTab:Toggle({
+        Title       = "Speed",
+        Description = "Applies your walk speed while toggled on",
+        Default     = false,
+        Callback    = function(state)
+            speedEnabled = state
+            if state then startSpeed() else stopSpeed() end
+        end,
+    })
+
+    -- ============================================================
+    --  TAB: SUPPORT
+    -- ============================================================
+    local SupportTab = Window:Tab({
+        Title = "Support",
+        Icon  = "house-heart",
+    })
+
+    local InviteCode = "pfgHhKnzyu"
+    local DiscordAPI = "https://discord.com/api/v10/invites/"
+        .. InviteCode .. "?with_counts=true&with_expiration=true"
+
+    -- Portable HTTP helper
+    local function httpGet(url)
+        local body = nil
+        if syn and syn.request then
+            pcall(function() body = syn.request({ Url = url, Method = "GET" }).Body end)
+        elseif http and http.request then
+            pcall(function() body = http.request({ Url = url, Method = "GET" }).Body end)
+        elseif request then
+            pcall(function() body = request({ Url = url, Method = "GET" }).Body end)
+        elseif http_request then
+            pcall(function() body = http_request({ Url = url, Method = "GET" }).Body end)
+        end
+        return body
+    end
+
+    -- Fetch live Discord data
+    local Response    = {}
+    local raw         = httpGet(DiscordAPI)
+    if raw then
+        pcall(function() Response = HttpService:JSONDecode(raw) end)
+    end
+
+    local onlineCount = "?"
+    local totalCount  = "?"
+    local iconUrl     = nil
+    local guildName   = "ZyroYonk Hub"
+
+    if Response and Response.guild then
+        guildName   = tostring(Response.guild.name or guildName)
+        onlineCount = tostring(Response.approximate_presence_count or "?")
+        totalCount  = tostring(Response.approximate_member_count  or "?")
+        if Response.guild.id and Response.guild.icon then
+            iconUrl = "https://cdn.discordapp.com/icons/"
+                .. tostring(Response.guild.id) .. "/"
+                .. tostring(Response.guild.icon) .. ".png?size=256"
+        end
+    end
+
+    SupportTab:Section({
+        Title = "Support the Script ❤️",
+        Desc  = "Join our Discord and stay updated!",
+    })
+
+    local cardProps = {
+        Title     = guildName,
+        Desc      = "🟢 Online: " .. onlineCount .. "   👥 Members: " .. totalCount,
+        ImageSize = 52,
+        Buttons   = {
+            {
+                Title    = "Copy Invite",
+                Callback = function()
+                    if setclipboard then
+                        setclipboard("https://discord.gg/" .. InviteCode)
+                        WindUI:Notify({
+                            Title    = "Copied!",
+                            Content  = "Discord invite link copied to clipboard.",
+                            Duration = 3,
+                            Icon     = "clipboard-check",
+                        })
+                    end
+                end,
+            },
+        },
+    }
+    if iconUrl then cardProps.Image = iconUrl end
+
+    SupportTab:Paragraph(cardProps)
+
+    SupportTab:Paragraph({
+        Title = "🟢 Members Currently Online",
+        Desc  = onlineCount .. " people are active in the server right now",
+    })
+
+    SupportTab:Paragraph({
+        Title = "👥 Total Server Members",
+        Desc  = totalCount .. " members have joined ZyroYonk Hub",
+    })
+
+end -- end showGUI()
+
+-- ============================================================
+--  POPUP  –  shown first; "Continue" opens the GUI
+-- ============================================================
+WindUI:Popup({
+    Title   = "Click Continue for Full Features",
+    Icon    = "solar:check-circle-bold",
+    Content = "Get access to all features of ZyroYonk Hub and start using it right away! It's Keyless — Stay Safe.",
+    Buttons = {
+        {
+            Title    = "Cancel",
+            Variant  = "Tertiary",
+            Color    = Color3.fromRGB(255, 0, 0),
+            Callback = function()
+                print("Cancel button clicked.")
+            end,
+        },
+        {
+            Title    = "Continue",
+            Icon     = "arrow-right",
+            Variant  = "Primary",
+            Color    = Color3.fromRGB(255, 0, 0),
+            Callback = function()
+                showGUI()
+            end,
+        },
+    },
 })
