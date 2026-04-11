@@ -1,0 +1,362 @@
+local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local HttpService = game:GetService("HttpService")
+local UserInputService = game:GetService("UserInputService")
+local player = Players.LocalPlayer
+
+-- ========== EXECUTOR DETECTION ==========
+local function detectExecutor()
+    if identifyexecutor then return identifyexecutor()
+    elseif syn and syn.request then return "Synapse X"
+    elseif Krnl and Krnl.platform then return "Krnl"
+    elseif fluxus then return "Fluxus"
+    elseif electron then return "Electron"
+    elseif WRDAPI then return "ScriptWare"
+    else return "Unknown" end
+end
+local executorName = detectExecutor()
+
+-- ========== COPY TO CLIPBOARD ==========
+local function copyToClipboard(text)
+    if setclipboard then setclipboard(text)
+    elseif syn and syn.write_clipboard then syn.write_clipboard(text)
+    else warn("Copy not supported: " .. text) end
+end
+
+-- ========== THEME ==========
+WindUI:AddTheme({
+    Name = "ZyroTheme",
+    Font = Font.fromName("PixelifySans", Enum.FontWeight.Bold),
+    Background = WindUI:Gradient({ ["0"] = { Color = Color3.fromHex("#0a0010") }, ["100"] = { Color = Color3.fromHex("#05000d") } }, { Rotation = 135 }),
+    Accent = WindUI:Gradient({ ["0"] = { Color = Color3.fromHex("#ff0066") }, ["100"] = { Color = Color3.fromHex("#ff003c") } }, { Rotation = 90 }),
+    SideBar = WindUI:Gradient({ ["0"] = { Color = Color3.fromHex("#0d0018") }, ["100"] = { Color = Color3.fromHex("#080010") } }, { Rotation = 160 }),
+    Tab = WindUI:Gradient({ ["0"] = { Color = Color3.fromHex("#1a0030") }, ["100"] = { Color = Color3.fromHex("#0f0020") } }, { Rotation = 45 }),
+    Toggle = WindUI:Gradient({ ["0"] = { Color = Color3.fromHex("#00ffcc") }, ["100"] = { Color = Color3.fromHex("#00ff88") } }, { Rotation = 90 }),
+    Button = WindUI:Gradient({ ["0"] = { Color = Color3.fromHex("#ff0080") }, ["100"] = { Color = Color3.fromHex("#4400cc") } }, { Rotation = 135 }),
+    Text = WindUI:Gradient({ ["0"] = { Color = Color3.fromHex("#ffffff") }, ["100"] = { Color = Color3.fromHex("#ff99ee") } }, { Rotation = 0 }),
+    Icon = WindUI:Gradient({ ["0"] = { Color = Color3.fromHex("#00aaff") }, ["100"] = { Color = Color3.fromHex("#00ffaa") } }, { Rotation = 90 }),
+})
+
+-- ========== WINDOW ==========
+local Window = WindUI:CreateWindow({
+    Title = "ZyroYonk Hub",
+    Icon = "https://i.pinimg.com/736x/37/3a/b3/373ab3e072178f47dcb7fdafaddb6854.jpg",
+    Author = "by ZyroYonk",
+    Folder = "ZyroYonk Hub",
+    Size = UDim2.fromOffset(250, 250),
+    MinSize = Vector2.new(560, 350),
+    MaxSize = Vector2.new(850, 560),
+    Transparent = true,
+    Theme = "ZyroTheme",
+    Resizable = true,
+    SideBarWidth = 200,
+    Background = "https://i.pinimg.com/736x/37/3a/b3/373ab3e072178f47dcb7fdafaddb6854.jpg",
+    BackgroundImageTransparency = 0.15,
+    HideSearchBar = false,
+    ScrollBarEnabled = false,
+    User = { Enabled = true, Anonymous = false, Callback = function() end },
+     KeySystem = {
+        Note = "ZyroYonk Hub Keysystem",
+        SaveKey = true,
+        API = {
+            {
+                Type = "platoboost",
+                ServiceId = 22001,
+                Secret = "945af45d-5779-4a05-a31c-432930563763",
+            },
+        },
+        Callback = function() _G["1234"] = true end,
+    },
+})
+
+Window:Tag({ Title = "v1.0.1", Icon = "octagon-alert", Color = Color3.fromHex("#f00505"), Radius = 100 })
+
+-- ========== CHANGELOG TAB ==========
+local ChangelogTab = Window:Tab({ Title = "Changelog", Icon = "scroll" })
+ChangelogTab:Paragraph({
+    Title = "📢 UPDATE: Logs",
+    Desc = [[
+- Update Coming Later v1.0.2
+
+Auto Collect Selected Brainrots
+Collect Cash
+Etc Coming Later
+
+- Initially Release v1.0.1
+]],
+    Color = Color3.fromHex("#070d61"),
+    Thumbnail = "https://i.pinimg.com/736x/37/3a/b3/373ab3e072178f47dcb7fdafaddb6854.jpg",
+    ThumbnailSize = 130,
+})
+
+-- ========== MAIN TAB ==========
+local MainTab = Window:Tab({ Title = "Main Features", Icon = "house" })
+
+-- ========== INVISIBILITY ==========
+local invisible = false
+
+local function makeInvisible(char)
+    for _, part in ipairs(char:GetDescendants()) do
+        if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+            part.Transparency = 1
+        elseif part:IsA("Decal") then
+            part.Transparency = 1
+        end
+    end
+end
+
+local function makeVisible(char)
+    for _, part in ipairs(char:GetDescendants()) do
+        if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+            part.Transparency = 0
+        elseif part:IsA("Decal") then
+            part.Transparency = 0
+        end
+    end
+end
+
+MainTab:Toggle({
+    Title = "Invisibility",
+    Default = false,
+    Callback = function(state)
+        invisible = state
+        local char = player.Character
+        if not char then return end
+        if state then
+            makeInvisible(char)
+            WindUI:Notify({ Title = "Invisibility", Content = "You are now invisible!", Duration = 3 })
+        else
+            makeVisible(char)
+            WindUI:Notify({ Title = "Invisibility", Content = "You are now visible!", Duration = 3 })
+        end
+    end
+})
+
+player.CharacterAdded:Connect(function(newChar)
+    task.wait(1)
+    if invisible then makeInvisible(newChar) end
+end)
+
+-- ========== INSTANT PROXIMITY PROMPT ==========
+local instantPromptEnabled = false
+local promptAddedConnection = nil
+
+local function setAllPrompts(duration)
+    for _, prompt in ipairs(workspace:GetDescendants()) do
+        if prompt:IsA("ProximityPrompt") then
+            prompt.HoldDuration = duration
+        end
+    end
+end
+
+MainTab:Toggle({
+    Title = "Instant Collect",
+    Default = false,
+    Callback = function(state)
+        instantPromptEnabled = state
+        if state then
+            setAllPrompts(0)
+            promptAddedConnection = workspace.DescendantAdded:Connect(function(desc)
+                if desc:IsA("ProximityPrompt") then
+                    desc.HoldDuration = 0
+                end
+            end)
+            WindUI:Notify({ Title = "Instant Prompt", Content = "Hold E is now instant!", Duration = 3 })
+        else
+            if promptAddedConnection then
+                promptAddedConnection:Disconnect()
+                promptAddedConnection = nil
+            end
+            setAllPrompts(1)
+            WindUI:Notify({ Title = "Instant Prompt", Content = "Turned off.", Duration = 3 })
+        end
+    end
+})
+
+
+MainTab:Button({
+    Title = "Destroy Guards",
+    Callback = function()
+        local destroyed = {}
+        local notFound = {}
+
+        local folder = workspace:FindFirstChild("SecurityCameras")
+        if folder then
+            folder:Destroy()
+            table.insert(destroyed, "SecurityCameras")
+        else
+            table.insert(notFound, "SecurityCameras")
+        end
+
+        local toxicZone = workspace:FindFirstChild("ToxicZoneBarriers")
+        if toxicZone then
+            local barrier1 = toxicZone:FindFirstChild("Barrier1")
+            if barrier1 then
+                barrier1:Destroy()
+                table.insert(destroyed, "Barrier1")
+            else
+                table.insert(notFound, "Barrier1")
+            end
+
+            local barrier2 = toxicZone:FindFirstChild("Barrier2")
+            if barrier2 then
+                barrier2:Destroy()
+                table.insert(destroyed, "Barrier2")
+            else
+                table.insert(notFound, "Barrier2")
+            end
+        else
+            table.insert(notFound, "ToxicZoneBarriers")
+        end
+
+        if #destroyed > 0 then
+            WindUI:Notify({ Title = "Destroyed!", Content = table.concat(destroyed, " & ") .. " removed!", Duration = 3 })
+        end
+        if #notFound > 0 then
+            WindUI:Notify({ Title = "Not Found", Content = table.concat(notFound, " & ") .. " not found.", Duration = 3 })
+        end
+    end
+})
+
+-- ========== MISC TAB ==========
+local MiscTab = Window:Tab({ Title = "Misc", Icon = "settings" })
+
+-- Fly system
+local flyEnabled, flySpeed, flyConnection = false, 50, nil
+local function stopFly()
+    flyEnabled = false
+    if flyConnection then flyConnection:Disconnect(); flyConnection = nil end
+    local char = player.Character
+    if char then
+        if char:FindFirstChild("Humanoid") then char.Humanoid.PlatformStand = false end
+        local root = char:FindFirstChild("HumanoidRootPart")
+        if root then
+            local bv = root:FindFirstChildOfClass("BodyVelocity"); if bv then bv:Destroy() end
+            local bg = root:FindFirstChildOfClass("BodyGyro"); if bg then bg:Destroy() end
+        end
+    end
+end
+local function startFly()
+    local char = player.Character
+    if not char then return end
+    local root = char:FindFirstChild("HumanoidRootPart")
+    local hum = char:FindFirstChild("Humanoid")
+    if not root or not hum then return end
+    hum.PlatformStand = true
+    local bv = Instance.new("BodyVelocity"); bv.Velocity = Vector3.new(0,0,0); bv.MaxForce = Vector3.new(1e9,1e9,1e9); bv.Parent = root
+    local bg = Instance.new("BodyGyro"); bg.MaxTorque = Vector3.new(1e9,1e9,1e9); bg.P = 1e4; bg.D = 100; bg.CFrame = root.CFrame; bg.Parent = root
+    flyEnabled = true
+    flyConnection = RunService.Heartbeat:Connect(function()
+        if not flyEnabled then return end
+        local cam = workspace.CurrentCamera
+        local move = Vector3.new(0,0,0)
+        if UserInputService:IsKeyDown(Enum.KeyCode.W) then move += cam.CFrame.LookVector end
+        if UserInputService:IsKeyDown(Enum.KeyCode.S) then move -= cam.CFrame.LookVector end
+        if UserInputService:IsKeyDown(Enum.KeyCode.A) then move -= cam.CFrame.RightVector end
+        if UserInputService:IsKeyDown(Enum.KeyCode.D) then move += cam.CFrame.RightVector end
+        if UserInputService:IsKeyDown(Enum.KeyCode.Space) then move += Vector3.new(0,1,0) end
+        if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then move -= Vector3.new(0,1,0) end
+        if move.Magnitude > 0 then move = move.Unit end
+        bv.Velocity = move * flySpeed
+        bg.CFrame = cam.CFrame
+    end)
+end
+
+MiscTab:Section({ Title = "Fly" })
+MiscTab:Input({ Title = "Fly Speed", Default = "50", Callback = function(v) local n = tonumber(v); if n then flySpeed = n end end })
+MiscTab:Toggle({ Title = "Fly", Default = false, Callback = function(s) if s then startFly() else stopFly() end end })
+
+-- Speed system
+local speedEnabled, walkSpeed, speedConnection = false, 50, nil
+local function stopSpeed()
+    speedEnabled = false
+    if speedConnection then speedConnection:Disconnect(); speedConnection = nil end
+    local char = player.Character
+    if char and char:FindFirstChild("Humanoid") then char.Humanoid.WalkSpeed = 16 end
+end
+local function startSpeed()
+    speedEnabled = true
+    if speedConnection then speedConnection:Disconnect() end
+    speedConnection = RunService.Heartbeat:Connect(function()
+        if not speedEnabled then return end
+        local char = player.Character
+        if char and char:FindFirstChild("Humanoid") then char.Humanoid.WalkSpeed = walkSpeed end
+    end)
+end
+
+MiscTab:Section({ Title = "Speed" })
+MiscTab:Input({ Title = "Walk Speed", Default = "50", Callback = function(v) local n = tonumber(v); if n then walkSpeed = n end end })
+MiscTab:Toggle({ Title = "Speed", Default = false, Callback = function(s) if s then startSpeed() else stopSpeed() end end })
+
+-- ========== SUPPORT TAB ==========
+local SupportTab = Window:Tab({ Title = "Support", Icon = "house-heart" })
+
+local InviteCode = "D5NKtBJEzz"
+local DiscordAPI = "https://discord.com/api/v10/invites/" .. InviteCode .. "?with_counts=true&with_expiration=true"
+
+local function httpGet(url)
+    local body, success = nil, false
+    if syn and syn.request then
+        success, body = pcall(function() return syn.request({ Url = url, Method = "GET" }).Body end)
+    elseif http and http.request then
+        success, body = pcall(function() return http.request({ Url = url, Method = "GET" }).Body end)
+    elseif request then
+        success, body = pcall(function() return request({ Url = url, Method = "GET" }).Body end)
+    elseif http_request then
+        success, body = pcall(function() return http_request({ Url = url, Method = "GET" }).Body end)
+    end
+    if success and body then return body else return nil end
+end
+
+local Response, raw = {}, httpGet(DiscordAPI)
+if raw then pcall(function() Response = HttpService:JSONDecode(raw) end) end
+local onlineCount = Response and Response.approximate_presence_count or "?"
+local totalCount = Response and Response.approximate_member_count or "?"
+local guildName = (Response and Response.guild and Response.guild.name) or "ZyroYonk Hub Discord"
+local iconUrl = nil
+if Response and Response.guild and Response.guild.id and Response.guild.icon then
+    iconUrl = "https://cdn.discordapp.com/icons/" .. tostring(Response.guild.id) .. "/" .. tostring(Response.guild.icon) .. ".png?size=256"
+end
+
+SupportTab:Section({ Title = "Join our Discord" })
+local cardProps = {
+    Title = guildName,
+    Desc = "🟢 Online: " .. onlineCount .. "   👥 Members: " .. totalCount,
+    ImageSize = 75,
+    ThumbnailSize = 300,
+    Color = Color3.fromHex("#2C2F33"),
+    Buttons = {
+        { Title = "Copy Invite", Callback = function()
+            copyToClipboard("https://discord.gg/" .. InviteCode)
+            WindUI:Notify({ Title = "Copied!", Content = "Invite link copied!", Duration = 2, Icon = "clipboard-check" })
+        end },
+        { Title = "Join Discord", Callback = function()
+            copyToClipboard("https://discord.gg/" .. InviteCode)
+            WindUI:Notify({ Title = "Copied!", Content = "Paste link in browser!", Duration = 3, Icon = "globe" })
+        end }
+    }
+}
+if iconUrl then cardProps.Image = iconUrl end
+SupportTab:Paragraph(cardProps)
+
+SupportTab:Section({ Title = "Help & Information" })
+SupportTab:Paragraph({
+    Title = "📌 Executor Compatibility",
+    Desc = "Currently using: " .. executorName .. "\nIf you encounter issues, report them in our Discord.",
+    Color = Color3.fromHex("#2C2F33"),
+})
+SupportTab:Paragraph({
+    Title = "👤 Your Info",
+    Desc = "Username: " .. player.Name .. "\nUser ID: " .. player.UserId .. "\nExecutor: " .. executorName,
+    Color = Color3.fromHex("#2C2F33"),
+    Image = Players:GetUserThumbnailAsync(player.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size420x420),
+    ImageSize = 50
+})
+SupportTab:Button({ Title = "Report a Bug", Icon = "bug", Callback = function()
+    copyToClipboard("Bug Report - Executor: " .. executorName .. " - Please describe the issue:")
+    WindUI:Notify({ Title = "Template Copied!", Content = "Paste in Discord support channel", Duration = 4, Icon = "message-square" })
+end })
+
+WindUI:Notify({ Title = "ZyroYonk Hub", Content = "Loaded! Executor: " .. executorName, Duration = 5, Icon = "check-circle" })
