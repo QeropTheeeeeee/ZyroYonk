@@ -1,1 +1,44 @@
+local function executeForCorrectGame(scripts)
+    local currentGameId = tostring(game.PlaceId)
+    
+    if scripts[currentGameId] then
+        -- Execute the script for this game ID
+        loadstring(game:HttpGet(scripts[currentGameId]))()
+        print("Script executed for game ID: " .. currentGameId)
+    else
+        print("No script found for game ID: " .. currentGameId)
+    end
+end
 
+-- Define all your game IDs and their corresponding scripts
+local gameScripts = {
+    ["138013005633222"] = "https://pastefy.app/tuZMzc87/raw",
+    ["97365843755210"] = "https://pastefy.app/08exKGu1/raw",
+    ["114640202062357"] = "https://raw.githubusercontent.com/QeropTheeeeeee/ZyroYonk/refs/heads/main/Obfuscator%20Swing%20for%20Brainrots",
+    ["89046742932569"] = "https://pastefy.app/ceuQVAvx/raw",
+    ["127444301366535"] = "https://raw.githubusercontent.com/QeropTheeeeeee/ZyroYonk/refs/heads/main/11",
+    ["112371649846345"] = "https://pastefy.app/eqIfchyc/raw",
+    ["119987266683883"] = "https://pastefy.app/j8s7O5zo/raw",
+    ["99248392277037"] = "https://pastefy.app/jaU5DuPK/raw",
+    ["75251063577391"] = "https://pastefy.app/CiwVmcVB/raw",
+    ["135166129522317"] = "https://pastefy.app/JeGMKIAe/raw",
+    ["112490729816320"] = "https://pastefy.app/R0aKj2k1/raw",
+    ["111446873000464"] = "https://pastefy.app/rK4oNjGm/raw",
+    ["82397737462020"] = "https://pastefy.app/G91kj6Qc/raw",
+    ["103050497819513"] = "https://pastefy.app/mhwRf8eh/raw",
+    ["114567830054478"] = "https://pastefy.app/MNIq4V46/raw",
+    ["124473577469410"] = "https://pastefy.app/Vr6oigAK/raw",
+    ["71827913900569"] = "https://pastefy.app/ZOZXnPCo/raw",
+    ["84644870163414"] = "https://pastefy.app/nLTZ4uiy/raw",
+    ["75034791252172"] = "https://pastefy.app/eoo0pcM4/raw",
+    ["130313702827830"] = "https://pastefy.app/m17AiTeS/raw",
+    ["125003919504672"] = "https://pastefy.app/a3aw6po4/raw",
+    ["114349086251135"] = "https://pastefy.app/GIOkHrPg/raw",
+    ["90158090737937"] = "https://pastefy.app/Jlx5luvG/raw",
+    ["91350524990442"] = "https://raw.githubusercontent.com/QeropTheeeeeee/ZyroYonk/refs/heads/main/%5B%E2%98%A2%EF%B8%8F%5D%20Dont%20Get%20Caught%20For%20Hackers!%20%F0%9F%9A%A8",
+    ["138161219313147"] = "https://raw.githubusercontent.com/QeropTheeeeeee/ZyroYonk/refs/heads/main/Unbox%20a%20Factory",
+    ["120135584963579"] = "https://raw.githubusercontent.com/QeropTheeeeeee/ZyroYonk/refs/heads/main/Don%E2%80%99t%20Steal%20the%20Bobo%20%F0%9F%90%BB"
+}
+
+-- Execute only for the current game
+executeForCorrectGame(gameScripts)
