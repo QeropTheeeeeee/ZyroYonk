@@ -210,7 +210,24 @@ local function teleport(part)
     end
 end
 
--- Function to hold E on a model for 0.6 seconds
+-- Function to teleport to spawn
+local function teleportToSpawn()
+    local spawn = workspace:FindFirstChild("TemporarySpawn")
+    if spawn then
+        local spawnPart = spawn:IsA("BasePart") and spawn or spawn:FindFirstChildWhichIsA("BasePart", true)
+        if spawnPart then
+            local char = player.Character
+            if char then
+                local hrp = char:FindFirstChild("HumanoidRootPart")
+                if hrp then
+                    hrp.CFrame = spawnPart.CFrame + Vector3.new(0, 3, 0)
+                end
+            end
+        end
+    end
+end
+
+-- Function to hold E on a model for 0.7 seconds
 local function holdE(model, time)
     local prompt = model:FindFirstChildWhichIsA("ProximityPrompt", true)
     if prompt then
@@ -288,16 +305,12 @@ local function doBrainrotCycle()
             teleport(part)
             task.wait(0.3)
             
-            -- Hold E for 0.6 seconds
+            -- Hold E for 0.7 seconds
             holdE(target, 0.7)
             task.wait(0.3)
             
             -- Teleport to TemporarySpawn
-            local spawn = workspace:FindFirstChild("TemporarySpawn")
-            if spawn then
-                local spawnPart = spawn:IsA("BasePart") and spawn or spawn:FindFirstChildWhichIsA("BasePart", true)
-                teleport(spawnPart)
-            end
+            teleportToSpawn()
             
             -- Move to next NPC (loop back to start)
             currentIndex = currentIndex + 1
@@ -343,80 +356,23 @@ local function stopAutoBrainrot()
     WindUI:Notify({ Title = "Auto Brainrot Stopped", Content = "Auto farm has been stopped.", Duration = 3, Icon = "square" })
 end
 
--- ================== AUTO COLLECT BRAINROT ==================
-local autoCollectEnabled = false
-local selectedCollectRarity = "Divine" -- Default to Divine
-
--- Auto Collect Brainrot loop
-task.spawn(function()
-    while task.wait(0.1) do
-        if autoCollectEnabled then
-            pcall(function()
-                local brainrots = workspace.Game:FindFirstChild("Brainrots")
-                if not brainrots then return end
-                
-                local npcList
-                if selectedCollectRarity == "Divine" then
-                    npcList = divineNPCs
-                elseif selectedCollectRarity == "Og" then
-                    npcList = ogNPCs
-                elseif selectedCollectRarity == "Admin" then
-                    npcList = adminNPCs
-                else
-                    return
-                end
-                
-                -- Refresh the list in case new NPCs spawned
-                scanForSpecialNPCs()
-                
-                for _, npcName in ipairs(npcList) do
-                    local npc = brainrots:FindFirstChild(npcName)
-                    if npc then
-                        -- Try to collect/hold E on the NPC
-                        local prompt = npc:FindFirstChildWhichIsA("ProximityPrompt", true)
-                        if prompt then
-                            local char = player.Character
-                            if char then
-                                local hrp = char:FindFirstChild("HumanoidRootPart")
-                                if hrp then
-                                    -- Teleport to NPC
-                                    local part = npc:IsA("BasePart") and npc or npc:FindFirstChildWhichIsA("BasePart", true)
-                                    if part then
-                                        hrp.CFrame = part.CFrame + Vector3.new(0, 3, 0)
-                                        task.wait(0.1)
-                                        
-                                        -- Hold E briefly
-                                        local vim = game:GetService("VirtualInputManager")
-                                        vim:SendKeyEvent(true, Enum.KeyCode.E, false, game)
-                                        task.wait(0.2)
-                                        vim:SendKeyEvent(false, Enum.KeyCode.E, false, game)
-                                    end
-                                end
-                            end
-                        end
-                    end
-                end
-            end)
-        end
-    end
-end)
-
 -- ================== AUTO LUCKY BLOCK FARM ==================
 local autoLuckyBlockEnabled = false
-local selectedLuckyRarity = "Divine" -- Default to Divine
+local selectedLuckyRarity = "Common" -- Default to Common
+local luckyBlockCurrentIndex = 1
 
--- Lucky Block Rarity Mapping
+-- Lucky Block Rarity Mapping with multiple blocks per rarity
 local luckyBlockMapping = {
-    Common = "CommonLuckyBlock",
-    Rare = "RareLuckyBlock",
-    Epic = "EpicLuckyBlock",
-    Legendary = "LegendaryLuckyBlock",
-    Mythical = "MythicalLuckyBlock",
-    Secret = "SecretLuckyBlock",
-    Celestial = "CelestialLuckyBlock",
-    Divine = "DivineLuckyBlock",
-    Og = "OgLuckyBlock",
-    Admin = "AdminLuckyBlock"
+    Common = {"CommonLuckyBlock"},
+    Rare = {"RareLuckyBlock"},
+    Epic = {"EpicLuckyBlock"},
+    Legendary = {"LegendaryLuckyBlock"},
+    Mythical = {"MythicalLuckyBlock"},
+    Secret = {"SecretLuckyBlock"},
+    Celestial = {"CelestialLuckyBlock"},
+    Divine = {"DivineLuckyBlock"},
+    Og = {"OgLuckyBlock"},
+    Admin = {"AdminLuckyBlock"}
 }
 
 -- Function to click on a lucky block
@@ -432,58 +388,83 @@ local function clickLuckyBlock(block)
     local clickDetector = block:FindFirstChildWhichIsA("ClickDetector", true)
     local proximityPrompt = block:FindFirstChildWhichIsA("ProximityPrompt", true)
     
-    if clickDetector then
-        -- Teleport near the block
-        if block:IsA("BasePart") then
-            hrp.CFrame = block.CFrame + Vector3.new(0, 3, 0)
-        elseif block:IsA("Model") then
-            local primaryPart = block.PrimaryPart or block:FindFirstChildWhichIsA("BasePart")
-            if primaryPart then
-                hrp.CFrame = primaryPart.CFrame + Vector3.new(0, 3, 0)
-            end
+    -- Teleport near the block
+    if block:IsA("BasePart") then
+        hrp.CFrame = block.CFrame + Vector3.new(0, 3, 0)
+    elseif block:IsA("Model") then
+        local primaryPart = block.PrimaryPart or block:FindFirstChildWhichIsA("BasePart")
+        if primaryPart then
+            hrp.CFrame = primaryPart.CFrame + Vector3.new(0, 3, 0)
         end
-        task.wait(0.2)
-        
+    end
+    task.wait(0.2)
+    
+    if clickDetector then
         -- Fire click detector
         fireclickdetector(clickDetector)
     elseif proximityPrompt then
-        -- Teleport near the block
-        if block:IsA("BasePart") then
-            hrp.CFrame = block.CFrame + Vector3.new(0, 3, 0)
-        elseif block:IsA("Model") then
-            local primaryPart = block.PrimaryPart or block:FindFirstChildWhichIsA("BasePart")
-            if primaryPart then
-                hrp.CFrame = primaryPart.CFrame + Vector3.new(0, 3, 0)
-            end
-        end
-        task.wait(0.2)
-        
-        -- Hold E for 0.3 seconds
+        -- Hold E for 0.7 seconds
         local vim = game:GetService("VirtualInputManager")
         vim:SendKeyEvent(true, Enum.KeyCode.E, false, game)
-        task.wait(0.3)
+        task.wait(0.7)
         vim:SendKeyEvent(false, Enum.KeyCode.E, false, game)
     end
 end
 
 -- Auto Lucky Block farm loop
-task.spawn(function()
-    while task.wait(0.5) do
-        if autoLuckyBlockEnabled then
-            pcall(function()
-                local luckyBlocks = workspace.Game:FindFirstChild("LuckyBlocks")
-                if luckyBlocks then
-                    local targetBlockName = luckyBlockMapping[selectedLuckyRarity]
-                    local targetBlock = luckyBlocks:FindFirstChild(targetBlockName)
-                    
-                    if targetBlock then
-                        clickLuckyBlock(targetBlock)
-                    end
-                end
-            end)
+local function doLuckyBlockCycle()
+    if not autoLuckyBlockEnabled then return end
+    
+    pcall(function()
+        local luckyBlocks = workspace.Game:FindFirstChild("LuckyBlocks")
+        if not luckyBlocks then return end
+        
+        local targetBlockNames = luckyBlockMapping[selectedLuckyRarity]
+        if not targetBlockNames or #targetBlockNames == 0 then return end
+        
+        -- Cycle through blocks of the same rarity if multiple exist
+        local targetBlockName = targetBlockNames[luckyBlockCurrentIndex]
+        local targetBlock = luckyBlocks:FindFirstChild(targetBlockName)
+        
+        if targetBlock then
+            clickLuckyBlock(targetBlock)
+            task.wait(0.3)
+            -- Teleport to spawn after collecting
+            teleportToSpawn()
+            
+            -- Move to next block index (loop back)
+            luckyBlockCurrentIndex = luckyBlockCurrentIndex + 1
+            if luckyBlockCurrentIndex > #targetBlockNames then
+                luckyBlockCurrentIndex = 1
+            end
         end
-    end
-end)
+    end)
+end
+
+-- Start auto lucky block farm
+local function startAutoLuckyBlock()
+    if autoLuckyBlockEnabled then return end
+    autoLuckyBlockEnabled = true
+    luckyBlockCurrentIndex = 1
+    
+    task.spawn(function()
+        while autoLuckyBlockEnabled do
+            doLuckyBlockCycle()
+            if autoLuckyBlockEnabled then
+                task.wait(0.5)
+            end
+        end
+    end)
+    
+    print("✅ Auto Lucky Block Farm Started (" .. selectedLuckyRarity .. ")")
+    WindUI:Notify({ Title = "Auto Lucky Block Started", Content = "Farming " .. selectedLuckyRarity .. " Lucky Blocks", Duration = 3, Icon = "play" })
+end
+
+local function stopAutoLuckyBlock()
+    autoLuckyBlockEnabled = false
+    print("✅ Auto Lucky Block Farm Stopped")
+    WindUI:Notify({ Title = "Auto Lucky Block Stopped", Content = "Auto farm has been stopped.", Duration = 3, Icon = "square" })
+end
 
 -- ================== AUTO UPGRADE FEATURES ==================
 local autoBuySpeedEnabled = false
@@ -686,7 +667,7 @@ local function showGUI()
         HideSearchBar = false,
         ScrollBarEnabled = false,
         User = { Enabled = true, Anonymous = false, Callback = function() print("User button clicked") end },
-                KeySystem = {
+                        KeySystem = {
             Note = "ZyroYonk Hub Keysystem",
             SaveKey = true,
             API = {
@@ -697,7 +678,7 @@ local function showGUI()
         },
     })
 
-    Window:Tag({ Title = "v1.0.3", Icon = "octagon-alert", Color = Color3.fromHex("#f00505"), Radius = 100 })
+    Window:Tag({ Title = "v1.0.1", Icon = "octagon-alert", Color = Color3.fromHex("#f00505"), Radius = 100 })
 
     -- ================== CUSTOM OPEN BUTTON ==================
     Window:EditOpenButton({
@@ -717,23 +698,11 @@ local function showGUI()
     -- Changelog Tab
     local ChangelogTab = Window:Tab({ Title = "Changelog", Icon = "scroll" })
     ChangelogTab:Paragraph({
-        Title = "📢 UPDATE: v1.0.3",
+        Title = "📢 UPDATE: v1.0.1",
         Desc = [[
-- Enhanced Dropdown with Icons
-- Custom Open Button with Gradient
+
 - Initial Release
-- Added Common NPCs (5 NPCs)
-- Added Rare NPCs (10 NPCs)
-- Added Epic NPCs (9 NPCs)
-- Added Legendary NPCs (12 NPCs)
-- Added Mythical NPCs (11 NPCs)
-- Added Secret NPCs (9 NPCs)
-- Added Celestial NPCs (16 NPCs)
-- Fixed continuous looping
-- Added Auto Upgrade features
-- Added Auto Lucky Block Farm
-- Added Auto Collect Brainrot (Divine/Og/Admin)
-- Dynamic NPC scanning for special rarities
+
 ]],
         Color = Color3.fromHex("#0e0f0f"),
         Thumbnail = sharedIcon,
@@ -809,7 +778,7 @@ local function showGUI()
     -- Only Toggle
     MainTab:Toggle({
         Title = "Auto Farm Brainrot",
-        Description = "Toggle to automatically loop farm selected NPCs (holds E for 0.6s)",
+        Description = "Toggle to automatically loop farm selected NPCs (holds E for 0.7s)",
         Default = false,
         Callback = function(state)
             if state then
@@ -820,59 +789,8 @@ local function showGUI()
         end
     })
 
-    -- Auto Collect Brainrot Section
-    MainTab:Section({ Title = "🎯 Auto Collect Brainrot", Desc = "Automatically collect Divine/Og/Admin Brainrots" })
-    
-    -- Auto Collect Dropdown
-    MainTab:Dropdown({
-        Title = "Select Rarity to Collect",
-        Desc = "Choose which special rarity to auto collect",
-        Values = {
-            {
-                Title = "Divine",
-                Icon = "sparkles"
-            },
-            {
-                Title = "Og",
-                Icon = "clock"
-            },
-            {
-                Title = "Admin",
-                Icon = "shield"
-            },
-        },
-        Value = "Divine",
-        Callback = function(option)
-            selectedCollectRarity = option.Title
-            print("Selected Collect Rarity: " .. option.Title)
-            WindUI:Notify({ 
-                Title = "Collect Rarity Changed", 
-                Content = "Now collecting " .. option.Title .. " Brainrots", 
-                Duration = 2, 
-                Icon = option.Icon 
-            })
-        end
-    })
-    
-    -- Auto Collect Toggle
-    MainTab:Toggle({
-        Title = "Auto Collect Brainrot",
-        Description = "Automatically collects the selected special Brainrot",
-        Default = false,
-        Callback = function(state)
-            autoCollectEnabled = state
-            local status = state and "Enabled" or "Disabled"
-            WindUI:Notify({ 
-                Title = "Auto Collect Brainrot", 
-                Content = "Auto Collect " .. status, 
-                Duration = 2, 
-                Icon = "package" 
-            })
-        end
-    })
-
     -- Auto Lucky Block Farm Section
-    MainTab:Section({ Title = "🎲 Auto Lucky Block Farm", Desc = "Automatically click on Lucky Blocks" })
+    MainTab:Section({ Title = "🎲 Auto Lucky Block Farm", Desc = "Automatically click on Lucky Blocks (Teleport -> Hold E 0.7s -> Teleport to Spawn)" })
     
     -- Lucky Block Rarity Dropdown
     MainTab:Dropdown({
@@ -920,9 +838,10 @@ local function showGUI()
                 Icon = "shield"
             },
         },
-        Value = "Divine",
+        Value = "Common",
         Callback = function(option)
             selectedLuckyRarity = option.Title
+            luckyBlockCurrentIndex = 1
             print("Selected Lucky Block: " .. option.Title)
             WindUI:Notify({ 
                 Title = "Lucky Block Changed", 
@@ -936,17 +855,14 @@ local function showGUI()
     -- Auto Lucky Block Toggle
     MainTab:Toggle({
         Title = "Auto Farm Lucky Block",
-        Description = "Automatically clicks on the selected Lucky Block",
+        Description = "Teleports to block → Holds E for 0.7s → Teleports to spawn",
         Default = false,
         Callback = function(state)
-            autoLuckyBlockEnabled = state
-            local status = state and "Enabled" or "Disabled"
-            WindUI:Notify({ 
-                Title = "Auto Lucky Block", 
-                Content = "Auto Lucky Block Farm " .. status, 
-                Duration = 2, 
-                Icon = "dice-5" 
-            })
+            if state then
+                startAutoLuckyBlock()
+            else
+                stopAutoLuckyBlock()
+            end
         end
     })
 
