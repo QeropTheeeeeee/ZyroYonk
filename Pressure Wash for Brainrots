@@ -1,0 +1,1194 @@
+local WindUI = loadstring(game:HttpGet(
+    "https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"
+))()
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local HttpService = game:GetService("HttpService")
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local player = Players.LocalPlayer
+
+-- ================== EXECUTOR DETECTION & NOTIFICATION ==================
+local function getExecutorName()
+    if identifyexecutor then
+        local success, name = pcall(identifyexecutor)
+        if success and name and name ~= "" then return name end
+    end
+    if getexecutorname then
+        local success, name = pcall(getexecutorname)
+        if success and name and name ~= "" then return name end
+    end
+    if syn and syn.crypt and syn.crypt.custom then return "Synapse" end
+    if krnl then return "Krnl" end
+    if fluxus then return "Fluxus" end
+    if electron then return "Electron" end
+    if is_sirhurt_closure then return "SirHurt" end
+    if getgenv and getgenv().IS_SCRIPT_WARE then return "ScriptWare" end
+    if getgenv and getgenv().IS_VEGA_X then return "Vega X" end
+    if getgenv and getgenv().IS_DELTA then return "Delta" end
+    if getgenv and getgenv().IS_CODE_X then return "Code X" end
+    return "Unknown Executor"
+end
+
+local executorName = getExecutorName()
+task.wait(1)
+WindUI:Notify({
+    Title = "Executor Detected",
+    Content = "You are using: " .. executorName,
+    Duration = 5,
+    Icon = "terminal"
+})
+
+-- ================== FALLBACK FUNCTIONS ==================
+local function copyToClipboard(text)
+    if setclipboard then
+        setclipboard(text)
+    elseif syn and syn.write_clipboard then
+        syn.write_clipboard(text)
+    elseif toclipboard then
+        toclipboard(text)
+    else
+        local success = pcall(function()
+            local input = Instance.new("TextBox")
+            input.Text = text
+            input.Parent = game:GetService("CoreGui")
+            input:CaptureFocus()
+            input:SelectAll()
+            input.Parent = nil
+        end)
+        if not success then
+            warn("Failed to copy to clipboard: " .. text)
+        end
+    end
+end
+
+-- ================== AUTO BRAINROT FARM ==================
+local autoBrainrotEnabled = false
+local autoBrainrotRunning = false
+local currentIndex = 1
+local selectedRarity = "Common" -- Default to Common
+
+-- All 5 Common NPCs
+local commonNPCs = {
+    "LiriliLarila",
+    "SvininaBombardino", 
+    "TalpaDiFero", 
+    "TimCheese", 
+    "PipiKiwi"
+}
+
+-- All 10 Rare NPCs
+local rareNPCs = {
+    "FluriFlura",
+    "TricTracBarabum",
+    "PipiPotato",
+    "GangsterFootera",
+    "BanditoBobrito",
+    "TatatataSahur",
+    "GlorboFruttodrillo",
+    "BonecaAmbalabu",
+    "TrippiTroppi",
+    "CactoHipopotamo"
+}
+
+-- All 9 Epic NPCs
+local epicNPCs = {
+    "AvocadiniGuffo",
+    "GorilloWatermelondrillo",
+    "BrrBrrPatapim",
+    "TrulimeroTrulicina",
+    "SwagSoda",
+    "CappuccinoAssassino",
+    "BambiniCrostini",
+    "BananitoDelfinito",
+    "RhinoToasterino"
+}
+
+-- All 12 Legendary NPCs
+local legendaryNPCs = {
+    "Madung",
+    "ChefCrabracadabra",
+    "BalerinaCapucina",
+    "Garamararam",
+    "BlueberrinniOctopusini",
+    "ChimpanziniBananini",
+    "BurbaloniLoliloli",
+    "ChicleteirinaBicicleteirina",
+    "TungTungSahur",
+    "StrawberrelliFlamingelli",
+    "TrippiTroppiTroppaTrippa",
+    "SmurfCat"
+}
+
+-- All 11 Mythical NPCs
+local mythicalNPCs = {
+    "BombombiniGusini",
+    "FrigoCamelo",
+    "GanganzelliTrulala",
+    "EspressoSignora",
+    "PandacciniBananini",
+    "OrangutiniAnanassini",
+    "BombardiroCrocodilo",
+    "ZibraZubraZibralini",
+    "TirilikalikaTirilikalako",
+    "Pakrahmatmamat",
+    "TigroligreFrutonni"
+}
+
+-- All 9 Secret NPCs
+local secretNPCs = {
+    "OdinDinDinDun",
+    "BalerinoLololo",
+    "TralaleroTralala",
+    "ElefantoCocofanto",
+    "LioneloCactuseli",
+    "GirafaCelestre",
+    "LosTralaleritos",
+    "Pakrahmatmatina",
+    "Tralaledon"
+}
+
+-- All 17 Celestial NPCs (removed duplicate Lerulerulerule)
+local celestialNPCs = {
+    "LaVaccaSaturnoSaturnita",
+    "TriplitoTralaleritos",
+    "JobJobJobSahur",
+    "BrrBicusDicus",
+    "Mateo",
+    "69",
+    "LaGrandeCombinasion",
+    "EsokSekolah",
+    "TralalitaTralala",
+    "KarkerkarKurkur",
+    "TorrtuginniDragonfrutini",
+    "PotHotspot",
+    "ChillinChili",
+    "HappyBananaCat",
+    "ChicleteiraBicicleteira",
+    "DragonCannelloni"
+}
+
+-- Divine, Og, Admin NPCs (will be populated dynamically)
+local divineNPCs = {}
+local ogNPCs = {}
+local adminNPCs = {}
+
+-- Function to scan Brainrots folder for Divine, Og, and Admin NPCs
+local function scanForSpecialNPCs()
+    local brainrots = workspace.Game:FindFirstChild("Brainrots")
+    if not brainrots then return end
+    
+    divineNPCs = {}
+    ogNPCs = {}
+    adminNPCs = {}
+    
+    for _, child in ipairs(brainrots:GetChildren()) do
+        local name = child.Name
+        if string.find(string.lower(name), "divine") then
+            table.insert(divineNPCs, name)
+        elseif string.find(string.lower(name), "og") then
+            table.insert(ogNPCs, name)
+        elseif string.find(string.lower(name), "admin") then
+            table.insert(adminNPCs, name)
+        end
+    end
+    
+    print("Found Divine NPCs: " .. #divineNPCs)
+    print("Found Og NPCs: " .. #ogNPCs)
+    print("Found Admin NPCs: " .. #adminNPCs)
+end
+
+-- Function to teleport to a part
+local function teleport(part)
+    local char = player.Character
+    if not char then return end
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if hrp and part then
+        hrp.CFrame = part.CFrame + Vector3.new(0, 3, 0)
+    end
+end
+
+-- Function to hold E on a model for 0.6 seconds
+local function holdE(model, time)
+    local prompt = model:FindFirstChildWhichIsA("ProximityPrompt", true)
+    if prompt then
+        local vim = game:GetService("VirtualInputManager")
+        vim:SendKeyEvent(true, Enum.KeyCode.E, false, game)
+        task.wait(time)
+        vim:SendKeyEvent(false, Enum.KeyCode.E, false, game)
+    end
+end
+
+-- Main Brainrot farm cycle
+local function doBrainrotCycle()
+    if not autoBrainrotEnabled then return end
+    if autoBrainrotRunning then return end
+    
+    autoBrainrotRunning = true
+    
+    local char = player.Character
+    if not char then 
+        autoBrainrotRunning = false
+        return 
+    end
+    
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if not hrp then 
+        autoBrainrotRunning = false
+        return 
+    end
+    
+    local brainrots = workspace.Game:FindFirstChild("Brainrots")
+    if not brainrots then
+        autoBrainrotRunning = false
+        return
+    end
+    
+    -- Select which NPC list to use
+    local npcList
+    if selectedRarity == "Common" then
+        npcList = commonNPCs
+    elseif selectedRarity == "Rare" then
+        npcList = rareNPCs
+    elseif selectedRarity == "Epic" then
+        npcList = epicNPCs
+    elseif selectedRarity == "Legendary" then
+        npcList = legendaryNPCs
+    elseif selectedRarity == "Mythical" then
+        npcList = mythicalNPCs
+    elseif selectedRarity == "Secret" then
+        npcList = secretNPCs
+    elseif selectedRarity == "Celestial" then
+        npcList = celestialNPCs
+    elseif selectedRarity == "Divine" then
+        npcList = divineNPCs
+    elseif selectedRarity == "Og" then
+        npcList = ogNPCs
+    elseif selectedRarity == "Admin" then
+        npcList = adminNPCs
+    else
+        npcList = commonNPCs
+    end
+    
+    if #npcList == 0 then
+        autoBrainrotRunning = false
+        return
+    end
+    
+    local currentNPC = npcList[currentIndex]
+    local target = brainrots:FindFirstChild(currentNPC)
+    
+    if target then
+        local part = target:IsA("BasePart") and target or target:FindFirstChildWhichIsA("BasePart", true)
+        
+        if part then
+            -- Teleport to NPC
+            teleport(part)
+            task.wait(0.3)
+            
+            -- Hold E for 0.6 seconds
+            holdE(target, 0.7)
+            task.wait(0.3)
+            
+            -- Teleport to TemporarySpawn
+            local spawn = workspace:FindFirstChild("TemporarySpawn")
+            if spawn then
+                local spawnPart = spawn:IsA("BasePart") and spawn or spawn:FindFirstChildWhichIsA("BasePart", true)
+                teleport(spawnPart)
+            end
+            
+            -- Move to next NPC (loop back to start)
+            currentIndex = currentIndex + 1
+            if currentIndex > #npcList then
+                currentIndex = 1
+            end
+        end
+    else
+        -- If NPC not found, move to next one
+        currentIndex = currentIndex + 1
+        if currentIndex > #npcList then
+            currentIndex = 1
+        end
+    end
+    
+    autoBrainrotRunning = false
+end
+
+-- Start auto farm (continuous loop)
+local function startAutoBrainrot()
+    if autoBrainrotEnabled then return end
+    autoBrainrotEnabled = true
+    autoBrainrotRunning = false
+    currentIndex = 1 -- Reset to first NPC when starting
+    
+    task.spawn(function()
+        while autoBrainrotEnabled do
+            doBrainrotCycle()
+            if autoBrainrotEnabled then
+                task.wait(0.3)
+            end
+        end
+    end)
+    
+    print("✅ Auto Brainrot Farm Started (" .. selectedRarity .. ")")
+    WindUI:Notify({ Title = "Auto Brainrot Started", Content = "Farming " .. selectedRarity .. " NPCs (Looping)", Duration = 3, Icon = "play" })
+end
+
+local function stopAutoBrainrot()
+    autoBrainrotEnabled = false
+    autoBrainrotRunning = false
+    print("✅ Auto Brainrot Farm Stopped")
+    WindUI:Notify({ Title = "Auto Brainrot Stopped", Content = "Auto farm has been stopped.", Duration = 3, Icon = "square" })
+end
+
+-- ================== AUTO COLLECT BRAINROT ==================
+local autoCollectEnabled = false
+local selectedCollectRarity = "Divine" -- Default to Divine
+
+-- Auto Collect Brainrot loop
+task.spawn(function()
+    while task.wait(0.1) do
+        if autoCollectEnabled then
+            pcall(function()
+                local brainrots = workspace.Game:FindFirstChild("Brainrots")
+                if not brainrots then return end
+                
+                local npcList
+                if selectedCollectRarity == "Divine" then
+                    npcList = divineNPCs
+                elseif selectedCollectRarity == "Og" then
+                    npcList = ogNPCs
+                elseif selectedCollectRarity == "Admin" then
+                    npcList = adminNPCs
+                else
+                    return
+                end
+                
+                -- Refresh the list in case new NPCs spawned
+                scanForSpecialNPCs()
+                
+                for _, npcName in ipairs(npcList) do
+                    local npc = brainrots:FindFirstChild(npcName)
+                    if npc then
+                        -- Try to collect/hold E on the NPC
+                        local prompt = npc:FindFirstChildWhichIsA("ProximityPrompt", true)
+                        if prompt then
+                            local char = player.Character
+                            if char then
+                                local hrp = char:FindFirstChild("HumanoidRootPart")
+                                if hrp then
+                                    -- Teleport to NPC
+                                    local part = npc:IsA("BasePart") and npc or npc:FindFirstChildWhichIsA("BasePart", true)
+                                    if part then
+                                        hrp.CFrame = part.CFrame + Vector3.new(0, 3, 0)
+                                        task.wait(0.1)
+                                        
+                                        -- Hold E briefly
+                                        local vim = game:GetService("VirtualInputManager")
+                                        vim:SendKeyEvent(true, Enum.KeyCode.E, false, game)
+                                        task.wait(0.2)
+                                        vim:SendKeyEvent(false, Enum.KeyCode.E, false, game)
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+            end)
+        end
+    end
+end)
+
+-- ================== AUTO LUCKY BLOCK FARM ==================
+local autoLuckyBlockEnabled = false
+local selectedLuckyRarity = "Divine" -- Default to Divine
+
+-- Lucky Block Rarity Mapping
+local luckyBlockMapping = {
+    Common = "CommonLuckyBlock",
+    Rare = "RareLuckyBlock",
+    Epic = "EpicLuckyBlock",
+    Legendary = "LegendaryLuckyBlock",
+    Mythical = "MythicalLuckyBlock",
+    Secret = "SecretLuckyBlock",
+    Celestial = "CelestialLuckyBlock",
+    Divine = "DivineLuckyBlock",
+    Og = "OgLuckyBlock",
+    Admin = "AdminLuckyBlock"
+}
+
+-- Function to click on a lucky block
+local function clickLuckyBlock(block)
+    if not block then return end
+    
+    local char = player.Character
+    if not char then return end
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+    
+    -- Find the click detector or proximity prompt
+    local clickDetector = block:FindFirstChildWhichIsA("ClickDetector", true)
+    local proximityPrompt = block:FindFirstChildWhichIsA("ProximityPrompt", true)
+    
+    if clickDetector then
+        -- Teleport near the block
+        if block:IsA("BasePart") then
+            hrp.CFrame = block.CFrame + Vector3.new(0, 3, 0)
+        elseif block:IsA("Model") then
+            local primaryPart = block.PrimaryPart or block:FindFirstChildWhichIsA("BasePart")
+            if primaryPart then
+                hrp.CFrame = primaryPart.CFrame + Vector3.new(0, 3, 0)
+            end
+        end
+        task.wait(0.2)
+        
+        -- Fire click detector
+        fireclickdetector(clickDetector)
+    elseif proximityPrompt then
+        -- Teleport near the block
+        if block:IsA("BasePart") then
+            hrp.CFrame = block.CFrame + Vector3.new(0, 3, 0)
+        elseif block:IsA("Model") then
+            local primaryPart = block.PrimaryPart or block:FindFirstChildWhichIsA("BasePart")
+            if primaryPart then
+                hrp.CFrame = primaryPart.CFrame + Vector3.new(0, 3, 0)
+            end
+        end
+        task.wait(0.2)
+        
+        -- Hold E for 0.3 seconds
+        local vim = game:GetService("VirtualInputManager")
+        vim:SendKeyEvent(true, Enum.KeyCode.E, false, game)
+        task.wait(0.3)
+        vim:SendKeyEvent(false, Enum.KeyCode.E, false, game)
+    end
+end
+
+-- Auto Lucky Block farm loop
+task.spawn(function()
+    while task.wait(0.5) do
+        if autoLuckyBlockEnabled then
+            pcall(function()
+                local luckyBlocks = workspace.Game:FindFirstChild("LuckyBlocks")
+                if luckyBlocks then
+                    local targetBlockName = luckyBlockMapping[selectedLuckyRarity]
+                    local targetBlock = luckyBlocks:FindFirstChild(targetBlockName)
+                    
+                    if targetBlock then
+                        clickLuckyBlock(targetBlock)
+                    end
+                end
+            end)
+        end
+    end
+end)
+
+-- ================== AUTO UPGRADE FEATURES ==================
+local autoBuySpeedEnabled = false
+local autoCollectCashEnabled = false
+local autoRebirthEnabled = false
+local autoUpgradeBrainrotEnabled = false
+local autoBuyPowerWasherEnabled = false
+
+-- Auto Buy Speed
+task.spawn(function()
+    while task.wait(0.5) do
+        if autoBuySpeedEnabled then
+            pcall(function()
+                local args = {5}
+                game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("PurchaseSpeed"):FireServer(unpack(args))
+            end)
+        end
+    end
+end)
+
+-- Auto Collect Cash (1 to 50)
+task.spawn(function()
+    while task.wait(0.1) do
+        if autoCollectCashEnabled then
+            pcall(function()
+                local args = {"Collect", math.random(1, 50)}
+                game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("PlotHandler"):FireServer(unpack(args))
+            end)
+        end
+    end
+end)
+
+-- Auto Rebirth
+task.spawn(function()
+    while task.wait(1) do
+        if autoRebirthEnabled then
+            pcall(function()
+                game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("Rebirth"):FireServer()
+            end)
+        end
+    end
+end)
+
+-- Auto Upgrade Brainrot (1 to 50)
+task.spawn(function()
+    while task.wait(0.1) do
+        if autoUpgradeBrainrotEnabled then
+            pcall(function()
+                local args = {"Upgrade", math.random(1, 50)}
+                game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("PlotHandler"):FireServer(unpack(args))
+            end)
+        end
+    end
+end)
+
+-- Auto Buy Power Washer (1 to 14)
+task.spawn(function()
+    while task.wait(0.5) do
+        if autoBuyPowerWasherEnabled then
+            pcall(function()
+                local args = {math.random(1, 14)}
+                game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("PurchasePowerWashLevel"):FireServer(unpack(args))
+            end)
+        end
+    end
+end)
+
+-- ================== THEME ==================
+WindUI:AddTheme({
+    Name = "ZyroTheme",
+    Font = Font.fromName("PixelifySans", Enum.FontWeight.Bold),
+    Background = WindUI:Gradient({ ["0"] = { Color = Color3.fromHex("#0a0010") }, ["100"] = { Color = Color3.fromHex("#05000d") } }, { Rotation = 135 }),
+    Accent = WindUI:Gradient({ ["0"] = { Color = Color3.fromHex("#ff0066") }, ["100"] = { Color = Color3.fromHex("#ff003c") } }, { Rotation = 90 }),
+    SideBar = WindUI:Gradient({ ["0"] = { Color = Color3.fromHex("#0d0018") }, ["100"] = { Color = Color3.fromHex("#080010") } }, { Rotation = 160 }),
+    Tab = WindUI:Gradient({ ["0"] = { Color = Color3.fromHex("#1a0030") }, ["100"] = { Color = Color3.fromHex("#0f0020") } }, { Rotation = 45 }),
+    Toggle = WindUI:Gradient({ ["0"] = { Color = Color3.fromHex("#00ffcc") }, ["100"] = { Color = Color3.fromHex("#00ff88") } }, { Rotation = 90 }),
+    Button = WindUI:Gradient({ ["0"] = { Color = Color3.fromHex("#ff0080") }, ["100"] = { Color = Color3.fromHex("#4400cc") } }, { Rotation = 135 }),
+    Text = WindUI:Gradient({ ["0"] = { Color = Color3.fromHex("#ffffff") }, ["100"] = { Color = Color3.fromHex("#ff99ee") } }, { Rotation = 0 }),
+    Icon = WindUI:Gradient({ ["0"] = { Color = Color3.fromHex("#00aaff") }, ["100"] = { Color = Color3.fromHex("#00ffaa") } }, { Rotation = 90 }),
+})
+
+-- ================== LOADING SCREEN ==================
+local function showLoadingScreen()
+    local TweenService = game:GetService("TweenService")
+    local Lighting = game:GetService("Lighting")
+    local player = Players.LocalPlayer
+
+    local blur = Instance.new("BlurEffect", Lighting)
+    blur.Size = 0
+    TweenService:Create(blur, TweenInfo.new(0.6, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+        Size = 18
+    }):Play()
+
+    local screenGui = Instance.new("ScreenGui")
+    screenGui.Parent = player:WaitForChild("PlayerGui")
+    screenGui.Name = "BrianHubIntro"
+    screenGui.ResetOnSpawn = false
+    screenGui.IgnoreGuiInset = true
+
+    local frame = Instance.new("Frame", screenGui)
+    frame.Size = UDim2.new(1, 0, 1, 0)
+    frame.BackgroundTransparency = 1
+
+    local bg = Instance.new("Frame", frame)
+    bg.Size = UDim2.new(1, 0, 1, 0)
+    bg.BackgroundColor3 = Color3.fromRGB(25, 0, 40)
+    bg.BackgroundTransparency = 1
+
+    TweenService:Create(
+        bg,
+        TweenInfo.new(0.8, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+        { BackgroundTransparency = 0.2 }
+    ):Play()
+
+    local word = "ZyroYonk Hub"
+    local letters = {}
+
+    local function tweenOutAndDestroy(callback)
+        for _, label in ipairs(letters) do
+            TweenService:Create(
+                label,
+                TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+                { TextTransparency = 1, TextSize = 20 }
+            ):Play()
+        end
+
+        TweenService:Create(bg, TweenInfo.new(0.6), { BackgroundTransparency = 1 }):Play()
+        TweenService:Create(blur, TweenInfo.new(0.6), { Size = 0 }):Play()
+
+        task.wait(0.7)
+        screenGui:Destroy()
+        blur:Destroy()
+        if callback then callback() end
+    end
+
+    task.wait(0.8)
+
+    for i = 1, #word do
+        local char = word:sub(i, i)
+        local label = Instance.new("TextLabel")
+        label.Text = char
+        label.Font = Enum.Font.GothamBlack
+        label.TextColor3 = Color3.new(1, 1, 1)
+        label.TextTransparency = 1
+        label.TextSize = 20
+        label.Size = UDim2.new(0, 60, 0, 60)
+        label.AnchorPoint = Vector2.new(0.5, 0.5)
+        label.Position = UDim2.new(0.5, (i - (#word / 2 + 0.5)) * 55, 0.5, 20)
+        label.BackgroundTransparency = 1
+        label.Parent = frame
+
+        local gradient = Instance.new("UIGradient")
+        gradient.Color = ColorSequence.new({
+            ColorSequenceKeypoint.new(0, Color3.fromRGB(200, 120, 255)),
+            ColorSequenceKeypoint.new(1, Color3.fromRGB(120, 0, 200))
+        })
+        gradient.Rotation = 90
+        gradient.Parent = label
+
+        TweenService:Create(
+            label,
+            TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+            {
+                TextTransparency = 0,
+                TextSize = 55,
+                Position = UDim2.new(0.5, (i - (#word / 2 + 0.5)) * 55, 0.5, 0)
+            }
+        ):Play()
+
+        table.insert(letters, label)
+        task.wait(0.12)
+    end
+
+    task.wait(2)
+    tweenOutAndDestroy()
+end
+
+-- ================== MAIN GUI ==================
+local function showGUI()
+    -- Scan for special NPCs first
+    scanForSpecialNPCs()
+    
+    local coolTitle = "Don't Steal the Bobo 🐻"
+    local sharedIcon = "https://i.pinimg.com/736x/37/3a/b3/373ab3e072178f47dcb7fdafaddb6854.jpg"
+    
+    local Window = WindUI:CreateWindow({
+        Title = coolTitle,
+        Icon = sharedIcon,
+        Author = "by ZyroYonk " .. utf8.char(0xE000),
+        Folder = "ZyroYonk Hub",
+        Size = UDim2.fromOffset(250, 250),
+        MinSize = Vector2.new(560, 350),
+        MaxSize = Vector2.new(850, 560),
+        Transparent = true,
+        Theme = "ZyroTheme",
+        Resizable = true,
+        SideBarWidth = 200,
+        Background = sharedIcon,
+        BackgroundImageTransparency = 0.12,
+        HideSearchBar = false,
+        ScrollBarEnabled = false,
+        User = { Enabled = true, Anonymous = false, Callback = function() print("User button clicked") end },
+                KeySystem = {
+            Note = "ZyroYonk Hub Keysystem",
+            SaveKey = true,
+            API = {
+                { Type = "platoboost", ServiceId = 22001, Secret = "945af45d-5779-4a05-a31c-432930563763", Desc = "Key Duration 2 Hours Only" },
+                { Type = "pandadevelopment", ServiceId = "httpslootlinkcoms0u4sku", Desc = "Key Duration 5 Hours Only" },
+            },
+            Callback = function() _G["1234"] = true end,
+        },
+    })
+
+    Window:Tag({ Title = "v1.0.3", Icon = "octagon-alert", Color = Color3.fromHex("#f00505"), Radius = 100 })
+
+    -- ================== CUSTOM OPEN BUTTON ==================
+    Window:EditOpenButton({
+        Title = "Open ZyroYonk Hub",
+        Icon = "monitor",
+        CornerRadius = UDim.new(0, 16),
+        StrokeThickness = 2,
+        Color = ColorSequence.new(
+            Color3.fromHex("FF0F7B"), 
+            Color3.fromHex("F89B29")
+        ),
+        OnlyMobile = false,
+        Enabled = true,
+        Draggable = true,
+    })
+
+    -- Changelog Tab
+    local ChangelogTab = Window:Tab({ Title = "Changelog", Icon = "scroll" })
+    ChangelogTab:Paragraph({
+        Title = "📢 UPDATE: v1.0.3",
+        Desc = [[
+- Enhanced Dropdown with Icons
+- Custom Open Button with Gradient
+- Initial Release
+- Added Common NPCs (5 NPCs)
+- Added Rare NPCs (10 NPCs)
+- Added Epic NPCs (9 NPCs)
+- Added Legendary NPCs (12 NPCs)
+- Added Mythical NPCs (11 NPCs)
+- Added Secret NPCs (9 NPCs)
+- Added Celestial NPCs (16 NPCs)
+- Fixed continuous looping
+- Added Auto Upgrade features
+- Added Auto Lucky Block Farm
+- Added Auto Collect Brainrot (Divine/Og/Admin)
+- Dynamic NPC scanning for special rarities
+]],
+        Color = Color3.fromHex("#0e0f0f"),
+        Thumbnail = sharedIcon,
+        ThumbnailSize = 100,
+    })
+
+    -- ========== MAIN FEATURES TAB ==========
+    local MainTab = Window:Tab({ Title = "Main Features", Icon = "house" })
+    
+    -- Auto Brainrot Farm Section
+    MainTab:Section({ Title = "🤖 Auto Brainrot Farm", Desc = "Automatically farm Brainrot NPCs" })
+    
+    -- Enhanced Dropdown with Icons
+    MainTab:Dropdown({
+        Title = "Select Rarity",
+        Desc = "Choose a rarity tier to farm",
+        Values = {
+            {
+                Title = "Common",
+                Icon = "sparkles"
+            },
+            {
+                Title = "Rare",
+                Icon = "gem"
+            },
+            {
+                Title = "Epic",
+                Icon = "flame"
+            },
+            {
+                Title = "Legendary",
+                Icon = "crown"
+            },
+            {
+                Title = "Mythical",
+                Icon = "star"
+            },
+            {
+                Title = "Secret",
+                Icon = "eye"
+            },
+            {
+                Title = "Celestial",
+                Icon = "moon"
+            },
+            {
+                Title = "Divine",
+                Icon = "sparkles"
+            },
+            {
+                Title = "Og",
+                Icon = "clock"
+            },
+            {
+                Title = "Admin",
+                Icon = "shield"
+            },
+        },
+        Value = "Common",
+        Callback = function(option)
+            selectedRarity = option.Title
+            currentIndex = 1
+            print("Selected Rarity: " .. option.Title)
+            WindUI:Notify({ 
+                Title = "Rarity Changed", 
+                Content = "Now farming " .. option.Title .. " NPCs", 
+                Duration = 2, 
+                Icon = option.Icon 
+            })
+        end
+    })
+    
+    -- Only Toggle
+    MainTab:Toggle({
+        Title = "Auto Farm Brainrot",
+        Description = "Toggle to automatically loop farm selected NPCs (holds E for 0.6s)",
+        Default = false,
+        Callback = function(state)
+            if state then
+                startAutoBrainrot()
+            else
+                stopAutoBrainrot()
+            end
+        end
+    })
+
+    -- Auto Collect Brainrot Section
+    MainTab:Section({ Title = "🎯 Auto Collect Brainrot", Desc = "Automatically collect Divine/Og/Admin Brainrots" })
+    
+    -- Auto Collect Dropdown
+    MainTab:Dropdown({
+        Title = "Select Rarity to Collect",
+        Desc = "Choose which special rarity to auto collect",
+        Values = {
+            {
+                Title = "Divine",
+                Icon = "sparkles"
+            },
+            {
+                Title = "Og",
+                Icon = "clock"
+            },
+            {
+                Title = "Admin",
+                Icon = "shield"
+            },
+        },
+        Value = "Divine",
+        Callback = function(option)
+            selectedCollectRarity = option.Title
+            print("Selected Collect Rarity: " .. option.Title)
+            WindUI:Notify({ 
+                Title = "Collect Rarity Changed", 
+                Content = "Now collecting " .. option.Title .. " Brainrots", 
+                Duration = 2, 
+                Icon = option.Icon 
+            })
+        end
+    })
+    
+    -- Auto Collect Toggle
+    MainTab:Toggle({
+        Title = "Auto Collect Brainrot",
+        Description = "Automatically collects the selected special Brainrot",
+        Default = false,
+        Callback = function(state)
+            autoCollectEnabled = state
+            local status = state and "Enabled" or "Disabled"
+            WindUI:Notify({ 
+                Title = "Auto Collect Brainrot", 
+                Content = "Auto Collect " .. status, 
+                Duration = 2, 
+                Icon = "package" 
+            })
+        end
+    })
+
+    -- Auto Lucky Block Farm Section
+    MainTab:Section({ Title = "🎲 Auto Lucky Block Farm", Desc = "Automatically click on Lucky Blocks" })
+    
+    -- Lucky Block Rarity Dropdown
+    MainTab:Dropdown({
+        Title = "Select Lucky Block Rarity",
+        Desc = "Choose which Lucky Block to farm",
+        Values = {
+            {
+                Title = "Common",
+                Icon = "cube"
+            },
+            {
+                Title = "Rare",
+                Icon = "gem"
+            },
+            {
+                Title = "Epic",
+                Icon = "flame"
+            },
+            {
+                Title = "Legendary",
+                Icon = "crown"
+            },
+            {
+                Title = "Mythical",
+                Icon = "star"
+            },
+            {
+                Title = "Secret",
+                Icon = "eye"
+            },
+            {
+                Title = "Celestial",
+                Icon = "moon"
+            },
+            {
+                Title = "Divine",
+                Icon = "sparkles"
+            },
+            {
+                Title = "Og",
+                Icon = "clock"
+            },
+            {
+                Title = "Admin",
+                Icon = "shield"
+            },
+        },
+        Value = "Divine",
+        Callback = function(option)
+            selectedLuckyRarity = option.Title
+            print("Selected Lucky Block: " .. option.Title)
+            WindUI:Notify({ 
+                Title = "Lucky Block Changed", 
+                Content = "Now farming " .. option.Title .. " Lucky Block", 
+                Duration = 2, 
+                Icon = option.Icon 
+            })
+        end
+    })
+    
+    -- Auto Lucky Block Toggle
+    MainTab:Toggle({
+        Title = "Auto Farm Lucky Block",
+        Description = "Automatically clicks on the selected Lucky Block",
+        Default = false,
+        Callback = function(state)
+            autoLuckyBlockEnabled = state
+            local status = state and "Enabled" or "Disabled"
+            WindUI:Notify({ 
+                Title = "Auto Lucky Block", 
+                Content = "Auto Lucky Block Farm " .. status, 
+                Duration = 2, 
+                Icon = "dice-5" 
+            })
+        end
+    })
+
+    -- Auto Upgrade Section
+    MainTab:Section({ Title = "⚡ Auto Upgrade", Desc = "Automatically upgrade and collect items" })
+    
+    -- Auto Buy Speed Toggle
+    MainTab:Toggle({
+        Title = "Auto Buy Speed",
+        Description = "Automatically purchases speed upgrades (value: 5)",
+        Default = false,
+        Callback = function(state)
+            autoBuySpeedEnabled = state
+            local status = state and "Enabled" or "Disabled"
+            WindUI:Notify({ 
+                Title = "Auto Buy Speed", 
+                Content = "Auto Buy Speed " .. status, 
+                Duration = 2, 
+                Icon = "zap" 
+            })
+        end
+    })
+    
+    -- Auto Collect Cash Toggle
+    MainTab:Toggle({
+        Title = "Auto Collect Cash",
+        Description = "Automatically collects cash (random 1-50)",
+        Default = false,
+        Callback = function(state)
+            autoCollectCashEnabled = state
+            local status = state and "Enabled" or "Disabled"
+            WindUI:Notify({ 
+                Title = "Auto Collect Cash", 
+                Content = "Auto Collect Cash " .. status, 
+                Duration = 2, 
+                Icon = "coins" 
+            })
+        end
+    })
+    
+    -- Auto Rebirth Toggle
+    MainTab:Toggle({
+        Title = "Auto Rebirth",
+        Description = "Automatically rebirths your character",
+        Default = false,
+        Callback = function(state)
+            autoRebirthEnabled = state
+            local status = state and "Enabled" or "Disabled"
+            WindUI:Notify({ 
+                Title = "Auto Rebirth", 
+                Content = "Auto Rebirth " .. status, 
+                Duration = 2, 
+                Icon = "refresh-cw" 
+            })
+        end
+    })
+    
+    -- Auto Upgrade Brainrot Toggle
+    MainTab:Toggle({
+        Title = "Auto Upgrade Brainrot",
+        Description = "Automatically upgrades brainrot (random 1-50)",
+        Default = false,
+        Callback = function(state)
+            autoUpgradeBrainrotEnabled = state
+            local status = state and "Enabled" or "Disabled"
+            WindUI:Notify({ 
+                Title = "Auto Upgrade Brainrot", 
+                Content = "Auto Upgrade Brainrot " .. status, 
+                Duration = 2, 
+                Icon = "trending-up" 
+            })
+        end
+    })
+    
+    -- Auto Buy Power Washer Toggle
+    MainTab:Toggle({
+        Title = "Auto Buy Power Washer",
+        Description = "Automatically purchases power washer levels (random 1-14)",
+        Default = false,
+        Callback = function(state)
+            autoBuyPowerWasherEnabled = state
+            local status = state and "Enabled" or "Disabled"
+            WindUI:Notify({ 
+                Title = "Auto Buy Power Washer", 
+                Content = "Auto Buy Power Washer " .. status, 
+                Duration = 2, 
+                Icon = "droplet" 
+            })
+        end
+    })
+
+    -- ========== MISC TAB ==========
+    local MiscTab = Window:Tab({ Title = "Misc", Icon = "settings" })
+    
+    -- Fly
+    local flyEnabled, flySpeed, flyConnection = false, 50, nil
+    local function stopFly()
+        flyEnabled = false
+        if flyConnection then flyConnection:Disconnect(); flyConnection = nil end
+        local char = player.Character
+        if char then
+            if char:FindFirstChild("Humanoid") then char.Humanoid.PlatformStand = false end
+            local root = char:FindFirstChild("HumanoidRootPart")
+            if root then
+                local bv = root:FindFirstChildOfClass("BodyVelocity"); if bv then bv:Destroy() end
+                local bg = root:FindFirstChildOfClass("BodyGyro"); if bg then bg:Destroy() end
+            end
+        end
+    end
+    local function startFly()
+        local char = player.Character
+        if not char then return end
+        local root = char:FindFirstChild("HumanoidRootPart")
+        local hum = char:FindFirstChild("Humanoid")
+        if not root or not hum then return end
+        hum.PlatformStand = true
+        local bv = Instance.new("BodyVelocity"); bv.Velocity = Vector3.new(0,0,0); bv.MaxForce = Vector3.new(1e9,1e9,1e9); bv.Parent = root
+        local bg = Instance.new("BodyGyro"); bg.MaxTorque = Vector3.new(1e9,1e9,1e9); bg.P = 1e4; bg.D = 100; bg.CFrame = root.CFrame; bg.Parent = root
+        flyConnection = RunService.Heartbeat:Connect(function()
+            if not flyEnabled then return end
+            local cam = workspace.CurrentCamera
+            local move = Vector3.new(0,0,0)
+            if UserInputService:IsKeyDown(Enum.KeyCode.W) then move += cam.CFrame.LookVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.S) then move -= cam.CFrame.LookVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.A) then move -= cam.CFrame.RightVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.D) then move += cam.CFrame.RightVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.Space) then move += Vector3.new(0,1,0) end
+            if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then move -= Vector3.new(0,1,0) end
+            if move.Magnitude > 0 then move = move.Unit end
+            bv.Velocity = move * flySpeed
+            bg.CFrame = cam.CFrame
+        end)
+    end
+    MiscTab:Section({ Title = "Fly" })
+    MiscTab:Input({ Title = "Fly Speed", Default = "50", Callback = function(v) local n = tonumber(v); if n then flySpeed = n end end })
+    MiscTab:Toggle({ Title = "Fly", Default = false, Callback = function(s) flyEnabled = s; if s then startFly() else stopFly() end end })
+    
+    -- Speed
+    local speedEnabled, walkSpeed, speedConnection = false, 50, nil
+    local function stopSpeed()
+        speedEnabled = false
+        if speedConnection then speedConnection:Disconnect(); speedConnection = nil end
+        local char = player.Character
+        if char and char:FindFirstChild("Humanoid") then char.Humanoid.WalkSpeed = 16 end
+    end
+    local function startSpeed()
+        if speedConnection then speedConnection:Disconnect() end
+        speedConnection = RunService.Heartbeat:Connect(function()
+            if not speedEnabled then return end
+            local char = player.Character
+            if char and char:FindFirstChild("Humanoid") then char.Humanoid.WalkSpeed = walkSpeed end
+        end)
+    end
+    MiscTab:Section({ Title = "Speed" })
+    MiscTab:Input({ Title = "Walk Speed", Default = "50", Callback = function(v) local n = tonumber(v); if n then walkSpeed = n end end })
+    MiscTab:Toggle({ Title = "Speed", Default = false, Callback = function(s) speedEnabled = s; if s then startSpeed() else stopSpeed() end end })
+
+    -- ========== SUPPORT TAB ==========
+    local SupportTab = Window:Tab({ Title = "Support", Icon = "house-heart" })
+    
+    local InviteCode = "D5NKtBJEzz"
+    local DiscordAPI = "https://discord.com/api/v10/invites/" .. InviteCode .. "?with_counts=true&with_expiration=true"
+    
+    local function httpGet(url)
+        local body = nil
+        local success = false
+        if syn and syn.request then
+            success, body = pcall(function() return syn.request({ Url = url, Method = "GET" }).Body end)
+        elseif http and http.request then
+            success, body = pcall(function() return http.request({ Url = url, Method = "GET" }).Body end)
+        elseif request then
+            success, body = pcall(function() return request({ Url = url, Method = "GET" }).Body end)
+        elseif http_request then
+            success, body = pcall(function() return http_request({ Url = url, Method = "GET" }).Body end)
+        end
+        if success and body then return body else return nil end
+    end
+    
+    local Response, raw = {}, httpGet(DiscordAPI)
+    if raw then pcall(function() Response = HttpService:JSONDecode(raw) end) end
+    local onlineCount = Response and Response.approximate_presence_count or "?"
+    local totalCount = Response and Response.approximate_member_count or "?"
+    local guildName = (Response and Response.guild and Response.guild.name) or "ZyroYonk Hub Discord"
+    local iconUrl = nil
+    if Response and Response.guild and Response.guild.id and Response.guild.icon then
+        iconUrl = "https://cdn.discordapp.com/icons/" .. tostring(Response.guild.id) .. "/" .. tostring(Response.guild.icon) .. ".png?size=256"
+    end
+    
+    SupportTab:Section({ Title = "Join our Discord", Desc = "Get updates, report bugs, and hang out with the community!" })
+    
+    local cardProps = { 
+        Title = guildName, 
+        Desc = "🟢 Online: " .. onlineCount .. "   👥 Members: " .. totalCount, 
+        ImageSize = 64,
+        ThumbnailSize = 100,
+        Color = Color3.fromHex("#2C2F33"),
+        Buttons = { 
+            { 
+                Title = "Copy Invite", 
+                Callback = function() 
+                    copyToClipboard("https://discord.gg/" .. InviteCode)
+                    WindUI:Notify({ Title = "Copied!", Content = "Invite link copied to clipboard", Duration = 2, Icon = "clipboard-check" }) 
+                end 
+            },
+            { 
+                Title = "Join Discord", 
+                Callback = function()
+                    if syn and syn.websocket then
+                        pcall(function() syn.websocket:connect("discord.gg/" .. InviteCode) end)
+                    elseif openUrl then
+                        openUrl("https://discord.gg/" .. InviteCode)
+                    else
+                        copyToClipboard("https://discord.gg/" .. InviteCode)
+                        WindUI:Notify({ Title = "Copied!", Content = "Link copied - paste in browser", Duration = 3, Icon = "globe" })
+                    end
+                end
+            }
+        } 
+    }
+    if iconUrl then cardProps.Image = iconUrl end
+    SupportTab:Paragraph(cardProps)
+
+    SupportTab:Section({ Title = "Help & Information" })
+    SupportTab:Paragraph({
+        Title = "📌 Executor Compatibility",
+        Desc = "This script is designed to work with most executors. Currently using: **" .. executorName .. "**\n\nIf you encounter issues, please report them in our Discord.",
+        Color = Color3.fromHex("#2C2F33"),
+        Image = "https://cdn-icons-png.flaticon.com/512/1828/1828665.png",
+        ImageSize = 40
+    })
+    
+    SupportTab:Button({
+        Title = "Report a Bug",
+        Icon = "bug",
+        Callback = function()
+            copyToClipboard("Bug Report - Executor: " .. executorName .. " - Please describe the issue:")
+            WindUI:Notify({ Title = "Template Copied!", Content = "Paste in Discord support channel", Duration = 4, Icon = "message-square" })
+        end
+    })
+end
+
+-- ================== STARTUP SEQUENCE ==================
+showLoadingScreen()
+task.wait(2.5)
+showGUI()
