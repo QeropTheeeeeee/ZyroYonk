@@ -37,8 +37,10 @@ local gameScripts = {
     ["90158090737937"] = "https://pastefy.app/Jlx5luvG/raw",
     ["91350524990442"] = "https://raw.githubusercontent.com/QeropTheeeeeee/ZyroYonk/refs/heads/main/%5B%E2%98%A2%EF%B8%8F%5D%20Dont%20Get%20Caught%20For%20Hackers!%20%F0%9F%9A%A8",
     ["138161219313147"] = "https://raw.githubusercontent.com/QeropTheeeeeee/ZyroYonk/refs/heads/main/Unbox%20a%20Factory",
-    ["120135584963579"] = "https://raw.githubusercontent.com/QeropTheeeeeee/ZyroYonk/refs/heads/main/Don%E2%80%99t%20Steal%20the%20Bobo%20%F0%9F%90%BB"
-    ["126349562582764"] = "https://raw.githubusercontent.com/QeropTheeeeeee/ZyroYonk/refs/heads/main/Pressure%20Wash%20for%20Brainrots"
+    ["120135584963579"] = "https://raw.githubusercontent.com/QeropTheeeeeee/ZyroYonk/refs/heads/main/Don%E2%80%99t%20Steal%20the%20Bobo%20%F0%9F%90%BB",
+    ["126349562582764"] = "https://raw.githubusercontent.com/QeropTheeeeeee/ZyroYonk/refs/heads/main/Pressure%20Wash%20for%20Brainrots",
+    ["89469502395769"] = "https://raw.githubusercontent.com/QeropTheeeeeee/ZyroYonk/refs/heads/main/Kick%20A%20Lucky%20Block",
+    ["107095834793267"] = "https://raw.githubusercontent.com/QeropTheeeeeee/ZyroYonk/refs/heads/main/Oil%20Empire%F0%9F%9B%A2%EF%B8%8F"
 }
 
 -- Execute only for the current game
