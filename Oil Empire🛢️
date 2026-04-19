@@ -312,7 +312,7 @@ end
 
 -- ================== MAIN GUI ==================
 local function showGUI()
-    local coolTitle = "ZyroYonk Hub"
+    local coolTitle = "Oil Empire🛢️"
     local profileIconUrl = "https://i.pinimg.com/736x/37/3a/b3/373ab3e072178f47dcb7fdafaddb6854.jpg"
     
     local Window = WindUI:CreateWindow({
