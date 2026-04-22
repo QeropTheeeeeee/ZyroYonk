@@ -1,0 +1,658 @@
+local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local HttpService = game:GetService("HttpService")
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local Workspace = game:GetService("Workspace")
+local player = Players.LocalPlayer
+
+-- ================== EXECUTOR DETECTION ==================
+local function getExecutorName()
+    if identifyexecutor then
+        local success, name = pcall(identifyexecutor)
+        if success and name and name ~= "" then return name end
+    end
+    if getexecutorname then
+        local success, name = pcall(getexecutorname)
+        if success and name and name ~= "" then return name end
+    end
+    if syn and syn.crypt and syn.crypt.custom then return "Synapse" end
+    if krnl then return "Krnl" end
+    if fluxus then return "Fluxus" end
+    if electron then return "Electron" end
+    if is_sirhurt_closure then return "SirHurt" end
+    if getgenv and getgenv().IS_SCRIPT_WARE then return "ScriptWare" end
+    if getgenv and getgenv().IS_VEGA_X then return "Vega X" end
+    if getgenv and getgenv().IS_DELTA then return "Delta" end
+    if getgenv and getgenv().IS_CODE_X then return "Code X" end
+    return "Unknown Executor"
+end
+
+local executorName = getExecutorName()
+task.wait(1)
+WindUI:Notify({
+    Title = "Executor Detected",
+    Content = "You are using: " .. executorName,
+    Duration = 5,
+    Icon = "terminal"
+})
+
+-- ================== COPY TO CLIPBOARD ==================
+local function copyToClipboard(text)
+    if setclipboard then
+        setclipboard(text)
+    elseif syn and syn.write_clipboard then
+        syn.write_clipboard(text)
+    elseif toclipboard then
+        toclipboard(text)
+    else
+        pcall(function()
+            local input = Instance.new("TextBox")
+            input.Text = text
+            input.Parent = game:GetService("CoreGui")
+            input:CaptureFocus()
+            input:SelectAll()
+            task.wait(0.1)
+            input.Parent = nil
+        end)
+    end
+end
+
+-- ================== THEME ==================
+WindUI:AddTheme({
+    Name = "ZyroTheme",
+    Font = Font.fromName("PixelifySans", Enum.FontWeight.Bold),
+    Background = WindUI:Gradient({ ["0"] = { Color = Color3.fromHex("#0a0010") }, ["100"] = { Color = Color3.fromHex("#05000d") } }, { Rotation = 135 }),
+    Accent = WindUI:Gradient({ ["0"] = { Color = Color3.fromHex("#ff0066") }, ["100"] = { Color = Color3.fromHex("#ff003c") } }, { Rotation = 90 }),
+    SideBar = WindUI:Gradient({ ["0"] = { Color = Color3.fromHex("#0d0018") }, ["100"] = { Color = Color3.fromHex("#080010") } }, { Rotation = 160 }),
+    Tab = WindUI:Gradient({ ["0"] = { Color = Color3.fromHex("#1a0030") }, ["100"] = { Color = Color3.fromHex("#0f0020") } }, { Rotation = 45 }),
+    Toggle = WindUI:Gradient({ ["0"] = { Color = Color3.fromHex("#00ffcc") }, ["100"] = { Color = Color3.fromHex("#00ff88") } }, { Rotation = 90 }),
+    Button = WindUI:Gradient({ ["0"] = { Color = Color3.fromHex("#ff0080") }, ["100"] = { Color = Color3.fromHex("#4400cc") } }, { Rotation = 135 }),
+    Text = WindUI:Gradient({ ["0"] = { Color = Color3.fromHex("#ffffff") }, ["100"] = { Color = Color3.fromHex("#ff99ee") } }, { Rotation = 0 }),
+    Icon = WindUI:Gradient({ ["0"] = { Color = Color3.fromHex("#00aaff") }, ["100"] = { Color = Color3.fromHex("#00ffaa") } }, { Rotation = 90 }),
+})
+
+-- ================== LOADING SCREEN ==================
+local function showLoadingScreen()
+    local blur = Instance.new("BlurEffect", game:GetService("Lighting"))
+    blur.Size = 0
+    TweenService:Create(blur, TweenInfo.new(0.6), { Size = 18 }):Play()
+
+    local screenGui = Instance.new("ScreenGui")
+    screenGui.Parent = player:WaitForChild("PlayerGui")
+    screenGui.Name = "ZyroYonkIntro"
+    screenGui.ResetOnSpawn = false
+    screenGui.IgnoreGuiInset = true
+
+    local frame = Instance.new("Frame", screenGui)
+    frame.Size = UDim2.new(1, 0, 1, 0)
+    frame.BackgroundTransparency = 1
+
+    local bg = Instance.new("Frame", frame)
+    bg.Size = UDim2.new(1, 0, 1, 0)
+    bg.BackgroundColor3 = Color3.fromRGB(25, 0, 40)
+    bg.BackgroundTransparency = 1
+    TweenService:Create(bg, TweenInfo.new(0.8), { BackgroundTransparency = 0.2 }):Play()
+
+    local word = "ZyroYonk Hub"
+    local letters = {}
+
+    for i = 1, #word do
+        local char = word:sub(i, i)
+        local label = Instance.new("TextLabel")
+        label.Text = char
+        label.Font = Enum.Font.GothamBlack
+        label.TextColor3 = Color3.new(1, 1, 1)
+        label.TextTransparency = 1
+        label.TextSize = 20
+        label.Size = UDim2.new(0, 60, 0, 60)
+        label.AnchorPoint = Vector2.new(0.5, 0.5)
+        label.Position = UDim2.new(0.5, (i - (#word / 2 + 0.5)) * 55, 0.5, 20)
+        label.BackgroundTransparency = 1
+        label.Parent = frame
+
+        local gradient = Instance.new("UIGradient")
+        gradient.Color = ColorSequence.new({
+            ColorSequenceKeypoint.new(0, Color3.fromRGB(200, 120, 255)),
+            ColorSequenceKeypoint.new(1, Color3.fromRGB(120, 0, 200))
+        })
+        gradient.Rotation = 90
+        gradient.Parent = label
+
+        TweenService:Create(label, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+            TextTransparency = 0,
+            TextSize = 55,
+            Position = UDim2.new(0.5, (i - (#word / 2 + 0.5)) * 55, 0.5, 0)
+        }):Play()
+
+        table.insert(letters, label)
+        task.wait(0.12)
+    end
+
+    task.wait(2)
+    
+    for _, label in pairs(letters) do
+        TweenService:Create(label, TweenInfo.new(0.4), { TextTransparency = 1, TextSize = 20 }):Play()
+    end
+    
+    TweenService:Create(bg, TweenInfo.new(0.6), { BackgroundTransparency = 1 }):Play()
+    TweenService:Create(blur, TweenInfo.new(0.6), { Size = 0 }):Play()
+    task.wait(0.7)
+    screenGui:Destroy()
+    blur:Destroy()
+end
+
+-- ================== MAIN GUI ==================
+local function showGUI()
+    local coolTitle = "1 Plank = $1/s"
+    local profileIconUrl = "https://i.pinimg.com/736x/37/3a/b3/373ab3e072178f47dcb7fdafaddb6854.jpg"
+    
+    local Window = WindUI:CreateWindow({
+        Title = coolTitle,
+        Icon = profileIconUrl,
+        Author = "by ZyroYonk " .. utf8.char(0xE000),
+        Folder = "ZyroYonk Hub",
+        Size = UDim2.fromOffset(320, 320),
+        MinSize = Vector2.new(560, 350),
+        MaxSize = Vector2.new(850, 560),
+        Transparent = true,
+        Theme = "ZyroTheme",
+        Resizable = true,
+        SideBarWidth = 200,
+        Background = profileIconUrl,
+        BackgroundImageTransparency = 0.12,
+        HideSearchBar = false,
+        ScrollBarEnabled = false,
+        User = { Enabled = true, Anonymous = false, Callback = function() print("User button clicked") end },
+         		        KeySystem = {
+            Note = "ZyroYonk Hub Keysystem",
+            SaveKey = true,
+            API = {
+                { Type = "platoboost", ServiceId = 22001, Secret = "945af45d-5779-4a05-a31c-432930563763", Desc = "Key Duration 2 Hours Only" },
+                { Type = "pandadevelopment", ServiceId = "httpslootlinkcoms0u4sku", Desc = "Key Duration 5 Hours Only" },
+            },
+            Callback = function() _G["1234"] = true end,
+        },   
+    })
+
+    Window:Tag({ Title = "v1.0.1", Icon = "octagon-alert", Color = Color3.fromHex("#f00505"), Radius = 100 })
+
+    Window:EditOpenButton({
+        Title = "Open ZyroYonk Hub",
+        Icon = profileIconUrl,
+        IconType = "Image",
+        CornerRadius = UDim.new(0, 16),
+        StrokeThickness = 2,
+        Color = ColorSequence.new(Color3.fromHex("FF0F7B"), Color3.fromHex("F89B29")),
+        OnlyMobile = false,
+        Enabled = true,
+        Draggable = true,
+    })
+
+    -- Changelog Tab
+    local ChangelogTab = Window:Tab({ Title = "Changelog", Icon = "scroll" })
+    ChangelogTab:Paragraph({
+        Title = "📢 UPDATE: v1.0.1",
+        Desc = [[
+
+    - initially Release
+
+    ]],
+        Color = Color3.fromHex("#0e0f0f"),
+        Thumbnail = profileIconUrl,
+        ThumbnailSize = 100,
+    })
+
+   -- ========== MAIN FEATURES TAB ==========
+local MainTab = Window:Tab({ Title = "Main Features", Icon = "house" })
+
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+-- variables
+local autoUpgrade = false
+local autoCash = false
+
+-- function to detect your plot
+local function getMyPlot()
+    local character = player.Character or player.CharacterAdded:Wait()
+    local hrp = character:WaitForChild("HumanoidRootPart")
+
+    local plotsFolder = workspace:WaitForChild("Plots")
+
+    local myPlot = nil
+    local shortestDistance = math.huge
+
+    for _, plot in pairs(plotsFolder:GetChildren()) do
+        local success, target = pcall(function()
+            return plot.Plot.Buttons.Starter.PlanksButton1.ColorPart
+        end)
+
+        if success and target then
+            local distance = (hrp.Position - target.Position).Magnitude
+
+            if distance < shortestDistance then
+                shortestDistance = distance
+                myPlot = plot
+            end
+        end
+    end
+
+    return myPlot
+end
+
+-- 🔥 AUTO UPGRADE PLANK
+MainTab:Toggle({
+    Title = "Auto Upgrade Plank",
+    Default = false,
+    Callback = function(state)
+        autoUpgrade = state
+
+        task.spawn(function()
+            while autoUpgrade do
+                local character = player.Character or player.CharacterAdded:Wait()
+                local hrp = character:WaitForChild("HumanoidRootPart")
+
+                local myPlot = getMyPlot()
+                if myPlot then
+                    local target = myPlot.Plot.Buttons.Starter.PlanksButton1.ColorPart
+
+                    -- teleport to button
+                    hrp.CFrame = target.CFrame + Vector3.new(0, 3, 0)
+                end
+
+                task.wait(0)
+            end
+        end)
+    end
+})
+
+-- 💰 AUTO CASH COLLECT
+MainTab:Toggle({
+    Title = "Auto Cash Collect",
+    Default = false,
+    Callback = function(state)
+        autoCash = state
+
+        task.spawn(function()
+            while autoCash do
+                ReplicatedStorage:WaitForChild("StepEvent"):FireServer()
+                task.wait(0)
+            end
+        end)
+    end
+})
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RebirthEvent = ReplicatedStorage:WaitForChild("RebirthEvent")
+
+local autoRebirth = false
+
+MainTab:Toggle({
+    Title = "Auto Rebirth",
+    Default = false,
+    Callback = function(state)
+        autoRebirth = state
+
+        task.spawn(function()
+            while autoRebirth do
+                RebirthEvent:FireServer()
+                task.wait(1) -- prevents spam / lag
+            end
+        end)
+    end
+})
+
+local selectedMode = "Desert"
+
+-- 📌 DROPDOWN (put this FIRST or anywhere inside tab)
+MainTab:Dropdown({
+    Title = "Auto Buy Bricks Mode",
+    Values = { "Starter", "Desert", "Candy", "Mushroom", "Vulcano", "Cave", "Ice", "Glass", "Cyberpunk" },
+    Multi = false,
+    Default = "Desert",
+    Callback = function(value)
+        selectedMode = value
+        print("Selected mode:", selectedMode)
+    end
+})
+
+-- 🧱 AUTO BUY BRICKS TOGGLE (uses dropdown value)
+local autoBricks = false
+
+MainTab:Toggle({
+    Title = "Auto Buy Bricks",
+    Default = false,
+    Callback = function(state)
+        autoBricks = state
+
+        task.spawn(function()
+            while autoBricks do
+                local Players = game:GetService("Players")
+                local player = Players.LocalPlayer
+
+                local character = player.Character or player.CharacterAdded:Wait()
+                local hrp = character:WaitForChild("HumanoidRootPart")
+
+                local plotsFolder = workspace:WaitForChild("Plots")
+
+                local myPlot = nil
+                local shortestDistance = math.huge
+
+                for _, plot in pairs(plotsFolder:GetChildren()) do
+                    local success, target = pcall(function()
+                        return plot.Plot.Buttons[selectedMode].UpgradeButton.ColorPart
+                    end)
+
+                    if success and target then
+                        local distance = (hrp.Position - target.Position).Magnitude
+
+                        if distance < shortestDistance then
+                            shortestDistance = distance
+                            myPlot = plot
+                        end
+                    end
+                end
+
+                if myPlot then
+                    local target = myPlot.Plot.Buttons[selectedMode].UpgradeButton.ColorPart
+                    hrp.CFrame = target.CFrame + Vector3.new(0, 3, 0)
+                end
+
+                task.wait(0.3)
+            end
+        end)
+    end
+})
+    -- ========== MISC TAB ==========
+    local MiscTab = Window:Tab({ Title = "Misc", Icon = "settings" })
+    
+    MiscTab:Section({ Title = "Fly" })
+    local flyEnabled = false
+    local flySpeed = 50
+    local flyConnection = nil
+    
+    local function stopFly()
+        flyEnabled = false
+        if flyConnection then flyConnection:Disconnect(); flyConnection = nil end
+        local char = player.Character
+        if char then
+            if char:FindFirstChild("Humanoid") then char.Humanoid.PlatformStand = false end
+            local root = char:FindFirstChild("HumanoidRootPart")
+            if root then
+                local bv = root:FindFirstChildOfClass("BodyVelocity"); if bv then bv:Destroy() end
+                local bg = root:FindFirstChildOfClass("BodyGyro"); if bg then bg:Destroy() end
+            end
+        end
+    end
+    
+    local function startFly()
+        local char = player.Character
+        if not char then return end
+        local root = char:FindFirstChild("HumanoidRootPart")
+        local hum = char:FindFirstChild("Humanoid")
+        if not root or not hum then return end
+        hum.PlatformStand = true
+        local bv = Instance.new("BodyVelocity")
+        bv.Velocity = Vector3.new(0,0,0)
+        bv.MaxForce = Vector3.new(1e9,1e9,1e9)
+        bv.Parent = root
+        local bg = Instance.new("BodyGyro")
+        bg.MaxTorque = Vector3.new(1e9,1e9,1e9)
+        bg.P = 1e4
+        bg.D = 100
+        bg.CFrame = root.CFrame
+        bg.Parent = root
+        flyConnection = RunService.Heartbeat:Connect(function()
+            if not flyEnabled then return end
+            local cam = workspace.CurrentCamera
+            local move = Vector3.new(0,0,0)
+            if UserInputService:IsKeyDown(Enum.KeyCode.W) then move = move + cam.CFrame.LookVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.S) then move = move - cam.CFrame.LookVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.A) then move = move - cam.CFrame.RightVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.D) then move = move + cam.CFrame.RightVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.Space) then move = move + Vector3.new(0,1,0) end
+            if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then move = move - Vector3.new(0,1,0) end
+            if move.Magnitude > 0 then move = move.Unit end
+            bv.Velocity = move * flySpeed
+            bg.CFrame = cam.CFrame
+        end)
+    end
+    
+    MiscTab:Input({ Title = "Fly Speed", Default = "50", Callback = function(v) local n = tonumber(v); if n then flySpeed = n end end })
+    MiscTab:Toggle({ Title = "Fly", Default = false, Callback = function(s) flyEnabled = s; if s then startFly() else stopFly() end end })
+    
+    MiscTab:Section({ Title = "Speed" })
+    local speedEnabled = false
+    local walkSpeed = 50
+    local speedConnection = nil
+    
+    local function stopSpeed()
+        speedEnabled = false
+        if speedConnection then speedConnection:Disconnect(); speedConnection = nil end
+        local char = player.Character
+        if char and char:FindFirstChild("Humanoid") then char.Humanoid.WalkSpeed = 16 end
+    end
+    
+    local function startSpeed()
+        if speedConnection then speedConnection:Disconnect() end
+        speedConnection = RunService.Heartbeat:Connect(function()
+            if not speedEnabled then return end
+            local char = player.Character
+            if char and char:FindFirstChild("Humanoid") then char.Humanoid.WalkSpeed = walkSpeed end
+        end)
+    end
+    
+    MiscTab:Input({ Title = "Walk Speed", Default = "50", Callback = function(v) local n = tonumber(v); if n then walkSpeed = n end end })
+    MiscTab:Toggle({ Title = "Speed", Default = false, Callback = function(s) speedEnabled = s; if s then startSpeed() else stopSpeed() end end })
+
+    -- ========== SUPPORT TAB ==========
+    local SupportTab = Window:Tab({ Title = "Support", Icon = "heart" })
+    local InviteCode = "D5NKtBJEzz"
+    local DiscordAPI = "https://discord.com/api/v10/invites/" .. InviteCode .. "?with_counts=true&with_expiration=true"
+    
+    local function httpGet(url)
+        local body = nil
+        local success = false
+        if syn and syn.request then
+            success, body = pcall(function() return syn.request({ Url = url, Method = "GET" }).Body end)
+        elseif http and http.request then
+            success, body = pcall(function() return http.request({ Url = url, Method = "GET" }).Body end)
+        elseif request then
+            success, body = pcall(function() return request({ Url = url, Method = "GET" }).Body end)
+        elseif http_request then
+            success, body = pcall(function() return http_request({ Url = url, Method = "GET" }).Body end)
+        end
+        if success and body then return body else return nil end
+    end
+    
+    local Response, raw = {}, httpGet(DiscordAPI)
+    if raw then pcall(function() Response = HttpService:JSONDecode(raw) end) end
+    local onlineCount = Response and Response.approximate_presence_count or "?"
+    local totalCount = Response and Response.approximate_member_count or "?"
+    local guildName = (Response and Response.guild and Response.guild.name) or "ZyroYonk Hub Discord"
+    local iconUrl = nil
+    if Response and Response.guild and Response.guild.id and Response.guild.icon then
+        iconUrl = "https://cdn.discordapp.com/icons/" .. tostring(Response.guild.id) .. "/" .. tostring(Response.guild.icon) .. ".png?size=256"
+    end
+    
+    SupportTab:Section({ Title = "Join our Discord", Desc = "Get updates, report bugs, and hang out with the community!" })
+    
+    local cardProps = { 
+        Title = guildName, 
+        Desc = "🟢 Online: " .. onlineCount .. "   👥 Members: " .. totalCount, 
+        ImageSize = 64,
+        ThumbnailSize = 100,
+        Color = Color3.fromHex("#2C2F33"),
+        Buttons = { 
+            { 
+                Title = "Copy Invite", 
+                Callback = function() 
+                    copyToClipboard("https://discord.gg/" .. InviteCode)
+                    WindUI:Notify({ Title = "Copied!", Content = "Invite link copied to clipboard", Duration = 2, Icon = "clipboard-check" }) 
+                end 
+            },
+            { 
+                Title = "Join Discord", 
+                Callback = function()
+                    if syn and syn.websocket then
+                        pcall(function() syn.websocket:connect("discord.gg/" .. InviteCode) end)
+                    elseif openUrl then
+                        openUrl("https://discord.gg/" .. InviteCode)
+                    else
+                        copyToClipboard("https://discord.gg/" .. InviteCode)
+                        WindUI:Notify({ Title = "Link Copied!", Content = "Paste in browser to join", Duration = 3, Icon = "globe" })
+                    end
+                end
+            }
+        } 
+    }
+    if iconUrl then cardProps.Image = iconUrl end
+    SupportTab:Paragraph(cardProps)
+
+    SupportTab:Section({ Title = "Help & Information" })
+    SupportTab:Paragraph({
+        Title = "📌 Executor Compatibility",
+        Desc = "Currently using: **" .. executorName .. "**\n\nIf you encounter issues, please report them in our Discord.",
+        Color = Color3.fromHex("#2C2F33"),
+        Image = "https://cdn-icons-png.flaticon.com/512/1828/1828665.png",
+        ImageSize = 40
+    })
+    
+    SupportTab:Button({
+        Title = "Report a Bug",
+        Icon = "bug",
+        Callback = function()
+            copyToClipboard("Bug Report - Executor: " .. executorName .. " - Please describe the issue:")
+            WindUI:Notify({ Title = "Template Copied!", Content = "Paste in Discord support channel", Duration = 4, Icon = "message-square" })
+        end
+    })
+
+    -- ========== REQUEST TAB ==========
+    local RequestTab = Window:Tab({ Title = "Request", Icon = "mail" })
+    
+    RequestTab:Section({ Title = "📬 Send a Request" })
+    
+    RequestTab:Paragraph({
+        Title = "✨ Developer Feedback & Suggestions",
+        Desc = "Use this form to send ideas, bug reports, or feature requests directly to the developer. Your message will be sent via Discord webhook. Only the developer will see it.",
+        Color = Color3.fromHex("#2C2F33"),
+        Image = "https://cdn-icons-png.flaticon.com/512/456/456212.png",
+        ImageSize = 50
+    })
+    
+    local requestMessage = ""
+    RequestTab:Input({
+        Title = "Your Message",
+        Desc = "Type your request or suggestion here",
+        Placeholder = "e.g., Add auto farm feature...",
+        Callback = function(text)
+            requestMessage = text
+        end
+    })
+    
+    RequestTab:Button({
+        Title = "Send Request",
+        Icon = "send",
+        Callback = function()
+            if requestMessage == nil or requestMessage == "" then
+                WindUI:Notify({
+                    Title = "Error",
+                    Content = "Please enter a message first",
+                    Duration = 3,
+                    Icon = "alert-circle"
+                })
+                return
+            end
+            
+            local webhookUrl = "https://discord.com/api/webhooks/1495483361328889960/cc1tTgDQtLElx0u3syxvll5xcvy43cTDTAvpTD00rn4J66QwV-vZSJhh7109bEiKX_Qe"
+            
+            local playerName = player.Name
+            local executor = executorName
+            local fullMessage = string.format("**New Request from %s** (Executor: %s)\n```%s```", playerName, executor, requestMessage)
+            
+            local data = {
+                content = fullMessage,
+                username = "ZyroYonk Request",
+                avatar_url = profileIconUrl
+            }
+            
+            local jsonData = HttpService:JSONEncode(data)
+            
+            local success = false
+            local responseBody = nil
+            
+            if syn and syn.request then
+                success, responseBody = pcall(function()
+                    return syn.request({
+                        Url = webhookUrl,
+                        Method = "POST",
+                        Headers = {["Content-Type"] = "application/json"},
+                        Body = jsonData
+                    })
+                end)
+            elseif request then
+                success, responseBody = pcall(function()
+                    return request({
+                        Url = webhookUrl,
+                        Method = "POST",
+                        Headers = {["Content-Type"] = "application/json"},
+                        Body = jsonData
+                    })
+                end)
+            elseif http and http.request then
+                success, responseBody = pcall(function()
+                    return http.request({
+                        Url = webhookUrl,
+                        Method = "POST",
+                        Headers = {["Content-Type"] = "application/json"},
+                        Body = jsonData
+                    })
+                end)
+            elseif http_request then
+                success, responseBody = pcall(function()
+                    return http_request({
+                        Url = webhookUrl,
+                        Method = "POST",
+                        Headers = {["Content-Type"] = "application/json"},
+                        Body = jsonData
+                    })
+                end)
+            else
+                WindUI:Notify({
+                    Title = "Error",
+                    Content = "Your executor does not support HTTP requests",
+                    Duration = 4,
+                    Icon = "alert-octagon"
+                })
+                return
+            end
+            
+            if success then
+                WindUI:Notify({
+                    Title = "Request Sent!",
+                    Content = "Your message has been delivered to the developer.",
+                    Duration = 3,
+                    Icon = "check-circle"
+                })
+                requestMessage = ""
+            else
+                WindUI:Notify({
+                    Title = "Failed to Send",
+                    Content = "Error: " .. tostring(responseBody),
+                    Duration = 4,
+                    Icon = "alert-triangle"
+                })
+            end
+        end
+    })
+end
+
+-- ================== STARTUP ==================
+showLoadingScreen()
+task.wait(2.5)
+showGUI()
