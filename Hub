@@ -42,7 +42,8 @@ local gameScripts = {
     ["89469502395769"] = "https://raw.githubusercontent.com/QeropTheeeeeee/ZyroYonk/refs/heads/main/Kick%20A%20Lucky%20Block",
     ["107095834793267"] = "https://raw.githubusercontent.com/QeropTheeeeeee/ZyroYonk/refs/heads/main/Oil%20Empire%F0%9F%9B%A2%EF%B8%8F",
     ["76285745979410"] = "https://raw.githubusercontent.com/QeropTheeeeeee/ZyroYonk/refs/heads/main/Anime%20Card%20Collection",
-    ["136919941417380"] = "https://raw.githubusercontent.com/QeropTheeeeeee/ZyroYonk/refs/heads/main/Bike%20Obby%20For%20Brainrots!"
+    ["136919941417380"] = "https://raw.githubusercontent.com/QeropTheeeeeee/ZyroYonk/refs/heads/main/Bike%20Obby%20For%20Brainrots!",
+    ["86674945688264"] = "https://raw.githubusercontent.com/QeropTheeeeeee/ZyroYonk/refs/heads/main/1%20plank"
 }
 
 -- Execute only for the current game
