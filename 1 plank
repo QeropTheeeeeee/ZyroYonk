@@ -1,4 +1,13 @@
+-- ================== SAFE LOAD WindUI ==================
 local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
+if not WindUI then
+    game:GetService("StarterGui"):SetCore("SendNotification", {
+        Title = "Error",
+        Text = "Failed to load WindUI. Check your internet.",
+        Duration = 5
+    })
+    return
+end
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -9,184 +18,122 @@ local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 local player = Players.LocalPlayer
 
--- ================== EXECUTOR DETECTION ==================
+-- ================== EXECUTOR DETECTION (safe) ==================
 local function getExecutorName()
-    if identifyexecutor then
-        local success, name = pcall(identifyexecutor)
-        if success and name and name ~= "" then return name end
-    end
-    if getexecutorname then
-        local success, name = pcall(getexecutorname)
-        if success and name and name ~= "" then return name end
-    end
-    if syn and syn.crypt and syn.crypt.custom then return "Synapse" end
-    if krnl then return "Krnl" end
-    if fluxus then return "Fluxus" end
-    if electron then return "Electron" end
-    if is_sirhurt_closure then return "SirHurt" end
-    if getgenv and getgenv().IS_SCRIPT_WARE then return "ScriptWare" end
-    if getgenv and getgenv().IS_VEGA_X then return "Vega X" end
-    if getgenv and getgenv().IS_DELTA then return "Delta" end
-    if getgenv and getgenv().IS_CODE_X then return "Code X" end
-    return "Unknown Executor"
+    local success, name = pcall(function()
+        if identifyexecutor then return identifyexecutor() end
+        if getexecutorname then return getexecutorname() end
+        if syn and syn.crypt then return "Synapse" end
+        if krnl then return "Krnl" end
+        if fluxus then return "Fluxus" end
+        return "Mobile Executor"
+    end)
+    return success and name or "Unknown"
 end
 
 local executorName = getExecutorName()
-task.wait(1)
-WindUI:Notify({
-    Title = "Executor Detected",
-    Content = "You are using: " .. executorName,
-    Duration = 5,
-    Icon = "terminal"
-})
+task.wait(0.5)
 
--- ================== COPY TO CLIPBOARD ==================
+-- ================== COPY TO CLIPBOARD (safe) ==================
 local function copyToClipboard(text)
-    if setclipboard then
-        setclipboard(text)
-    elseif syn and syn.write_clipboard then
-        syn.write_clipboard(text)
-    elseif toclipboard then
-        toclipboard(text)
-    else
-        pcall(function()
+    pcall(function()
+        if setclipboard then setclipboard(text)
+        elseif toclipboard then toclipboard(text)
+        else
             local input = Instance.new("TextBox")
             input.Text = text
             input.Parent = game:GetService("CoreGui")
             input:CaptureFocus()
             input:SelectAll()
             task.wait(0.1)
-            input.Parent = nil
-        end)
-    end
+            input:Destroy()
+        end
+    end)
 end
 
--- ================== THEME ==================
+-- ================== SIMPLE THEME (no gradients, solid colors) ==================
 WindUI:AddTheme({
-    Name = "ZyroTheme",
-    Font = Font.fromName("PixelifySans", Enum.FontWeight.Bold),
-    Background = WindUI:Gradient({ ["0"] = { Color = Color3.fromHex("#0a0010") }, ["100"] = { Color = Color3.fromHex("#05000d") } }, { Rotation = 135 }),
-    Accent = WindUI:Gradient({ ["0"] = { Color = Color3.fromHex("#ff0066") }, ["100"] = { Color = Color3.fromHex("#ff003c") } }, { Rotation = 90 }),
-    SideBar = WindUI:Gradient({ ["0"] = { Color = Color3.fromHex("#0d0018") }, ["100"] = { Color = Color3.fromHex("#080010") } }, { Rotation = 160 }),
-    Tab = WindUI:Gradient({ ["0"] = { Color = Color3.fromHex("#1a0030") }, ["100"] = { Color = Color3.fromHex("#0f0020") } }, { Rotation = 45 }),
-    Toggle = WindUI:Gradient({ ["0"] = { Color = Color3.fromHex("#00ffcc") }, ["100"] = { Color = Color3.fromHex("#00ff88") } }, { Rotation = 90 }),
-    Button = WindUI:Gradient({ ["0"] = { Color = Color3.fromHex("#ff0080") }, ["100"] = { Color = Color3.fromHex("#4400cc") } }, { Rotation = 135 }),
-    Text = WindUI:Gradient({ ["0"] = { Color = Color3.fromHex("#ffffff") }, ["100"] = { Color = Color3.fromHex("#ff99ee") } }, { Rotation = 0 }),
-    Icon = WindUI:Gradient({ ["0"] = { Color = Color3.fromHex("#00aaff") }, ["100"] = { Color = Color3.fromHex("#00ffaa") } }, { Rotation = 90 }),
+    Name = "MobileSafe",
+    Font = Font.fromEnum(Enum.Font.Gotham),   -- works everywhere
+    Background = Color3.fromHex("#0a0010"),
+    Accent = Color3.fromHex("#ff0066"),
+    SideBar = Color3.fromHex("#0d0018"),
+    Tab = Color3.fromHex("#1a0030"),
+    Toggle = Color3.fromHex("#00ffcc"),
+    Button = Color3.fromHex("#ff0080"),
+    Text = Color3.fromHex("#ffffff"),
+    Icon = Color3.fromHex("#00aaff"),
 })
 
--- ================== LOADING SCREEN ==================
+-- ================== LOADING SCREEN (no blur, simple) ==================
 local function showLoadingScreen()
-    local blur = Instance.new("BlurEffect", game:GetService("Lighting"))
-    blur.Size = 0
-    TweenService:Create(blur, TweenInfo.new(0.6), { Size = 18 }):Play()
-
     local screenGui = Instance.new("ScreenGui")
     screenGui.Parent = player:WaitForChild("PlayerGui")
     screenGui.Name = "ZyroYonkIntro"
     screenGui.ResetOnSpawn = false
     screenGui.IgnoreGuiInset = true
 
-    local frame = Instance.new("Frame", screenGui)
-    frame.Size = UDim2.new(1, 0, 1, 0)
-    frame.BackgroundTransparency = 1
-
-    local bg = Instance.new("Frame", frame)
+    local bg = Instance.new("Frame", screenGui)
     bg.Size = UDim2.new(1, 0, 1, 0)
     bg.BackgroundColor3 = Color3.fromRGB(25, 0, 40)
-    bg.BackgroundTransparency = 1
-    TweenService:Create(bg, TweenInfo.new(0.8), { BackgroundTransparency = 0.2 }):Play()
+    bg.BackgroundTransparency = 0
 
-    local word = "ZyroYonk Hub"
-    local letters = {}
-
-    for i = 1, #word do
-        local char = word:sub(i, i)
-        local label = Instance.new("TextLabel")
-        label.Text = char
-        label.Font = Enum.Font.GothamBlack
-        label.TextColor3 = Color3.new(1, 1, 1)
-        label.TextTransparency = 1
-        label.TextSize = 20
-        label.Size = UDim2.new(0, 60, 0, 60)
-        label.AnchorPoint = Vector2.new(0.5, 0.5)
-        label.Position = UDim2.new(0.5, (i - (#word / 2 + 0.5)) * 55, 0.5, 20)
-        label.BackgroundTransparency = 1
-        label.Parent = frame
-
-        local gradient = Instance.new("UIGradient")
-        gradient.Color = ColorSequence.new({
-            ColorSequenceKeypoint.new(0, Color3.fromRGB(200, 120, 255)),
-            ColorSequenceKeypoint.new(1, Color3.fromRGB(120, 0, 200))
-        })
-        gradient.Rotation = 90
-        gradient.Parent = label
-
-        TweenService:Create(label, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-            TextTransparency = 0,
-            TextSize = 55,
-            Position = UDim2.new(0.5, (i - (#word / 2 + 0.5)) * 55, 0.5, 0)
-        }):Play()
-
-        table.insert(letters, label)
-        task.wait(0.12)
-    end
+    local label = Instance.new("TextLabel", screenGui)
+    label.Text = "ZyroYonk Hub\nLoading..."
+    label.TextColor3 = Color3.new(1, 1, 1)
+    label.TextSize = 30
+    label.Font = Enum.Font.GothamBlack
+    label.Size = UDim2.new(0, 300, 0, 100)
+    label.Position = UDim2.new(0.5, -150, 0.5, -50)
+    label.BackgroundTransparency = 1
+    label.TextScaled = true
 
     task.wait(2)
-    
-    for _, label in pairs(letters) do
-        TweenService:Create(label, TweenInfo.new(0.4), { TextTransparency = 1, TextSize = 20 }):Play()
-    end
-    
-    TweenService:Create(bg, TweenInfo.new(0.6), { BackgroundTransparency = 1 }):Play()
-    TweenService:Create(blur, TweenInfo.new(0.6), { Size = 0 }):Play()
-    task.wait(0.7)
     screenGui:Destroy()
-    blur:Destroy()
 end
 
 -- ================== MAIN GUI ==================
 local function showGUI()
-    local coolTitle = "1 Plank = $1/s"
     local profileIconUrl = "https://i.pinimg.com/736x/37/3a/b3/373ab3e072178f47dcb7fdafaddb6854.jpg"
-    
+
+    -- Skip key system on mobile if it fails
+    local keyConfig = {
+        Note = "ZyroYonk Hub Keysystem",
+        SaveKey = true,
+        API = {
+            { Type = "platoboost", ServiceId = 22001, Secret = "945af45d-5779-4a05-a31c-432930563763", Desc = "Key Duration 2 Hours Only" },
+            { Type = "pandadevelopment", ServiceId = "httpslootlinkcoms0u4sku", Desc = "Key Duration 5 Hours Only" },
+        },
+        Callback = function() _G["1234"] = true end,
+    }
+
     local Window = WindUI:CreateWindow({
-        Title = coolTitle,
+        Title = "1 Plank = $1/s",
         Icon = profileIconUrl,
-        Author = "by ZyroYonk " .. utf8.char(0xE000),
+        Author = "by ZyroYonk",
         Folder = "ZyroYonk Hub",
-        Size = UDim2.fromOffset(500, 450), -- increased for mobile
-        MinSize = Vector2.new(400, 350),   -- adjusted
-        MaxSize = Vector2.new(850, 560),
+        Size = UDim2.fromOffset(450, 400),
+        MinSize = Vector2.new(350, 300),
+        MaxSize = Vector2.new(750, 500),
         Transparent = true,
-        Theme = "ZyroTheme",
+        Theme = "MobileSafe",
         Resizable = true,
-        SideBarWidth = 200,
+        SideBarWidth = 180,
         Background = profileIconUrl,
         BackgroundImageTransparency = 0.12,
         HideSearchBar = false,
         ScrollBarEnabled = false,
-        User = { Enabled = true, Anonymous = false, Callback = function() print("User button clicked") end },
-        KeySystem = {
-            Note = "ZyroYonk Hub Keysystem",
-            SaveKey = true,
-            API = {
-                { Type = "platoboost", ServiceId = 22001, Secret = "945af45d-5779-4a05-a31c-432930563763", Desc = "Key Duration 2 Hours Only" },
-                { Type = "pandadevelopment", ServiceId = "httpslootlinkcoms0u4sku", Desc = "Key Duration 5 Hours Only" },
-            },
-            Callback = function() _G["1234"] = true end,
-        },
+        User = { Enabled = true, Anonymous = false, Callback = function() print("User") end },
+        KeySystem = keyConfig,
     })
 
-    Window:Tag({ Title = "v1.0.1", Icon = "octagon-alert", Color = Color3.fromHex("#f00505"), Radius = 100 })
-
     Window:EditOpenButton({
-        Title = "Open ZyroYonk Hub",
+        Title = "Open Hub",
         Icon = profileIconUrl,
         IconType = "Image",
-        CornerRadius = UDim.new(0, 16),
-        StrokeThickness = 2,
-        Color = ColorSequence.new(Color3.fromHex("FF0F7B"), Color3.fromHex("F89B29")),
+        CornerRadius = UDim.new(0, 12),
+        StrokeThickness = 1,
+        Color = ColorSequence.new(Color3.fromHex("FF0F7B")),
         OnlyMobile = false,
         Enabled = true,
         Draggable = true,
@@ -195,160 +142,129 @@ local function showGUI()
     -- Changelog Tab
     local ChangelogTab = Window:Tab({ Title = "Changelog", Icon = "scroll" })
     ChangelogTab:Paragraph({
-        Title = "📢 UPDATE: v1.0.1",
-        Desc = [[
-
-    - initially Release
-    - Mobile friendly fly controls
-
-    ]],
+        Title = "📢 Mobile Optimized",
+        Desc = "Removed heavy gradients & blur.\nFly uses on‑screen buttons.",
         Color = Color3.fromHex("#0e0f0f"),
         Thumbnail = profileIconUrl,
-        ThumbnailSize = 100,
     })
 
-    -- ========== MAIN FEATURES TAB ==========
+    -- MAIN FEATURES TAB
     local MainTab = Window:Tab({ Title = "Main Features", Icon = "house" })
 
-    local Players = game:GetService("Players")
-    local player = Players.LocalPlayer
-    local ReplicatedStorage = game:GetService("ReplicatedStorage")
-
-    -- variables
     local autoUpgrade = false
     local autoCash = false
+    local autoRebirth = false
+    local autoBricks = false
+    local selectedMode = "Desert"
 
-    -- function to detect your plot
     local function getMyPlot()
-        local character = player.Character or player.CharacterAdded:Wait()
-        local hrp = character:WaitForChild("HumanoidRootPart")
-
-        local plotsFolder = workspace:WaitForChild("Plots")
-
-        local myPlot = nil
-        local shortestDistance = math.huge
-
+        local char = player.Character or player.CharacterAdded:Wait()
+        local hrp = char:FindFirstChild("HumanoidRootPart")
+        if not hrp then return nil end
+        local plotsFolder = workspace:FindFirstChild("Plots")
+        if not plotsFolder then return nil end
+        local myPlot, shortestDist = nil, math.huge
         for _, plot in pairs(plotsFolder:GetChildren()) do
             local success, target = pcall(function()
                 return plot.Plot.Buttons.Starter.PlanksButton1.ColorPart
             end)
-
             if success and target then
-                local distance = (hrp.Position - target.Position).Magnitude
-
-                if distance < shortestDistance then
-                    shortestDistance = distance
+                local dist = (hrp.Position - target.Position).Magnitude
+                if dist < shortestDist then
+                    shortestDist = dist
                     myPlot = plot
                 end
             end
         end
-
         return myPlot
     end
 
-    -- 🔥 AUTO UPGRADE PLANK
     MainTab:Toggle({
         Title = "Auto Upgrade Plank",
         Default = false,
         Callback = function(state)
             autoUpgrade = state
-
             task.spawn(function()
                 while autoUpgrade do
-                    local character = player.Character or player.CharacterAdded:Wait()
-                    local hrp = character:WaitForChild("HumanoidRootPart")
-
                     local myPlot = getMyPlot()
                     if myPlot then
                         local target = myPlot.Plot.Buttons.Starter.PlanksButton1.ColorPart
-                        hrp.CFrame = target.CFrame + Vector3.new(0, 3, 0)
+                        local char = player.Character
+                        local hrp = char and char:FindFirstChild("HumanoidRootPart")
+                        if hrp then hrp.CFrame = target.CFrame + Vector3.new(0, 3, 0) end
                     end
-                    task.wait() -- reduced CPU usage
-                end
-            end)
-        end
-    })
-
-    -- 💰 AUTO CASH COLLECT
-    MainTab:Toggle({
-        Title = "Auto Cash Collect",
-        Default = false,
-        Callback = function(state)
-            autoCash = state
-
-            task.spawn(function()
-                while autoCash do
-                    ReplicatedStorage:WaitForChild("StepEvent"):FireServer()
                     task.wait()
                 end
             end)
         end
     })
 
-    local RebirthEvent = ReplicatedStorage:WaitForChild("RebirthEvent")
-    local autoRebirth = false
+    MainTab:Toggle({
+        Title = "Auto Cash Collect",
+        Default = false,
+        Callback = function(state)
+            autoCash = state
+            task.spawn(function()
+                while autoCash do
+                    pcall(function() ReplicatedStorage:WaitForChild("StepEvent"):FireServer() end)
+                    task.wait()
+                end
+            end)
+        end
+    })
 
     MainTab:Toggle({
         Title = "Auto Rebirth",
         Default = false,
         Callback = function(state)
             autoRebirth = state
-
             task.spawn(function()
                 while autoRebirth do
-                    RebirthEvent:FireServer()
+                    pcall(function() ReplicatedStorage:WaitForChild("RebirthEvent"):FireServer() end)
                     task.wait(1)
                 end
             end)
         end
     })
 
-    local selectedMode = "Desert"
-
     MainTab:Dropdown({
         Title = "Auto Buy Bricks Mode",
         Values = { "Starter", "Desert", "Candy", "Mushroom", "Vulcano", "Cave", "Ice", "Glass", "Cyberpunk" },
         Multi = false,
         Default = "Desert",
-        Callback = function(value)
-            selectedMode = value
-        end
+        Callback = function(v) selectedMode = v end
     })
-
-    local autoBricks = false
 
     MainTab:Toggle({
         Title = "Auto Buy Bricks",
         Default = false,
         Callback = function(state)
             autoBricks = state
-
             task.spawn(function()
                 while autoBricks do
-                    local character = player.Character or player.CharacterAdded:Wait()
-                    local hrp = character:WaitForChild("HumanoidRootPart")
-                    local plotsFolder = workspace:WaitForChild("Plots")
-
-                    local myPlot = nil
-                    local shortestDistance = math.huge
-
-                    for _, plot in pairs(plotsFolder:GetChildren()) do
-                        local success, target = pcall(function()
-                            return plot.Plot.Buttons[selectedMode].UpgradeButton.ColorPart
-                        end)
-
-                        if success and target then
-                            local distance = (hrp.Position - target.Position).Magnitude
-                            if distance < shortestDistance then
-                                shortestDistance = distance
-                                myPlot = plot
+                    local char = player.Character
+                    local hrp = char and char:FindFirstChild("HumanoidRootPart")
+                    if hrp then
+                        local plotsFolder = workspace:FindFirstChild("Plots")
+                        if plotsFolder then
+                            local myPlot, shortestDist = nil, math.huge
+                            for _, plot in pairs(plotsFolder:GetChildren()) do
+                                local success, target = pcall(function()
+                                    return plot.Plot.Buttons[selectedMode].UpgradeButton.ColorPart
+                                end)
+                                if success and target then
+                                    local dist = (hrp.Position - target.Position).Magnitude
+                                    if dist < shortestDist then
+                                        shortestDist = dist
+                                        myPlot = plot
+                                    end
+                                end
+                            end
+                            if myPlot then
+                                local target = myPlot.Plot.Buttons[selectedMode].UpgradeButton.ColorPart
+                                hrp.CFrame = target.CFrame + Vector3.new(0, 3, 0)
                             end
                         end
-                    end
-
-                    if myPlot then
-                        local target = myPlot.Plot.Buttons[selectedMode].UpgradeButton.ColorPart
-                        hrp.CFrame = target.CFrame + Vector3.new(0, 3, 0)
                     end
                     task.wait(0.3)
                 end
@@ -356,89 +272,64 @@ local function showGUI()
         end
     })
 
-    -- ========== MISC TAB ==========
+    -- MISC TAB (Fly with mobile buttons)
     local MiscTab = Window:Tab({ Title = "Misc", Icon = "settings" })
-    
     MiscTab:Section({ Title = "Fly" })
+
     local flyEnabled = false
     local flySpeed = 50
     local flyConnection = nil
-    local mobileFlyButtons = nil -- GUI for mobile controls
+    local mobileFlyGui = nil
     local isMobile = UserInputService.TouchEnabled
 
-    local function destroyMobileFlyControls()
-        if mobileFlyButtons and mobileFlyButtons.Parent then
-            mobileFlyButtons:Destroy()
-            mobileFlyButtons = nil
-        end
+    local function destroyFlyGUI()
+        if mobileFlyGui and mobileFlyGui.Parent then mobileFlyGui:Destroy() end
+        mobileFlyGui = nil
     end
 
     local function createMobileFlyControls()
-        if mobileFlyButtons then destroyMobileFlyControls() end
+        destroyFlyGUI()
         local gui = Instance.new("ScreenGui")
-        gui.Name = "MobileFlyControls"
+        gui.Name = "FlyControls"
         gui.Parent = player:WaitForChild("PlayerGui")
         gui.ResetOnSpawn = false
-        gui.IgnoreGuiInset = true
-
-        local frame = Instance.new("Frame")
-        frame.Size = UDim2.new(0, 200, 0, 200)
-        frame.Position = UDim2.new(0, 20, 1, -220)
+        local frame = Instance.new("Frame", gui)
+        frame.Size = UDim2.new(0, 180, 0, 180)
+        frame.Position = UDim2.new(0, 10, 1, -190)
         frame.AnchorPoint = Vector2.new(0, 1)
-        frame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-        frame.BackgroundTransparency = 0.3
+        frame.BackgroundColor3 = Color3.new(0,0,0)
+        frame.BackgroundTransparency = 0.4
         frame.BorderSizePixel = 0
-        frame.Parent = gui
 
-        local buttons = {
-            { Text = "▲", Name = "Forward", Position = UDim2.new(0.5, 0, 0, 5), Anchor = Vector2.new(0.5, 0) },
-            { Text = "▼", Name = "Back", Position = UDim2.new(0.5, 0, 1, -5), Anchor = Vector2.new(0.5, 1) },
-            { Text = "◀", Name = "Left", Position = UDim2.new(0, 5, 0.5, 0), Anchor = Vector2.new(0, 0.5) },
-            { Text = "▶", Name = "Right", Position = UDim2.new(1, -5, 0.5, 0), Anchor = Vector2.new(1, 0.5) },
-            { Text = "⬆", Name = "Up", Position = UDim2.new(0.5, 0, 0.2, 0), Anchor = Vector2.new(0.5, 0.5) },
-            { Text = "⬇", Name = "Down", Position = UDim2.new(0.5, 0, 0.8, 0), Anchor = Vector2.new(0.5, 0.5) }
+        local btns = {
+            {text="▲", name="Fwd", pos=UDim2.new(0.5,0,0,5), anchor=Vector2.new(0.5,0)},
+            {text="▼", name="Back", pos=UDim2.new(0.5,0,1,-5), anchor=Vector2.new(0.5,1)},
+            {text="◀", name="Left", pos=UDim2.new(0,5,0.5,0), anchor=Vector2.new(0,0.5)},
+            {text="▶", name="Right", pos=UDim2.new(1,-5,0.5,0), anchor=Vector2.new(1,0.5)},
+            {text="⬆", name="Up", pos=UDim2.new(0.5,0,0.3,0), anchor=Vector2.new(0.5,0.5)},
+            {text="⬇", name="Down", pos=UDim2.new(0.5,0,0.7,0), anchor=Vector2.new(0.5,0.5)}
         }
-
-        local buttonList = {}
-        for _, b in ipairs(buttons) do
-            local btn = Instance.new("TextButton")
+        local states = {}
+        for _, b in ipairs(btns) do
+            local btn = Instance.new("TextButton", frame)
             btn.Size = UDim2.new(0, 45, 0, 45)
-            btn.Position = b.Position
-            btn.AnchorPoint = b.Anchor
-            btn.Text = b.Text
+            btn.Position = b.pos
+            btn.AnchorPoint = b.anchor
+            btn.Text = b.text
             btn.TextSize = 20
-            btn.TextColor3 = Color3.new(1, 1, 1)
-            btn.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
+            btn.TextColor3 = Color3.new(1,1,1)
+            btn.BackgroundColor3 = Color3.fromRGB(80,80,80)
             btn.BackgroundTransparency = 0.2
             btn.BorderSizePixel = 0
             btn.AutoButtonColor = false
-            btn.Parent = frame
-            btn.MouseButton1Down:Connect(function()
-                buttonList[b.Name] = true
-            end)
-            btn.MouseButton1Up:Connect(function()
-                buttonList[b.Name] = false
-            end)
-            btn.TouchTap:Connect(function()
-                buttonList[b.Name] = true
-                task.wait(0.1)
-                buttonList[b.Name] = false
-            end)
-            -- for hold on mobile we also use TouchLongPress? simpler: just use TouchTap for momentary move or you can use bindings.
-            -- Better: use TouchStarted and TouchEnded
-            btn.TouchTap:Connect(function() end) -- placeholder
-            local touchStarted; touchStarted = btn.TouchStarted:Connect(function()
-                buttonList[b.Name] = true
-            end)
-            local touchEnded; touchEnded = btn.TouchEnded:Connect(function()
-                buttonList[b.Name] = false
-            end)
-            btn.TouchTap:Connect(function() end)
-            buttonList[b.Name] = false
+            states[b.name] = false
+            btn.TouchStarted:Connect(function() states[b.name] = true end)
+            btn.TouchEnded:Connect(function() states[b.name] = false end)
+            btn.MouseButton1Down:Connect(function() states[b.name] = true end)
+            btn.MouseButton1Up:Connect(function() states[b.name] = false end)
         end
-
-        mobileFlyButtons = gui
-        return buttonList
+        mobileFlyGui = gui
+        return states
     end
 
     local function stopFly()
@@ -449,11 +340,12 @@ local function showGUI()
             if char:FindFirstChild("Humanoid") then char.Humanoid.PlatformStand = false end
             local root = char:FindFirstChild("HumanoidRootPart")
             if root then
-                local bv = root:FindFirstChildOfClass("BodyVelocity"); if bv then bv:Destroy() end
-                local bg = root:FindFirstChildOfClass("BodyGyro"); if bg then bg:Destroy() end
+                for _, obj in pairs(root:GetChildren()) do
+                    if obj:IsA("BodyVelocity") or obj:IsA("BodyGyro") then obj:Destroy() end
+                end
             end
         end
-        destroyMobileFlyControls()
+        destroyFlyGUI()
     end
 
     local function startFly()
@@ -464,35 +356,29 @@ local function showGUI()
         if not root or not hum then return end
         hum.PlatformStand = true
         local bv = Instance.new("BodyVelocity")
-        bv.Velocity = Vector3.new(0,0,0)
         bv.MaxForce = Vector3.new(1e9,1e9,1e9)
         bv.Parent = root
         local bg = Instance.new("BodyGyro")
         bg.MaxTorque = Vector3.new(1e9,1e9,1e9)
         bg.P = 1e4
         bg.D = 100
-        bg.CFrame = root.CFrame
         bg.Parent = root
 
-        local mobileButtons = nil
-        if isMobile then
-            mobileButtons = createMobileFlyControls()
-        end
+        local mobileStates = nil
+        if isMobile then mobileStates = createMobileFlyControls() end
 
         flyConnection = RunService.Heartbeat:Connect(function()
             if not flyEnabled then return end
             local cam = workspace.CurrentCamera
             local move = Vector3.new(0,0,0)
-            if isMobile and mobileButtons then
-                -- mobile controls
-                if mobileButtons.Forward then move = move + cam.CFrame.LookVector end
-                if mobileButtons.Back then move = move - cam.CFrame.LookVector end
-                if mobileButtons.Left then move = move - cam.CFrame.RightVector end
-                if mobileButtons.Right then move = move + cam.CFrame.RightVector end
-                if mobileButtons.Up then move = move + Vector3.new(0,1,0) end
-                if mobileButtons.Down then move = move - Vector3.new(0,1,0) end
+            if isMobile and mobileStates then
+                if mobileStates.Fwd then move = move + cam.CFrame.LookVector end
+                if mobileStates.Back then move = move - cam.CFrame.LookVector end
+                if mobileStates.Left then move = move - cam.CFrame.RightVector end
+                if mobileStates.Right then move = move + cam.CFrame.RightVector end
+                if mobileStates.Up then move = move + Vector3.new(0,1,0) end
+                if mobileStates.Down then move = move - Vector3.new(0,1,0) end
             else
-                -- PC keyboard controls
                 if UserInputService:IsKeyDown(Enum.KeyCode.W) then move = move + cam.CFrame.LookVector end
                 if UserInputService:IsKeyDown(Enum.KeyCode.S) then move = move - cam.CFrame.LookVector end
                 if UserInputService:IsKeyDown(Enum.KeyCode.A) then move = move - cam.CFrame.RightVector end
@@ -507,242 +393,66 @@ local function showGUI()
     end
 
     MiscTab:Input({ Title = "Fly Speed", Default = "50", Callback = function(v) local n = tonumber(v); if n then flySpeed = n end end })
-    MiscTab:Toggle({ Title = "Fly", Default = false, Callback = function(s) 
-        if s then 
-            flyEnabled = true
-            startFly() 
-        else 
-            stopFly() 
-        end 
-    end })
-    
-    MiscTab:Section({ Title = "Speed" })
+    MiscTab:Toggle({ Title = "Fly (Mobile buttons appear)", Default = false, Callback = function(s)
+        if s then flyEnabled = true; startFly() else stopFly() end
+    end})
+
+    MiscTab:Section({ Title = "Walk Speed" })
     local speedEnabled = false
     local walkSpeed = 50
-    local speedConnection = nil
-    
+    local speedConn = nil
     local function stopSpeed()
         speedEnabled = false
-        if speedConnection then speedConnection:Disconnect(); speedConnection = nil end
-        local char = player.Character
-        if char and char:FindFirstChild("Humanoid") then char.Humanoid.WalkSpeed = 16 end
+        if speedConn then speedConn:Disconnect(); speedConn = nil end
+        if player.Character and player.Character:FindFirstChild("Humanoid") then
+            player.Character.Humanoid.WalkSpeed = 16
+        end
     end
-    
     local function startSpeed()
-        if speedConnection then speedConnection:Disconnect() end
-        speedConnection = RunService.Heartbeat:Connect(function()
-            if not speedEnabled then return end
-            local char = player.Character
-            if char and char:FindFirstChild("Humanoid") then char.Humanoid.WalkSpeed = walkSpeed end
+        if speedConn then speedConn:Disconnect() end
+        speedConn = RunService.Heartbeat:Connect(function()
+            if speedEnabled and player.Character and player.Character:FindFirstChild("Humanoid") then
+                player.Character.Humanoid.WalkSpeed = walkSpeed
+            end
         end)
     end
-    
-    MiscTab:Input({ Title = "Walk Speed", Default = "50", Callback = function(v) local n = tonumber(v); if n then walkSpeed = n end end })
-    MiscTab:Toggle({ Title = "Speed", Default = false, Callback = function(s) speedEnabled = s; if s then startSpeed() else stopSpeed() end end })
+    MiscTab:Input({ Title = "Speed Value", Default = "50", Callback = function(v) local n = tonumber(v); if n then walkSpeed = n end end })
+    MiscTab:Toggle({ Title = "Enable Speed", Default = false, Callback = function(s) speedEnabled = s; if s then startSpeed() else stopSpeed() end end })
 
-    -- ========== SUPPORT TAB ==========
+    -- SUPPORT TAB (simplified, no HTTP request to avoid mobile issues)
     local SupportTab = Window:Tab({ Title = "Support", Icon = "heart" })
-    local InviteCode = "D5NKtBJEzz"
-    local DiscordAPI = "https://discord.com/api/v10/invites/" .. InviteCode .. "?with_counts=true&with_expiration=true"
-    
-    local function httpGet(url)
-        local body = nil
-        local success = false
-        if syn and syn.request then
-            success, body = pcall(function() return syn.request({ Url = url, Method = "GET" }).Body end)
-        elseif http and http.request then
-            success, body = pcall(function() return http.request({ Url = url, Method = "GET" }).Body end)
-        elseif request then
-            success, body = pcall(function() return request({ Url = url, Method = "GET" }).Body end)
-        elseif http_request then
-            success, body = pcall(function() return http_request({ Url = url, Method = "GET" }).Body end)
-        end
-        if success and body then return body else return nil end
-    end
-    
-    local Response, raw = {}, httpGet(DiscordAPI)
-    if raw then pcall(function() Response = HttpService:JSONDecode(raw) end) end
-    local onlineCount = Response and Response.approximate_presence_count or "?"
-    local totalCount = Response and Response.approximate_member_count or "?"
-    local guildName = (Response and Response.guild and Response.guild.name) or "ZyroYonk Hub Discord"
-    local iconUrl = nil
-    if Response and Response.guild and Response.guild.id and Response.guild.icon then
-        iconUrl = "https://cdn.discordapp.com/icons/" .. tostring(Response.guild.id) .. "/" .. tostring(Response.guild.icon) .. ".png?size=256"
-    end
-    
-    SupportTab:Section({ Title = "Join our Discord", Desc = "Get updates, report bugs, and hang out with the community!" })
-    
-    local cardProps = { 
-        Title = guildName, 
-        Desc = "🟢 Online: " .. onlineCount .. "   👥 Members: " .. totalCount, 
-        ImageSize = 64,
-        ThumbnailSize = 100,
-        Color = Color3.fromHex("#2C2F33"),
-        Buttons = { 
-            { 
-                Title = "Copy Invite", 
-                Callback = function() 
-                    copyToClipboard("https://discord.gg/" .. InviteCode)
-                    WindUI:Notify({ Title = "Copied!", Content = "Invite link copied to clipboard", Duration = 2, Icon = "clipboard-check" }) 
-                end 
-            },
-            { 
-                Title = "Join Discord", 
-                Callback = function()
-                    if syn and syn.websocket then
-                        pcall(function() syn.websocket:connect("discord.gg/" .. InviteCode) end)
-                    elseif openUrl then
-                        openUrl("https://discord.gg/" .. InviteCode)
-                    else
-                        copyToClipboard("https://discord.gg/" .. InviteCode)
-                        WindUI:Notify({ Title = "Link Copied!", Content = "Paste in browser to join", Duration = 3, Icon = "globe" })
-                    end
-                end
-            }
-        } 
-    }
-    if iconUrl then cardProps.Image = iconUrl end
-    SupportTab:Paragraph(cardProps)
-
-    SupportTab:Section({ Title = "Help & Information" })
     SupportTab:Paragraph({
-        Title = "📌 Executor Compatibility",
-        Desc = "Currently using: **" .. executorName .. "**\n\nIf you encounter issues, please report them in our Discord.",
-        Color = Color3.fromHex("#2C2F33"),
-        Image = "https://cdn-icons-png.flaticon.com/512/1828/1828665.png",
-        ImageSize = 40
+        Title = "Join Discord",
+        Desc = "Discord: D5NKtBJEzz\nExecutor: " .. executorName,
+        Image = "https://cdn-icons-png.flaticon.com/512/2111/2111370.png",
+        ImageSize = 50,
     })
-    
     SupportTab:Button({
-        Title = "Report a Bug",
-        Icon = "bug",
+        Title = "Copy Invite Link",
         Callback = function()
-            copyToClipboard("Bug Report - Executor: " .. executorName .. " - Please describe the issue:")
-            WindUI:Notify({ Title = "Template Copied!", Content = "Paste in Discord support channel", Duration = 4, Icon = "message-square" })
+            copyToClipboard("https://discord.gg/D5NKtBJEzz")
+            WindUI:Notify({ Title = "Copied!", Content = "Invite link copied", Duration = 2 })
         end
     })
 
-    -- ========== REQUEST TAB ==========
+    -- REQUEST TAB (webhook disabled on mobile to prevent errors)
     local RequestTab = Window:Tab({ Title = "Request", Icon = "mail" })
-    
-    RequestTab:Section({ Title = "📬 Send a Request" })
-    
     RequestTab:Paragraph({
-        Title = "✨ Developer Feedback & Suggestions",
-        Desc = "Use this form to send ideas, bug reports, or feature requests directly to the developer. Your message will be sent via Discord webhook. Only the developer will see it.",
+        Title = "Send Feedback",
+        Desc = "Due to mobile limitations, please use Discord to send requests.",
         Color = Color3.fromHex("#2C2F33"),
-        Image = "https://cdn-icons-png.flaticon.com/512/456/456212.png",
-        ImageSize = 50
     })
-    
-    local requestMessage = ""
-    RequestTab:Input({
-        Title = "Your Message",
-        Desc = "Type your request or suggestion here",
-        Placeholder = "e.g., Add auto farm feature...",
-        Callback = function(text)
-            requestMessage = text
-        end
-    })
-    
     RequestTab:Button({
-        Title = "Send Request",
-        Icon = "send",
+        Title = "Copy Discord Invite",
         Callback = function()
-            if requestMessage == nil or requestMessage == "" then
-                WindUI:Notify({
-                    Title = "Error",
-                    Content = "Please enter a message first",
-                    Duration = 3,
-                    Icon = "alert-circle"
-                })
-                return
-            end
-            
-            local webhookUrl = "https://discord.com/api/webhooks/1495483361328889960/cc1tTgDQtLElx0u3syxvll5xcvy43cTDTAvpTD00rn4J66QwV-vZSJhh7109bEiKX_Qe"
-            
-            local playerName = player.Name
-            local executor = executorName
-            local fullMessage = string.format("**New Request from %s** (Executor: %s)\n```%s```", playerName, executor, requestMessage)
-            
-            local data = {
-                content = fullMessage,
-                username = "ZyroYonk Request",
-                avatar_url = profileIconUrl
-            }
-            
-            local jsonData = HttpService:JSONEncode(data)
-            
-            local success = false
-            local responseBody = nil
-            
-            if syn and syn.request then
-                success, responseBody = pcall(function()
-                    return syn.request({
-                        Url = webhookUrl,
-                        Method = "POST",
-                        Headers = {["Content-Type"] = "application/json"},
-                        Body = jsonData
-                    })
-                end)
-            elseif request then
-                success, responseBody = pcall(function()
-                    return request({
-                        Url = webhookUrl,
-                        Method = "POST",
-                        Headers = {["Content-Type"] = "application/json"},
-                        Body = jsonData
-                    })
-                end)
-            elseif http and http.request then
-                success, responseBody = pcall(function()
-                    return http.request({
-                        Url = webhookUrl,
-                        Method = "POST",
-                        Headers = {["Content-Type"] = "application/json"},
-                        Body = jsonData
-                    })
-                end)
-            elseif http_request then
-                success, responseBody = pcall(function()
-                    return http_request({
-                        Url = webhookUrl,
-                        Method = "POST",
-                        Headers = {["Content-Type"] = "application/json"},
-                        Body = jsonData
-                    })
-                end)
-            else
-                WindUI:Notify({
-                    Title = "Error",
-                    Content = "Your executor does not support HTTP requests",
-                    Duration = 4,
-                    Icon = "alert-octagon"
-                })
-                return
-            end
-            
-            if success then
-                WindUI:Notify({
-                    Title = "Request Sent!",
-                    Content = "Your message has been delivered to the developer.",
-                    Duration = 3,
-                    Icon = "check-circle"
-                })
-                requestMessage = ""
-            else
-                WindUI:Notify({
-                    Title = "Failed to Send",
-                    Content = "Error: " .. tostring(responseBody),
-                    Duration = 4,
-                    Icon = "alert-triangle"
-                })
-            end
+            copyToClipboard("https://discord.gg/D5NKtBJEzz")
+            WindUI:Notify({ Title = "Copied!", Content = "Join Discord to send requests", Duration = 3 })
         end
     })
 end
 
 -- ================== STARTUP ==================
-showLoadingScreen()
-task.wait(2.5)
-showGUI()
+local success, err = pcall(showLoadingScreen)
+if not success then warn("Loading screen error: ", err) end
+task.wait(1)
+pcall(showGUI)
