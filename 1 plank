@@ -167,7 +167,7 @@ local function showGUI()
         HideSearchBar = false,
         ScrollBarEnabled = false,
         User = { Enabled = true, Anonymous = false, Callback = function() print("User button clicked") end },
-        KeySystem = {
+       		        KeySystem = {
             Note = "ZyroYonk Hub Keysystem",
             SaveKey = true,
             API = {
@@ -206,138 +206,249 @@ local function showGUI()
         ThumbnailSize = 100,
     })
 
-    -- ========== MAIN FEATURES TAB ==========
-    local MainTab = Window:Tab({ Title = "Main Features", Icon = "house" })
+   -- ========== MAIN FEATURES TAB ==========
+local MainTab = Window:Tab({ Title = "Main Features", Icon = "house" })
 
-    -- variables
-    local autoUpgrade = false
-    local autoCash = false
-    local autoRebirth = false
-    local autoBricks = false
-    local selectedMode = "Desert"
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-    -- function to detect your plot
-    local function getMyPlot()
-        local character = player.Character or player.CharacterAdded:Wait()
-        local hrp = character:WaitForChild("HumanoidRootPart")
-        local plotsFolder = workspace:WaitForChild("Plots")
-        local myPlot = nil
-        local shortestDistance = math.huge
+-- variables
+local autoUpgrade = false
+local autoCash = false
 
-        for _, plot in pairs(plotsFolder:GetChildren()) do
-            local success, target = pcall(function()
-                return plot.Plot.Buttons.Starter.PlanksButton1.ColorPart
-            end)
-            if success and target then
-                local distance = (hrp.Position - target.Position).Magnitude
-                if distance < shortestDistance then
-                    shortestDistance = distance
-                    myPlot = plot
-                end
+-- function to detect your plot
+local function getMyPlot()
+    local character = player.Character or player.CharacterAdded:Wait()
+    local hrp = character:WaitForChild("HumanoidRootPart")
+
+    local plotsFolder = workspace:WaitForChild("Plots")
+
+    local myPlot = nil
+    local shortestDistance = math.huge
+
+    for _, plot in pairs(plotsFolder:GetChildren()) do
+        local success, target = pcall(function()
+            return plot.Plot.Buttons.Starter.PlanksButton1.ColorPart
+        end)
+
+        if success and target then
+            local distance = (hrp.Position - target.Position).Magnitude
+
+            if distance < shortestDistance then
+                shortestDistance = distance
+                myPlot = plot
             end
         end
-        return myPlot
     end
 
-    -- AUTO UPGRADE PLANK
-    MainTab:Toggle({
-        Title = "Auto Upgrade Plank",
-        Default = false,
-        Callback = function(state)
-            autoUpgrade = state
-            task.spawn(function()
-                while autoUpgrade do
-                    local character = player.Character or player.CharacterAdded:Wait()
-                    local hrp = character:WaitForChild("HumanoidRootPart")
-                    local myPlot = getMyPlot()
-                    if myPlot then
-                        local target = myPlot.Plot.Buttons.Starter.PlanksButton1.ColorPart
-                        hrp.CFrame = target.CFrame + Vector3.new(0, 3, 0)
-                    end
-                    task.wait()
+    return myPlot
+end
+
+-- 🔥 AUTO UPGRADE PLANK
+MainTab:Toggle({
+    Title = "Auto Upgrade Plank",
+    Default = false,
+    Callback = function(state)
+        autoUpgrade = state
+
+        task.spawn(function()
+            while autoUpgrade do
+                local character = player.Character or player.CharacterAdded:Wait()
+                local hrp = character:WaitForChild("HumanoidRootPart")
+
+                local myPlot = getMyPlot()
+                if myPlot then
+                    local target = myPlot.Plot.Buttons.Starter.PlanksButton1.ColorPart
+
+                    -- teleport to button
+                    hrp.CFrame = target.CFrame + Vector3.new(0, 3, 0)
                 end
-            end)
-        end
-    })
 
-    -- AUTO CASH COLLECT
-    MainTab:Toggle({
-        Title = "Auto Cash Collect",
-        Default = false,
-        Callback = function(state)
-            autoCash = state
-            task.spawn(function()
-                while autoCash do
-                    ReplicatedStorage:WaitForChild("StepEvent"):FireServer()
-                    task.wait()
-                end
-            end)
-        end
-    })
+                task.wait(0)
+            end
+        end)
+    end
+})
 
-    -- AUTO REBIRTH
-    local RebirthEvent = ReplicatedStorage:WaitForChild("RebirthEvent")
-    MainTab:Toggle({
-        Title = "Auto Rebirth",
-        Default = false,
-        Callback = function(state)
-            autoRebirth = state
-            task.spawn(function()
-                while autoRebirth do
-                    RebirthEvent:FireServer()
-                    task.wait(1)
-                end
-            end)
-        end
-    })
+-- 💰 AUTO CASH COLLECT
+MainTab:Toggle({
+    Title = "Auto Cash Collect",
+    Default = false,
+    Callback = function(state)
+        autoCash = state
 
-    -- DROPDOWN for brick mode
-    MainTab:Dropdown({
-        Title = "Auto Buy Bricks Mode",
-        Values = { "Starter", "Desert", "Candy", "Mushroom", "Vulcano", "Cave", "Ice", "Glass", "Cyberpunk" },
-        Multi = false,
-        Default = "Desert",
-        Callback = function(value)
-            selectedMode = value
-        end
-    })
+        task.spawn(function()
+            while autoCash do
+                ReplicatedStorage:WaitForChild("StepEvent"):FireServer()
+                task.wait(0)
+            end
+        end)
+    end
+})
 
-    -- AUTO BUY BRICKS
-    MainTab:Toggle({
-        Title = "Auto Buy Bricks",
-        Default = false,
-        Callback = function(state)
-            autoBricks = state
-            task.spawn(function()
-                while autoBricks do
-                    local character = player.Character or player.CharacterAdded:Wait()
-                    local hrp = character:WaitForChild("HumanoidRootPart")
-                    local plotsFolder = workspace:WaitForChild("Plots")
-                    local myPlot = nil
-                    local shortestDistance = math.huge
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RebirthEvent = ReplicatedStorage:WaitForChild("RebirthEvent")
 
-                    for _, plot in pairs(plotsFolder:GetChildren()) do
-                        local success, target = pcall(function()
-                            return plot.Plot.Buttons[selectedMode].UpgradeButton.ColorPart
-                        end)
-                        if success and target then
-                            local distance = (hrp.Position - target.Position).Magnitude
-                            if distance < shortestDistance then
-                                shortestDistance = distance
-                                myPlot = plot
-                            end
+local autoRebirth = false
+
+MainTab:Toggle({
+    Title = "Auto Rebirth",
+    Default = false,
+    Callback = function(state)
+        autoRebirth = state
+
+        task.spawn(function()
+            while autoRebirth do
+                RebirthEvent:FireServer()
+                task.wait(1) -- prevents spam / lag
+            end
+        end)
+    end
+})
+
+local selectedMode = "Desert"
+
+-- 📌 DROPDOWN (put this FIRST or anywhere inside tab)
+MainTab:Dropdown({
+    Title = "Auto Buy Bricks Mode",
+    Values = { "Starter", "Desert", "Candy", "Mushroom", "Vulcano", "Cave", "Ice", "Glass", "Cyberpunk" },
+    Multi = false,
+    Default = "Desert",
+    Callback = function(value)
+        selectedMode = value
+        print("Selected mode:", selectedMode)
+    end
+})
+
+-- 🧱 AUTO BUY BRICKS TOGGLE (uses dropdown value)
+local autoBricks = false
+
+MainTab:Toggle({
+    Title = "Auto Buy Bricks",
+    Default = false,
+    Callback = function(state)
+        autoBricks = state
+
+        task.spawn(function()
+            while autoBricks do
+                local Players = game:GetService("Players")
+                local player = Players.LocalPlayer
+
+                local character = player.Character or player.CharacterAdded:Wait()
+                local hrp = character:WaitForChild("HumanoidRootPart")
+
+                local plotsFolder = workspace:WaitForChild("Plots")
+
+                local myPlot = nil
+                local shortestDistance = math.huge
+
+                for _, plot in pairs(plotsFolder:GetChildren()) do
+                    local success, target = pcall(function()
+                        return plot.Plot.Buttons[selectedMode].UpgradeButton.ColorPart
+                    end)
+
+                    if success and target then
+                        local distance = (hrp.Position - target.Position).Magnitude
+
+                        if distance < shortestDistance then
+                            shortestDistance = distance
+                            myPlot = plot
                         end
                     end
-
-                    if myPlot then
-                        local target = myPlot.Plot.Buttons[selectedMode].UpgradeButton.ColorPart
-                        hrp.CFrame = target.CFrame + Vector3.new(0, 3, 0)
-                    end
-                    task.wait(0.3)
                 end
-            end)
+
+                if myPlot then
+                    local target = myPlot.Plot.Buttons[selectedMode].UpgradeButton.ColorPart
+                    hrp.CFrame = target.CFrame + Vector3.new(0, 3, 0)
+                end
+
+                task.wait(0.3)
+            end
+        end)
+    end
+})
+    -- ========== MISC TAB ==========
+    local MiscTab = Window:Tab({ Title = "Misc", Icon = "settings" })
+    
+    MiscTab:Section({ Title = "Fly" })
+    local flyEnabled = false
+    local flySpeed = 50
+    local flyConnection = nil
+    
+    local function stopFly()
+        flyEnabled = false
+        if flyConnection then flyConnection:Disconnect(); flyConnection = nil end
+        local char = player.Character
+        if char then
+            if char:FindFirstChild("Humanoid") then char.Humanoid.PlatformStand = false end
+            local root = char:FindFirstChild("HumanoidRootPart")
+            if root then
+                local bv = root:FindFirstChildOfClass("BodyVelocity"); if bv then bv:Destroy() end
+                local bg = root:FindFirstChildOfClass("BodyGyro"); if bg then bg:Destroy() end
+            end
         end
-    })
+    end
+    
+    local function startFly()
+        local char = player.Character
+        if not char then return end
+        local root = char:FindFirstChild("HumanoidRootPart")
+        local hum = char:FindFirstChild("Humanoid")
+        if not root or not hum then return end
+        hum.PlatformStand = true
+        local bv = Instance.new("BodyVelocity")
+        bv.Velocity = Vector3.new(0,0,0)
+        bv.MaxForce = Vector3.new(1e9,1e9,1e9)
+        bv.Parent = root
+        local bg = Instance.new("BodyGyro")
+        bg.MaxTorque = Vector3.new(1e9,1e9,1e9)
+        bg.P = 1e4
+        bg.D = 100
+        bg.CFrame = root.CFrame
+        bg.Parent = root
+        flyConnection = RunService.Heartbeat:Connect(function()
+            if not flyEnabled then return end
+            local cam = workspace.CurrentCamera
+            local move = Vector3.new(0,0,0)
+            if UserInputService:IsKeyDown(Enum.KeyCode.W) then move = move + cam.CFrame.LookVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.S) then move = move - cam.CFrame.LookVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.A) then move = move - cam.CFrame.RightVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.D) then move = move + cam.CFrame.RightVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.Space) then move = move + Vector3.new(0,1,0) end
+            if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then move = move - Vector3.new(0,1,0) end
+            if move.Magnitude > 0 then move = move.Unit end
+            bv.Velocity = move * flySpeed
+            bg.CFrame = cam.CFrame
+        end)
+    end
+    
+    MiscTab:Input({ Title = "Fly Speed", Default = "50", Callback = function(v) local n = tonumber(v); if n then flySpeed = n end end })
+    MiscTab:Toggle({ Title = "Fly", Default = false, Callback = function(s) flyEnabled = s; if s then startFly() else stopFly() end end })
+    
+    MiscTab:Section({ Title = "Speed" })
+    local speedEnabled = false
+    local walkSpeed = 50
+    local speedConnection = nil
+    
+    local function stopSpeed()
+        speedEnabled = false
+        if speedConnection then speedConnection:Disconnect(); speedConnection = nil end
+        local char = player.Character
+        if char and char:FindFirstChild("Humanoid") then char.Humanoid.WalkSpeed = 16 end
+    end
+    
+    local function startSpeed()
+        if speedConnection then speedConnection:Disconnect() end
+        speedConnection = RunService.Heartbeat:Connect(function()
+            if not speedEnabled then return end
+            local char = player.Character
+            if char and char:FindFirstChild("Humanoid") then char.Humanoid.WalkSpeed = walkSpeed end
+        end)
+    end
+    
+    MiscTab:Input({ Title = "Walk Speed", Default = "50", Callback = function(v) local n = tonumber(v); if n then walkSpeed = n end end })
+    MiscTab:Toggle({ Title = "Speed", Default = false, Callback = function(s) speedEnabled = s; if s then startSpeed() else stopSpeed() end end })
 
     -- ========== SUPPORT TAB ==========
     local SupportTab = Window:Tab({ Title = "Support", Icon = "heart" })
