@@ -178,7 +178,7 @@ local function showGUI()
         },
     })
 
-    Window:Tag({ Title = "v1.0.1", Icon = "octagon-alert", Color = Color3.fromHex("#f00505"), Radius = 100 })
+    Window:Tag({ Title = "v1.0.1 (Mobile Fix)", Icon = "octagon-alert", Color = Color3.fromHex("#f00505"), Radius = 100 })
 
     Window:EditOpenButton({
         Title = "Open ZyroYonk Hub",
@@ -195,11 +195,12 @@ local function showGUI()
     -- Changelog Tab
     local ChangelogTab = Window:Tab({ Title = "Changelog", Icon = "scroll" })
     ChangelogTab:Paragraph({
-        Title = "📢 UPDATE: v1.0.1",
+        Title = "📢 UPDATE: v1.0.1 - Mobile Fix",
         Desc = [[
 
-    - initially Release
-    - Fixed fly for mobile (camera controlled)
+    - Fixed fly system for mobile (on-screen Up/Down buttons)
+    - Improved touch compatibility
+    - All features now work on PC & mobile
 
     ]],
         Color = Color3.fromHex("#0e0f0f"),
@@ -365,15 +366,52 @@ local function showGUI()
     -- ========== MISC TAB ==========
     local MiscTab = Window:Tab({ Title = "Misc", Icon = "settings" })
 
-    -- ========== FLY (Fixed for PC + Mobile) ==========
-    MiscTab:Section({ Title = "Fly (Camera Controlled)" })
+    -- ========== FLY (Mobile friendly with on-screen buttons) ==========
+    MiscTab:Section({ Title = "Fly (Mobile/PC)" })
     local flyEnabled = false
     local flySpeed = 50
     local flyConnection = nil
+    local flyButtons = nil  -- will hold the ScreenGui for up/down buttons
+
+    local function createFlyButtons()
+        if flyButtons then flyButtons:Destroy() end
+        local gui = Instance.new("ScreenGui")
+        gui.Name = "FlyButtons"
+        gui.Parent = player:WaitForChild("PlayerGui")
+        gui.ResetOnSpawn = false
+        gui.IgnoreGuiInset = true
+
+        local frame = Instance.new("Frame")
+        frame.Size = UDim2.new(0, 120, 0, 200)
+        frame.Position = UDim2.new(1, -140, 0.5, -100)
+        frame.BackgroundTransparency = 1
+        frame.Parent = gui
+
+        local upBtn = Instance.new("TextButton")
+        upBtn.Size = UDim2.new(0, 100, 0, 80)
+        upBtn.Position = UDim2.new(0, 10, 0, 0)
+        upBtn.Text = "⬆️ UP"
+        upBtn.TextScaled = true
+        upBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 200)
+        upBtn.BorderSizePixel = 0
+        upBtn.Parent = frame
+
+        local downBtn = Instance.new("TextButton")
+        downBtn.Size = UDim2.new(0, 100, 0, 80)
+        downBtn.Position = UDim2.new(0, 10, 1, -80)
+        downBtn.Text = "⬇️ DOWN"
+        downBtn.TextScaled = true
+        downBtn.BackgroundColor3 = Color3.fromRGB(200, 80, 0)
+        downBtn.BorderSizePixel = 0
+        downBtn.Parent = frame
+
+        return gui, upBtn, downBtn
+    end
 
     local function stopFly()
         flyEnabled = false
         if flyConnection then flyConnection:Disconnect(); flyConnection = nil end
+        if flyButtons then flyButtons:Destroy(); flyButtons = nil end
         local char = player.Character
         if char then
             if char:FindFirstChild("Humanoid") then char.Humanoid.PlatformStand = false end
@@ -408,9 +446,20 @@ local function showGUI()
         bg.CFrame = root.CFrame
         bg.Parent = root
 
+        -- Create on-screen buttons for mobile
+        local gui, upBtn, downBtn = createFlyButtons()
+        flyButtons = gui
+
+        local upPressed = false
+        local downPressed = false
+
+        upBtn.MouseButton1Down:Connect(function() upPressed = true end)
+        upBtn.MouseButton1Up:Connect(function() upPressed = false end)
+        downBtn.MouseButton1Down:Connect(function() downPressed = true end)
+        downBtn.MouseButton1Up:Connect(function() downPressed = false end)
+
         flyConnection = RunService.Heartbeat:Connect(function()
             if not flyEnabled then return end
-
             local char = player.Character
             if not char then return end
             local root = char:FindFirstChild("HumanoidRootPart")
@@ -418,15 +467,17 @@ local function showGUI()
             if not root or not hum then return end
 
             local camera = workspace.CurrentCamera
-            local moveDirection = hum.MoveDirection   -- works with WASD on PC, touch joystick on mobile
+            local moveDirection = hum.MoveDirection  -- works with joystick on mobile
             local camForward = camera.CFrame.LookVector
             local camRight = camera.CFrame.RightVector
 
-            -- Horizontal movement from MoveDirection
+            -- Horizontal movement from joystick/WASD
             local horizontal = (camRight * moveDirection.X + camForward * moveDirection.Z) * flySpeed
 
-            -- Vertical movement from camera pitch (look up = go up, look down = go down)
-            local vertical = camForward.Y * flySpeed
+            -- Vertical movement from buttons
+            local vertical = 0
+            if upPressed then vertical = flySpeed end
+            if downPressed then vertical = -flySpeed end
 
             local finalVelocity = Vector3.new(horizontal.X, vertical, horizontal.Z)
             bv.Velocity = finalVelocity
@@ -435,7 +486,14 @@ local function showGUI()
     end
 
     MiscTab:Input({ Title = "Fly Speed", Default = "50", Callback = function(v) local n = tonumber(v); if n then flySpeed = n end end })
-    MiscTab:Toggle({ Title = "Fly", Default = false, Callback = function(s) flyEnabled = s; if s then startFly() else stopFly() end end })
+    MiscTab:Toggle({ Title = "Fly (shows Up/Down buttons)", Default = false, Callback = function(s) 
+        flyEnabled = s
+        if s then
+            startFly()
+        else
+            stopFly()
+        end
+    end end)
 
     -- ========== SPEED ==========
     MiscTab:Section({ Title = "Speed" })
