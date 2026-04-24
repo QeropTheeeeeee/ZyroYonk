@@ -9,6 +9,13 @@ local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 local player = Players.LocalPlayer
 
+-- ================== MOBILE DETECTION ==================
+local isMobile = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
+-- If it's a tablet with keyboard, we still treat as mobile if TouchEnabled is primary
+if UserInputService.TouchEnabled and not UserInputService.MouseEnabled then
+    isMobile = true
+end
+
 -- ================== EXECUTOR DETECTION ==================
 local function getExecutorName()
     if identifyexecutor then
@@ -35,10 +42,19 @@ local executorName = getExecutorName()
 task.wait(1)
 WindUI:Notify({
     Title = "Executor Detected",
-    Content = "You are using: " .. executorName,
+    Content = "You are using: " .. executorName .. (isMobile and " (Mobile Mode)" or " (PC Mode)"),
     Duration = 5,
     Icon = "terminal"
 })
+
+if isMobile then
+    WindUI:Notify({
+        Title = "Mobile Mode Active",
+        Content = "Misc tab (fly/speed) removed for compatibility.",
+        Duration = 4,
+        Icon = "smartphone"
+    })
+end
 
 -- ================== COPY TO CLIPBOARD ==================
 local function copyToClipboard(text)
@@ -178,7 +194,7 @@ local function showGUI()
         },
     })
 
-    Window:Tag({ Title = "v1.0.1 (Mobile Fix)", Icon = "octagon-alert", Color = Color3.fromHex("#f00505"), Radius = 100 })
+    Window:Tag({ Title = "v1.0.1 - Mobile Fix", Icon = "octagon-alert", Color = Color3.fromHex("#f00505"), Radius = 100 })
 
     Window:EditOpenButton({
         Title = "Open ZyroYonk Hub",
@@ -196,13 +212,14 @@ local function showGUI()
     local ChangelogTab = Window:Tab({ Title = "Changelog", Icon = "scroll" })
     ChangelogTab:Paragraph({
         Title = "📢 UPDATE: v1.0.1 - Mobile Fix",
-        Desc = [[
-
-    - Fixed fly system for mobile (on-screen Up/Down buttons)
-    - Improved touch compatibility
-    - All features now work on PC & mobile
-
-    ]],
+        Desc = (isMobile and [[
+    - Mobile mode: Misc tab removed for compatibility
+    - Only Main Features, Support, Request tabs available
+    - All auto features work on mobile
+    ]] or [[
+    - PC mode: Full features including Fly & Speed
+    - Misc tab fully available
+    ]]),
         Color = Color3.fromHex("#0e0f0f"),
         Thumbnail = profileIconUrl,
         ThumbnailSize = 100,
@@ -363,162 +380,111 @@ local function showGUI()
         end
     })
 
-    -- ========== MISC TAB ==========
-    local MiscTab = Window:Tab({ Title = "Misc", Icon = "settings" })
+    -- ========== MISC TAB (PC ONLY) ==========
+    if not isMobile then
+        local MiscTab = Window:Tab({ Title = "Misc", Icon = "settings" })
 
-    -- ========== FLY (Mobile friendly with on-screen buttons) ==========
-    MiscTab:Section({ Title = "Fly (Mobile/PC)" })
-    local flyEnabled = false
-    local flySpeed = 50
-    local flyConnection = nil
-    local flyButtons = nil  -- will hold the ScreenGui for up/down buttons
+        -- FLY (PC version with keyboard)
+        MiscTab:Section({ Title = "Fly (WASD + Space/Shift)" })
+        local flyEnabled = false
+        local flySpeed = 50
+        local flyConnection = nil
 
-    local function createFlyButtons()
-        if flyButtons then flyButtons:Destroy() end
-        local gui = Instance.new("ScreenGui")
-        gui.Name = "FlyButtons"
-        gui.Parent = player:WaitForChild("PlayerGui")
-        gui.ResetOnSpawn = false
-        gui.IgnoreGuiInset = true
-
-        local frame = Instance.new("Frame")
-        frame.Size = UDim2.new(0, 120, 0, 200)
-        frame.Position = UDim2.new(1, -140, 0.5, -100)
-        frame.BackgroundTransparency = 1
-        frame.Parent = gui
-
-        local upBtn = Instance.new("TextButton")
-        upBtn.Size = UDim2.new(0, 100, 0, 80)
-        upBtn.Position = UDim2.new(0, 10, 0, 0)
-        upBtn.Text = "⬆️ UP"
-        upBtn.TextScaled = true
-        upBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 200)
-        upBtn.BorderSizePixel = 0
-        upBtn.Parent = frame
-
-        local downBtn = Instance.new("TextButton")
-        downBtn.Size = UDim2.new(0, 100, 0, 80)
-        downBtn.Position = UDim2.new(0, 10, 1, -80)
-        downBtn.Text = "⬇️ DOWN"
-        downBtn.TextScaled = true
-        downBtn.BackgroundColor3 = Color3.fromRGB(200, 80, 0)
-        downBtn.BorderSizePixel = 0
-        downBtn.Parent = frame
-
-        return gui, upBtn, downBtn
-    end
-
-    local function stopFly()
-        flyEnabled = false
-        if flyConnection then flyConnection:Disconnect(); flyConnection = nil end
-        if flyButtons then flyButtons:Destroy(); flyButtons = nil end
-        local char = player.Character
-        if char then
-            if char:FindFirstChild("Humanoid") then char.Humanoid.PlatformStand = false end
-            local root = char:FindFirstChild("HumanoidRootPart")
-            if root then
-                local bv = root:FindFirstChildOfClass("BodyVelocity")
-                if bv then bv:Destroy() end
-                local bg = root:FindFirstChildOfClass("BodyGyro")
-                if bg then bg:Destroy() end
+        local function stopFly()
+            flyEnabled = false
+            if flyConnection then flyConnection:Disconnect(); flyConnection = nil end
+            local char = player.Character
+            if char then
+                if char:FindFirstChild("Humanoid") then char.Humanoid.PlatformStand = false end
+                local root = char:FindFirstChild("HumanoidRootPart")
+                if root then
+                    local bv = root:FindFirstChildOfClass("BodyVelocity")
+                    if bv then bv:Destroy() end
+                    local bg = root:FindFirstChildOfClass("BodyGyro")
+                    if bg then bg:Destroy() end
+                end
             end
         end
-    end
 
-    local function startFly()
-        local char = player.Character
-        if not char then return end
-        local root = char:FindFirstChild("HumanoidRootPart")
-        local hum = char:FindFirstChild("Humanoid")
-        if not root or not hum then return end
-
-        hum.PlatformStand = true
-
-        local bv = Instance.new("BodyVelocity")
-        bv.Velocity = Vector3.new(0, 0, 0)
-        bv.MaxForce = Vector3.new(1e9, 1e9, 1e9)
-        bv.Parent = root
-
-        local bg = Instance.new("BodyGyro")
-        bg.MaxTorque = Vector3.new(1e9, 1e9, 1e9)
-        bg.P = 1e4
-        bg.D = 100
-        bg.CFrame = root.CFrame
-        bg.Parent = root
-
-        -- Create on-screen buttons for mobile
-        local gui, upBtn, downBtn = createFlyButtons()
-        flyButtons = gui
-
-        local upPressed = false
-        local downPressed = false
-
-        upBtn.MouseButton1Down:Connect(function() upPressed = true end)
-        upBtn.MouseButton1Up:Connect(function() upPressed = false end)
-        downBtn.MouseButton1Down:Connect(function() downPressed = true end)
-        downBtn.MouseButton1Up:Connect(function() downPressed = false end)
-
-        flyConnection = RunService.Heartbeat:Connect(function()
-            if not flyEnabled then return end
+        local function startFly()
             local char = player.Character
             if not char then return end
             local root = char:FindFirstChild("HumanoidRootPart")
             local hum = char:FindFirstChild("Humanoid")
             if not root or not hum then return end
 
-            local camera = workspace.CurrentCamera
-            local moveDirection = hum.MoveDirection  -- works with joystick on mobile
-            local camForward = camera.CFrame.LookVector
-            local camRight = camera.CFrame.RightVector
+            hum.PlatformStand = true
 
-            -- Horizontal movement from joystick/WASD
-            local horizontal = (camRight * moveDirection.X + camForward * moveDirection.Z) * flySpeed
+            local bv = Instance.new("BodyVelocity")
+            bv.Velocity = Vector3.new(0, 0, 0)
+            bv.MaxForce = Vector3.new(1e9, 1e9, 1e9)
+            bv.Parent = root
 
-            -- Vertical movement from buttons
-            local vertical = 0
-            if upPressed then vertical = flySpeed end
-            if downPressed then vertical = -flySpeed end
+            local bg = Instance.new("BodyGyro")
+            bg.MaxTorque = Vector3.new(1e9, 1e9, 1e9)
+            bg.P = 1e4
+            bg.D = 100
+            bg.CFrame = root.CFrame
+            bg.Parent = root
 
-            local finalVelocity = Vector3.new(horizontal.X, vertical, horizontal.Z)
-            bv.Velocity = finalVelocity
-            bg.CFrame = camera.CFrame
-        end)
-    end
+            flyConnection = RunService.Heartbeat:Connect(function()
+                if not flyEnabled then return end
+                local char = player.Character
+                if not char then return end
+                local root = char:FindFirstChild("HumanoidRootPart")
+                local hum = char:FindFirstChild("Humanoid")
+                if not root or not hum then return end
 
-    MiscTab:Input({ Title = "Fly Speed", Default = "50", Callback = function(v) local n = tonumber(v); if n then flySpeed = n end end })
-    MiscTab:Toggle({ Title = "Fly (shows Up/Down buttons)", Default = false, Callback = function(s) 
-        flyEnabled = s
-        if s then
-            startFly()
-        else
-            stopFly()
+                local camera = workspace.CurrentCamera
+                local move = Vector3.new(0, 0, 0)
+                if UserInputService:IsKeyDown(Enum.KeyCode.W) then move = move + camera.CFrame.LookVector end
+                if UserInputService:IsKeyDown(Enum.KeyCode.S) then move = move - camera.CFrame.LookVector end
+                if UserInputService:IsKeyDown(Enum.KeyCode.A) then move = move - camera.CFrame.RightVector end
+                if UserInputService:IsKeyDown(Enum.KeyCode.D) then move = move + camera.CFrame.RightVector end
+                if UserInputService:IsKeyDown(Enum.KeyCode.Space) then move = move + Vector3.new(0, 1, 0) end
+                if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then move = move - Vector3.new(0, 1, 0) end
+
+                if move.Magnitude > 0 then move = move.Unit end
+                bv.Velocity = move * flySpeed
+                bg.CFrame = camera.CFrame
+            end)
         end
-    end end)
 
-    -- ========== SPEED ==========
-    MiscTab:Section({ Title = "Speed" })
-    local speedEnabled = false
-    local walkSpeed = 50
-    local speedConnection = nil
+        MiscTab:Input({ Title = "Fly Speed", Default = "50", Callback = function(v) local n = tonumber(v); if n then flySpeed = n end end })
+        MiscTab:Toggle({ Title = "Fly", Default = false, Callback = function(s) flyEnabled = s; if s then startFly() else stopFly() end end })
 
-    local function stopSpeed()
-        speedEnabled = false
-        if speedConnection then speedConnection:Disconnect(); speedConnection = nil end
-        local char = player.Character
-        if char and char:FindFirstChild("Humanoid") then char.Humanoid.WalkSpeed = 16 end
-    end
+        -- SPEED (PC)
+        MiscTab:Section({ Title = "Speed" })
+        local speedEnabled = false
+        local walkSpeed = 50
+        local speedConnection = nil
 
-    local function startSpeed()
-        if speedConnection then speedConnection:Disconnect() end
-        speedConnection = RunService.Heartbeat:Connect(function()
-            if not speedEnabled then return end
+        local function stopSpeed()
+            speedEnabled = false
+            if speedConnection then speedConnection:Disconnect(); speedConnection = nil end
             local char = player.Character
-            if char and char:FindFirstChild("Humanoid") then char.Humanoid.WalkSpeed = walkSpeed end
-        end)
-    end
+            if char and char:FindFirstChild("Humanoid") then char.Humanoid.WalkSpeed = 16 end
+        end
 
-    MiscTab:Input({ Title = "Walk Speed", Default = "50", Callback = function(v) local n = tonumber(v); if n then walkSpeed = n end end })
-    MiscTab:Toggle({ Title = "Speed", Default = false, Callback = function(s) speedEnabled = s; if s then startSpeed() else stopSpeed() end end })
+        local function startSpeed()
+            if speedConnection then speedConnection:Disconnect() end
+            speedConnection = RunService.Heartbeat:Connect(function()
+                if not speedEnabled then return end
+                local char = player.Character
+                if char and char:FindFirstChild("Humanoid") then char.Humanoid.WalkSpeed = walkSpeed end
+            end)
+        end
+
+        MiscTab:Input({ Title = "Walk Speed", Default = "50", Callback = function(v) local n = tonumber(v); if n then walkSpeed = n end end })
+        MiscTab:Toggle({ Title = "Speed", Default = false, Callback = function(s) speedEnabled = s; if s then startSpeed() else stopSpeed() end end })
+    else
+        -- On mobile, add a note in Changelog that Misc is hidden
+        ChangelogTab:Paragraph({
+            Title = "📱 Mobile Mode",
+            Desc = "Misc tab (fly/speed) is hidden on mobile to prevent crashes. All auto features work fine.",
+            Color = Color3.fromHex("#0e0f0f"),
+        })
+    end
 
     -- ========== SUPPORT TAB ==========
     local SupportTab = Window:Tab({ Title = "Support", Icon = "heart" })
