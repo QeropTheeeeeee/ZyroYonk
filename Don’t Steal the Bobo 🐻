@@ -545,18 +545,22 @@ local function showGUI()
         HideSearchBar = false,
         ScrollBarEnabled = false,
         User = { Enabled = true, Anonymous = false, Callback = function() print("User button clicked") end },
-             KeySystem = {
-        Note = "ZyroYonk Hub Keysystem",
-        SaveKey = true,
-        API = {
-            {
-                Type = "platoboost",
-                ServiceId = 22001,
-                Secret = "945af45d-5779-4a05-a31c-432930563763",
-            },
-        },
-        Callback = function() _G["1234"] = true end,
+KeySystem = {
+    Note = "ZyroYonk Hub Keysystem",
+    SaveKey = true,
+
+    API = {
+        {
+            Type = "pandadevelopment",
+            ServiceId = "httpslootlinkcoms0u4sku",
+            Desc = "Super Easy To Get"
+        }
     },
+
+    Callback = function()
+        _G["1234"] = true
+    end
+}
     })
 
     Window:Tag({ Title = "v1.0.1", Icon = "octagon-alert", Color = Color3.fromHex("#f00505"), Radius = 100 })
