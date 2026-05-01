@@ -45,7 +45,8 @@ local gameScripts = {
     ["136919941417380"] = "https://raw.githubusercontent.com/QeropTheeeeeee/ZyroYonk/refs/heads/main/Bike%20Obby%20For%20Brainrots!",
     ["86674945688264"] = "https://raw.githubusercontent.com/QeropTheeeeeee/ZyroYonk/refs/heads/main/1%20plank",
     ["110334393584385"] = "https://raw.githubusercontent.com/ZyroYonk/ZyroYonk/refs/heads/main/Roller%20For%20brainrots!",
-    ["130274245431977"] = "https://raw.githubusercontent.com/ZyroYonk/ZyroYonk/refs/heads/main/Climb%20and%20Plunge"
+    ["130274245431977"] = "https://raw.githubusercontent.com/ZyroYonk/ZyroYonk/refs/heads/main/Climb%20and%20Plunge",
+    ["92416421522960"] = "https://raw.githubusercontent.com/ZyroYonk/ZyroYonk/refs/heads/main/Slime%20RNG"
 }
 
 -- Execute only for the current game
