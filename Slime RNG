@@ -7,6 +7,7 @@ local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
+local TeleportService = game:GetService("TeleportService")
 local player = Players.LocalPlayer
 
 -- ================== EXECUTOR DETECTION ==================
@@ -59,6 +60,38 @@ local function copyToClipboard(text)
             input.Parent = nil
         end)
     end
+end
+
+-- ================== FILE HELPERS ==================
+local function fileExists(path)
+    if isfile then return isfile(path) end
+    return false
+end
+
+local function writeFile(path, content)
+    if writefile then
+        writefile(path, content)
+        return true
+    end
+    return false
+end
+
+local function readFile(path)
+    if readfile and fileExists(path) then
+        return readfile(path)
+    end
+    return nil
+end
+
+local function listFiles(folder)
+    if listfiles then
+        local files = {}
+        for _, file in ipairs(listfiles(folder)) do
+            table.insert(files, file)
+        end
+        return files
+    end
+    return {}
 end
 
 -- ================== THEME ==================
@@ -147,7 +180,7 @@ end
 
 -- ================== MAIN GUI ==================
 local function showGUI()
-    local coolTitle = "Slime RNG"
+    local coolTitle = "Slime Rng"
     local profileIconUrl = "https://i.pinimg.com/736x/37/3a/b3/373ab3e072178f47dcb7fdafaddb6854.jpg"
     
     local Window = WindUI:CreateWindow({
@@ -155,7 +188,7 @@ local function showGUI()
         Icon = profileIconUrl,
         Author = "by ZyroYonk " .. utf8.char(0xE000),
         Folder = "ZyroYonk Hub",
-        Size = UDim2.fromOffset(320, 320),
+        Size = UDim2.fromOffset(560, 350),
         MinSize = Vector2.new(560, 350),
         MaxSize = Vector2.new(850, 560),
         Transparent = true,
@@ -167,7 +200,7 @@ local function showGUI()
         HideSearchBar = false,
         ScrollBarEnabled = false,
         User = { Enabled = true, Anonymous = false, Callback = function() print("User button clicked") end },
-				KeySystem = {
+						KeySystem = {
     Note = "ZyroYonk Hub Keysystem",
     SaveKey = true,
 
@@ -186,7 +219,6 @@ local function showGUI()
     })
 
     Window:Tag({ Title = "v1.0.1", Icon = "octagon-alert", Color = Color3.fromHex("#f00505"), Radius = 100 })
-	Window:Tag({ Title = "Beta", Icon = "octagon-alert", Color = Color3.fromHex("#f00505"), Radius = 100 })
 
     Window:EditOpenButton({
         Title = "Open ZyroYonk Hub",
@@ -200,7 +232,35 @@ local function showGUI()
         Draggable = true,
     })
 
-    -- Changelog Tab
+    -- ================== PROFILE MANAGER ==================
+    local PROFILE_FOLDER = "ZyroYonkProfiles/"
+    pcall(function() makefolder(PROFILE_FOLDER) end)
+
+    local function getProfilePath(name) return PROFILE_FOLDER .. name .. ".json" end
+
+    local function getProfileNames()
+        local names = {}
+        local files = listFiles(PROFILE_FOLDER)
+        for _, file in ipairs(files) do
+            local name = file:match("([^/\\]+)%.json$")
+            if name then table.insert(names, name) end
+        end
+        table.sort(names)
+        return names
+    end
+
+    -- UI element registry
+    local uiElements = { toggles = {}, inputs = {}, dropdowns = {} }
+
+    -- ========== TAB ORDER ==========
+    -- 1. Changelog
+    -- 2. Main Features
+    -- 3. Auto Teleport (Zone Teleport -> Profile Manager -> Server Hopper)
+    -- 4. Misc
+    -- 5. Request
+    -- 6. Support
+
+    -- ========== CHANGELOG TAB ==========
     local ChangelogTab = Window:Tab({ Title = "Changelog", Icon = "scroll" })
     ChangelogTab:Paragraph({
         Title = "📢 UPDATE: v1.0.1",
@@ -220,7 +280,6 @@ local function showGUI()
     -- ================== AUTO UPGRADER SECTION ==================
     MainTab:Section({ Title = "Auto Upgrader" })
 
-    -- Auto Upgrader
     local autoUpgrader = false
     local upgraderConnection = nil
 
@@ -252,9 +311,7 @@ local function showGUI()
         if success and tutorialRF then
             for _, upgrade in ipairs(tutorialUpgrades) do
                 if not autoUpgrader then break end
-                pcall(function()
-                    tutorialRF:InvokeServer("requestAdvanceStep", upgrade)
-                end)
+                pcall(function() tutorialRF:InvokeServer("requestAdvanceStep", upgrade) end)
                 task.wait(0.2)
             end
         end
@@ -266,9 +323,7 @@ local function showGUI()
         if success2 and upgradeRF then
             for _, upgrade in ipairs(upgradeServiceUpgrades) do
                 if not autoUpgrader then break end
-                pcall(function()
-                    upgradeRF:InvokeServer("requestUnlock", upgrade)
-                end)
+                pcall(function() upgradeRF:InvokeServer("requestUnlock", upgrade) end)
                 task.wait(0.2)
             end
         end
@@ -291,32 +346,27 @@ local function showGUI()
         end
     end
 
-    MainTab:Toggle({
+    local autoUpgraderToggle = MainTab:Toggle({
         Title = "Auto Upgrader",
+        Flag = "AutoUpgrader",
         Default = false,
         Callback = function(state)
             autoUpgrader = state
-            if state then
-                startAutoUpgrader()
-            else
-                stopAutoUpgrader()
-            end
+            if state then startAutoUpgrader() else stopAutoUpgrader() end
         end
     })
+    uiElements.toggles["AutoUpgrader"] = { state = false, setValue = function(v) autoUpgraderToggle:SetValue(v) end }
 
     -- Auto Rebirth
     local autoRebirth = false
     local rebirthConnection = nil
 
     local function doRebirth()
-        local success = pcall(function()
+        pcall(function()
             local networker = ReplicatedStorage:WaitForChild("Packages"):WaitForChild("_Index"):WaitForChild("leifstout_networker@0.3.1"):WaitForChild("networker")
             local remote = networker:WaitForChild("_remotes"):WaitForChild("RebirthService"):WaitForChild("RemoteFunction")
             remote:InvokeServer("requestRebirth")
         end)
-        if not success then
-            warn("Failed to rebirth")
-        end
     end
 
     local function startAutoRebirth()
@@ -336,20 +386,18 @@ local function showGUI()
         end
     end
 
-    MainTab:Toggle({
+    local autoRebirthToggle = MainTab:Toggle({
         Title = "Auto Rebirth",
+        Flag = "AutoRebirth",
         Default = false,
         Callback = function(state)
             autoRebirth = state
-            if state then
-                startAutoRebirth()
-            else
-                stopAutoRebirth()
-            end
+            if state then startAutoRebirth() else stopAutoRebirth() end
         end
     })
+    uiElements.toggles["AutoRebirth"] = { state = false, setValue = function(v) autoRebirthToggle:SetValue(v) end }
 
-    -- Auto Buy Zone
+    -- Auto Buy Zone (purchasing zones, not teleport)
     local autoBuyZone = false
     local zoneLoopConnection = nil
 
@@ -364,15 +412,9 @@ local function showGUI()
     local function unlockAndPurchaseZone(zoneNumber)
         local success, tutorialRF, zonesRF = pcall(getRemotes)
         if not success then return end
-
-        pcall(function()
-            tutorialRF:InvokeServer("requestAdvanceStep", "unlockZone" .. zoneNumber)
-        end)
+        pcall(function() tutorialRF:InvokeServer("requestAdvanceStep", "unlockZone" .. zoneNumber) end)
         task.wait(0.3)
-
-        pcall(function()
-            zonesRF:InvokeServer("requestPurchaseZone")
-        end)
+        pcall(function() zonesRF:InvokeServer("requestPurchaseZone") end)
     end
 
     local function startAutoBuyZone()
@@ -395,18 +437,16 @@ local function showGUI()
         end
     end
 
-    MainTab:Toggle({
+    local autoBuyZoneToggle = MainTab:Toggle({
         Title = "Auto Buy Zone",
+        Flag = "AutoBuyZone",
         Default = false,
         Callback = function(state)
             autoBuyZone = state
-            if state then
-                startAutoBuyZone()
-            else
-                stopAutoBuyZone()
-            end
+            if state then startAutoBuyZone() else stopAutoBuyZone() end
         end
     })
+    uiElements.toggles["AutoBuyZone"] = { state = false, setValue = function(v) autoBuyZoneToggle:SetValue(v) end }
 
     -- Auto Buy Loot
     local autoBuyLoot = false
@@ -427,9 +467,7 @@ local function showGUI()
         if success and upgradeRF then
             for _, loot in ipairs(lootUpgrades) do
                 if not autoBuyLoot then break end
-                pcall(function()
-                    upgradeRF:InvokeServer("requestUnlock", loot)
-                end)
+                pcall(function() upgradeRF:InvokeServer("requestUnlock", loot) end)
                 task.wait(0.2)
             end
         end
@@ -452,18 +490,16 @@ local function showGUI()
         end
     end
 
-    MainTab:Toggle({
+    local autoBuyLootToggle = MainTab:Toggle({
         Title = "Auto Buy Loot",
+        Flag = "AutoBuyLoot",
         Default = false,
         Callback = function(state)
             autoBuyLoot = state
-            if state then
-                startAutoBuyLoot()
-            else
-                stopAutoBuyLoot()
-            end
+            if state then startAutoBuyLoot() else stopAutoBuyLoot() end
         end
     })
+    uiElements.toggles["AutoBuyLoot"] = { state = false, setValue = function(v) autoBuyLootToggle:SetValue(v) end }
 
     -- ================== AUTO EQUIP SECTION ==================
     MainTab:Section({ Title = "Auto Equip" })
@@ -473,14 +509,11 @@ local function showGUI()
     local equipBestConnection = nil
 
     local function equipBest()
-        local success = pcall(function()
+        pcall(function()
             local networker = ReplicatedStorage:WaitForChild("Packages"):WaitForChild("_Index"):WaitForChild("leifstout_networker@0.3.1"):WaitForChild("networker")
             local remote = networker:WaitForChild("_remotes"):WaitForChild("InventoryService"):WaitForChild("RemoteFunction")
             remote:InvokeServer("requestEquipBest")
         end)
-        if not success then
-            warn("Failed to equip best gear")
-        end
     end
 
     local function startAutoEquipBest()
@@ -500,32 +533,27 @@ local function showGUI()
         end
     end
 
-    MainTab:Toggle({
+    local autoEquipBestToggle = MainTab:Toggle({
         Title = "Auto Equip Best",
+        Flag = "AutoEquipBest",
         Default = false,
         Callback = function(state)
             autoEquipBest = state
-            if state then
-                startAutoEquipBest()
-            else
-                stopAutoEquipBest()
-            end
+            if state then startAutoEquipBest() else stopAutoEquipBest() end
         end
     })
+    uiElements.toggles["AutoEquipBest"] = { state = false, setValue = function(v) autoEquipBestToggle:SetValue(v) end }
 
     -- Auto Equip Boost
     local autoEquipBoost = false
     local boostConnection = nil
 
     local function useBoost(boostType)
-        local success = pcall(function()
+        pcall(function()
             local networker = ReplicatedStorage:WaitForChild("Packages"):WaitForChild("_Index"):WaitForChild("leifstout_networker@0.3.1"):WaitForChild("networker")
             local remote = networker:WaitForChild("_remotes"):WaitForChild("BoostService"):WaitForChild("RemoteFunction")
             remote:InvokeServer("requestUseBoost", boostType)
         end)
-        if not success then
-            warn("Failed to use boost: " .. boostType)
-        end
     end
 
     local function equipAllBoosts()
@@ -553,37 +581,31 @@ local function showGUI()
         end
     end
 
-    MainTab:Toggle({
+    local autoEquipBoostToggle = MainTab:Toggle({
         Title = "Auto Equip Boost",
+        Flag = "AutoEquipBoost",
         Default = false,
         Callback = function(state)
             autoEquipBoost = state
-            if state then
-                startAutoEquipBoost()
-            else
-                stopAutoEquipBoost()
-            end
+            if state then startAutoEquipBoost() else stopAutoEquipBoost() end
         end
     })
+    uiElements.toggles["AutoEquipBoost"] = { state = false, setValue = function(v) autoEquipBoostToggle:SetValue(v) end }
 
     -- ================== AUTO CLAIM SECTION ==================
     MainTab:Section({ Title = "Auto Claim" })
 
-    -- Auto Claim Index (moved from Auto Equip)
+    -- Auto Claim Index
     local autoClaimIndex = false
     local indexConnection = nil
-
     local indexRewards = {"basic", "big", "huge", "shiny", "inverted"}
 
     local function claimIndexReward(rewardType)
-        local success = pcall(function()
+        pcall(function()
             local networker = ReplicatedStorage:WaitForChild("Packages"):WaitForChild("_Index"):WaitForChild("leifstout_networker@0.3.1"):WaitForChild("networker")
             local remote = networker:WaitForChild("_remotes"):WaitForChild("IndexService"):WaitForChild("RemoteFunction")
             remote:InvokeServer("requestClaimReward", rewardType)
         end)
-        if not success then
-            warn("Failed to claim index reward: " .. rewardType)
-        end
     end
 
     local function claimAllIndexRewards()
@@ -611,34 +633,28 @@ local function showGUI()
         end
     end
 
-    MainTab:Toggle({
+    local autoClaimIndexToggle = MainTab:Toggle({
         Title = "Auto Claim Index",
+        Flag = "AutoClaimIndex",
         Default = false,
         Callback = function(state)
             autoClaimIndex = state
-            if state then
-                startAutoClaimIndex()
-            else
-                stopAutoClaimIndex()
-            end
+            if state then startAutoClaimIndex() else stopAutoClaimIndex() end
         end
     })
+    uiElements.toggles["AutoClaimIndex"] = { state = false, setValue = function(v) autoClaimIndexToggle:SetValue(v) end }
 
-    -- Auto Claim Code (new)
+    -- Auto Claim Code
     local autoClaimCode = false
     local codeConnection = nil
-
     local codes = {"2muchluck", "test", "gullible"}
 
     local function redeemCode(code)
-        local success = pcall(function()
+        pcall(function()
             local networker = ReplicatedStorage:WaitForChild("Packages"):WaitForChild("_Index"):WaitForChild("leifstout_networker@0.3.1"):WaitForChild("networker")
             local remote = networker:WaitForChild("_remotes"):WaitForChild("CodeService"):WaitForChild("RemoteFunction")
             remote:InvokeServer("redeem", code)
         end)
-        if not success then
-            warn("Failed to redeem code: " .. code)
-        end
     end
 
     local function redeemAllCodes()
@@ -654,7 +670,7 @@ local function showGUI()
         codeConnection = RunService.Heartbeat:Connect(function()
             if autoClaimCode then
                 redeemAllCodes()
-                task.wait(30) -- wait longer because codes may have cooldown
+                task.wait(30)
             end
         end)
     end
@@ -666,18 +682,382 @@ local function showGUI()
         end
     end
 
-    MainTab:Toggle({
+    local autoClaimCodeToggle = MainTab:Toggle({
         Title = "Auto Claim Code",
+        Flag = "AutoClaimCode",
         Default = false,
         Callback = function(state)
             autoClaimCode = state
-            if state then
-                startAutoClaimCode()
-            else
-                stopAutoClaimCode()
+            if state then startAutoClaimCode() else stopAutoClaimCode() end
+        end
+    })
+    uiElements.toggles["AutoClaimCode"] = { state = false, setValue = function(v) autoClaimCodeToggle:SetValue(v) end }
+
+    -- ================== AUTO COLLECT SECTION ==================
+    MainTab:Section({ Title = "Auto Collect" })
+
+    -- Auto Collect Loot
+    local autoCollect = false
+    local collectConnection = nil
+
+    local function teleportToObj(obj)
+        local char = player.Character
+        if not char then return end
+        if obj:IsA("Model") then
+            char:PivotTo(obj:GetPivot())
+        elseif obj:IsA("BasePart") then
+            char:PivotTo(obj.CFrame)
+        end
+    end
+
+    local function collectLoot()
+        local lootFolder = workspace:FindFirstChild("Loot")
+        if not lootFolder then return end
+        for _, loot in ipairs(lootFolder:GetChildren()) do
+            if not autoCollect then break end
+            if loot:IsA("Model") or loot:IsA("BasePart") then
+                teleportToObj(loot)
+                task.wait(0.2)
+            end
+        end
+    end
+
+    local function startAutoCollect()
+        if collectConnection then return end
+        collectConnection = RunService.Heartbeat:Connect(function()
+            if autoCollect then
+                collectLoot()
+                task.wait(1)
+            end
+        end)
+    end
+
+    local function stopAutoCollect()
+        if collectConnection then
+            collectConnection:Disconnect()
+            collectConnection = nil
+        end
+    end
+
+    local autoCollectToggle = MainTab:Toggle({
+        Title = "Auto Collect Loot",
+        Flag = "AutoCollectLoot",
+        Default = false,
+        Callback = function(state)
+            autoCollect = state
+            if state then startAutoCollect() else stopAutoCollect() end
+        end
+    })
+    uiElements.toggles["AutoCollectLoot"] = { state = false, setValue = function(v) autoCollectToggle:SetValue(v) end }
+
+    -- ========== AUTO TELEPORT TAB ==========
+    local AutoTeleportTab = Window:Tab({ Title = "Auto Teleport", Icon = "navigation" })
+
+    -- ----- 1. ZONE TELEPORT -----
+    AutoTeleportTab:Section({ Title = "Zone Teleport" })
+
+    local zones = {
+        { name = "Grassland", id = 1 },
+        { name = "Desert", id = 2 },
+        { name = "Polar", id = 3 },
+        { name = "Volcano", id = 4 },
+        { name = "Island", id = 5 },
+        { name = "Cave", id = 6 },
+        { name = "Heaven", id = 7 },
+        { name = "Jungle", id = 8 },
+        { name = "Canyon", id = 9 },
+        { name = "Mushroom Forest", id = 10 }
+    }
+    local selectedZoneId = 1
+
+    local zoneDropdown = AutoTeleportTab:Dropdown({
+        Title = "Select Zone",
+        Values = {"Grassland", "Desert", "Polar", "Volcano", "Island", "Cave", "Heaven", "Jungle", "Canyon", "Mushroom Forest"},
+        Multi = false,
+        Default = "Grassland",
+        Flag = "SelectedZone",
+        Callback = function(value)
+            for _, zone in ipairs(zones) do
+                if zone.name == value then
+                    selectedZoneId = zone.id
+                    break
+                end
             end
         end
     })
+    uiElements.dropdowns["SelectedZone"] = {
+        value = "Grassland",
+        setValue = function(v) zoneDropdown:SetValue(v) end
+    }
+
+    local autoTeleportZone = false
+    local teleportConnection = nil
+
+    local function teleportToZone(zoneId)
+        pcall(function()
+            local networker = ReplicatedStorage:WaitForChild("Packages"):WaitForChild("_Index"):WaitForChild("leifstout_networker@0.3.1"):WaitForChild("networker")
+            local remote = networker:WaitForChild("_remotes"):WaitForChild("ZonesService"):WaitForChild("RemoteFunction")
+            remote:InvokeServer("requestTeleportZone", zoneId)
+        end)
+    end
+
+    local function startAutoTeleportZone()
+        if teleportConnection then return end
+        teleportConnection = RunService.Heartbeat:Connect(function()
+            if autoTeleportZone then
+                teleportToZone(selectedZoneId)
+                task.wait(30)  -- changed from 5 to 30 seconds
+            end
+        end)
+    end
+
+    local function stopAutoTeleportZone()
+        if teleportConnection then
+            teleportConnection:Disconnect()
+            teleportConnection = nil
+        end
+    end
+
+    local autoTeleportZoneToggle = AutoTeleportTab:Toggle({
+        Title = "Auto Teleport to Zone",
+        Flag = "AutoTeleportZone",
+        Default = false,
+        Callback = function(state)
+            autoTeleportZone = state
+            if state then startAutoTeleportZone() else stopAutoTeleportZone() end
+        end
+    })
+    uiElements.toggles["AutoTeleportZone"] = { state = false, setValue = function(v) autoTeleportZoneToggle:SetValue(v) end }
+
+    -- ----- 2. PROFILE MANAGER (Save / Load) -----
+    AutoTeleportTab:Section({ Title = "Save / Load Profiles" })
+
+    local profileNameInput = AutoTeleportTab:Input({
+        Title = "Profile Name",
+        Placeholder = "e.g., Mine, Grind, Endgame",
+    })
+
+    local profileDropdown = AutoTeleportTab:Dropdown({
+        Title = "Load Profile",
+        Values = getProfileNames(),
+        Multi = false,
+        Default = "",
+    })
+
+    local function refreshProfileList()
+        local names = getProfileNames()
+        profileDropdown:SetValues(names)
+        if #names > 0 then
+            profileDropdown:SetValue(names[1])
+        else
+            profileDropdown:SetValue("")
+        end
+    end
+
+    -- Save button
+    AutoTeleportTab:Button({
+        Title = "Save Current as Profile",
+        Icon = "save",
+        Callback = function()
+            local name = profileNameInput:GetValue()
+            if name == "" then
+                WindUI:Notify({ Title = "Error", Content = "Please enter a profile name", Duration = 2, Icon = "alert-circle" })
+                return
+            end
+            -- Collect current state
+            local data = {
+                toggles = {
+                    AutoUpgrader = autoUpgrader,
+                    AutoRebirth = autoRebirth,
+                    AutoBuyZone = autoBuyZone,
+                    AutoBuyLoot = autoBuyLoot,
+                    AutoEquipBest = autoEquipBest,
+                    AutoEquipBoost = autoEquipBoost,
+                    AutoClaimIndex = autoClaimIndex,
+                    AutoClaimCode = autoClaimCode,
+                    AutoCollectLoot = autoCollect,
+                    AutoHopEnabled = autoHopEnabled,
+                    AutoTeleportZone = autoTeleportZone,
+                    FlyEnabled = flyEnabled,
+                    SpeedEnabled = speedEnabled,
+                },
+                inputs = {
+                    HopInterval = tostring(hopInterval),
+                    FlySpeed = tostring(flySpeed),
+                    WalkSpeed = tostring(walkSpeed),
+                },
+                dropdowns = {
+                    SelectedZone = zoneDropdown:GetValue(),
+                }
+            }
+            local json = HttpService:JSONEncode(data)
+            if writeFile(getProfilePath(name), json) then
+                WindUI:Notify({ Title = "Saved", Content = "Profile '" .. name .. "' saved.", Duration = 2, Icon = "check-circle" })
+                refreshProfileList()   -- immediately update dropdown
+            else
+                WindUI:Notify({ Title = "Error", Content = "Failed to save profile (writefile not supported?)", Duration = 3, Icon = "alert-triangle" })
+            end
+        end
+    })
+
+    -- Load button
+    AutoTeleportTab:Button({
+        Title = "Load Selected Profile",
+        Icon = "download",
+        Callback = function()
+            local name = profileDropdown:GetValue()
+            if name == "" then
+                WindUI:Notify({ Title = "Error", Content = "No profile selected", Duration = 2, Icon = "alert-circle" })
+                return
+            end
+            local path = getProfilePath(name)
+            local content = readFile(path)
+            if not content then
+                WindUI:Notify({ Title = "Error", Content = "Profile not found", Duration = 2, Icon = "alert-circle" })
+                return
+            end
+            local success, data = pcall(HttpService.JSONDecode, HttpService, content)
+            if not success then
+                WindUI:Notify({ Title = "Error", Content = "Corrupted profile", Duration = 2, Icon = "alert-triangle" })
+                return
+            end
+            -- Apply toggles
+            if data.toggles then
+                if data.toggles.AutoUpgrader then autoUpgrader = true; startAutoUpgrader() else autoUpgrader = false; stopAutoUpgrader() end
+                if data.toggles.AutoRebirth then autoRebirth = true; startAutoRebirth() else autoRebirth = false; stopAutoRebirth() end
+                if data.toggles.AutoBuyZone then autoBuyZone = true; startAutoBuyZone() else autoBuyZone = false; stopAutoBuyZone() end
+                if data.toggles.AutoBuyLoot then autoBuyLoot = true; startAutoBuyLoot() else autoBuyLoot = false; stopAutoBuyLoot() end
+                if data.toggles.AutoEquipBest then autoEquipBest = true; startAutoEquipBest() else autoEquipBest = false; stopAutoEquipBest() end
+                if data.toggles.AutoEquipBoost then autoEquipBoost = true; startAutoEquipBoost() else autoEquipBoost = false; stopAutoEquipBoost() end
+                if data.toggles.AutoClaimIndex then autoClaimIndex = true; startAutoClaimIndex() else autoClaimIndex = false; stopAutoClaimIndex() end
+                if data.toggles.AutoClaimCode then autoClaimCode = true; startAutoClaimCode() else autoClaimCode = false; stopAutoClaimCode() end
+                if data.toggles.AutoCollectLoot then autoCollect = true; startAutoCollect() else autoCollect = false; stopAutoCollect() end
+                if data.toggles.AutoHopEnabled then autoHopEnabled = true else autoHopEnabled = false end
+                if data.toggles.AutoTeleportZone then autoTeleportZone = true; startAutoTeleportZone() else autoTeleportZone = false; stopAutoTeleportZone() end
+                if data.toggles.FlyEnabled then flyEnabled = true; startFly() else flyEnabled = false; stopFly() end
+                if data.toggles.SpeedEnabled then speedEnabled = true; startSpeed() else speedEnabled = false; stopSpeed() end
+                -- Update UI toggles
+                if uiElements.toggles.AutoUpgrader and uiElements.toggles.AutoUpgrader.setValue then uiElements.toggles.AutoUpgrader.setValue(autoUpgrader) end
+                if uiElements.toggles.AutoRebirth and uiElements.toggles.AutoRebirth.setValue then uiElements.toggles.AutoRebirth.setValue(autoRebirth) end
+                if uiElements.toggles.AutoBuyZone and uiElements.toggles.AutoBuyZone.setValue then uiElements.toggles.AutoBuyZone.setValue(autoBuyZone) end
+                if uiElements.toggles.AutoBuyLoot and uiElements.toggles.AutoBuyLoot.setValue then uiElements.toggles.AutoBuyLoot.setValue(autoBuyLoot) end
+                if uiElements.toggles.AutoEquipBest and uiElements.toggles.AutoEquipBest.setValue then uiElements.toggles.AutoEquipBest.setValue(autoEquipBest) end
+                if uiElements.toggles.AutoEquipBoost and uiElements.toggles.AutoEquipBoost.setValue then uiElements.toggles.AutoEquipBoost.setValue(autoEquipBoost) end
+                if uiElements.toggles.AutoClaimIndex and uiElements.toggles.AutoClaimIndex.setValue then uiElements.toggles.AutoClaimIndex.setValue(autoClaimIndex) end
+                if uiElements.toggles.AutoClaimCode and uiElements.toggles.AutoClaimCode.setValue then uiElements.toggles.AutoClaimCode.setValue(autoClaimCode) end
+                if uiElements.toggles.AutoCollectLoot and uiElements.toggles.AutoCollectLoot.setValue then uiElements.toggles.AutoCollectLoot.setValue(autoCollect) end
+                if uiElements.toggles.AutoHopEnabled and uiElements.toggles.AutoHopEnabled.setValue then uiElements.toggles.AutoHopEnabled.setValue(autoHopEnabled) end
+                if uiElements.toggles.AutoTeleportZone and uiElements.toggles.AutoTeleportZone.setValue then uiElements.toggles.AutoTeleportZone.setValue(autoTeleportZone) end
+                if uiElements.toggles.FlyEnabled and uiElements.toggles.FlyEnabled.setValue then uiElements.toggles.FlyEnabled.setValue(flyEnabled) end
+                if uiElements.toggles.SpeedEnabled and uiElements.toggles.SpeedEnabled.setValue then uiElements.toggles.SpeedEnabled.setValue(speedEnabled) end
+            end
+            if data.inputs then
+                if data.inputs.HopInterval then hopInterval = tonumber(data.inputs.HopInterval) or 60 end
+                if data.inputs.FlySpeed then flySpeed = tonumber(data.inputs.FlySpeed) or 50 end
+                if data.inputs.WalkSpeed then walkSpeed = tonumber(data.inputs.WalkSpeed) or 50 end
+                if uiElements.inputs.HopInterval and uiElements.inputs.HopInterval.setValue then uiElements.inputs.HopInterval.setValue(tostring(hopInterval)) end
+                if uiElements.inputs.FlySpeed and uiElements.inputs.FlySpeed.setValue then uiElements.inputs.FlySpeed.setValue(tostring(flySpeed)) end
+                if uiElements.inputs.WalkSpeed and uiElements.inputs.WalkSpeed.setValue then uiElements.inputs.WalkSpeed.setValue(tostring(walkSpeed)) end
+            end
+            if data.dropdowns and data.dropdowns.SelectedZone then
+                zoneDropdown:SetValue(data.dropdowns.SelectedZone)
+            end
+            WindUI:Notify({ Title = "Loaded", Content = "Profile '" .. name .. "' loaded.", Duration = 2, Icon = "check-circle" })
+        end
+    })
+
+    -- Manual refresh button (in case the dropdown still doesn't update)
+    AutoTeleportTab:Button({
+        Title = "Refresh Profile List",
+        Icon = "refresh-cw",
+        Callback = refreshProfileList
+    })
+
+    -- ----- 3. SERVER HOPPER -----
+    AutoTeleportTab:Section({ Title = "Server Hopper" })
+
+    local hopInterval = 60
+    local autoHopEnabled = false
+    local hopLoopConnection = nil
+
+    local function hopServer()
+        local placeId = game.PlaceId
+        local function getServers(cursor)
+            local url = "https://games.roblox.com/v1/games/" .. placeId .. "/servers/Public?limit=100&cursor=" .. (cursor or "")
+            local response = game:HttpGet(url)
+            return HttpService:JSONDecode(response)
+        end
+
+        local cursor = ""
+        local attempts = 0
+        while attempts < 5 do
+            local data = getServers(cursor)
+            if data and data.data then
+                for _, server in pairs(data.data) do
+                    if server.id ~= game.JobId and server.playing < server.maxPlayers then
+                        TeleportService:TeleportToPlaceInstance(placeId, server.id, player)
+                        return true
+                    end
+                end
+                cursor = data.nextPageCursor
+                if not cursor then break end
+            else
+                break
+            end
+            attempts += 1
+            task.wait(1)
+        end
+        return false
+    end
+
+    AutoTeleportTab:Button({
+        Title = "Hop Now",
+        Icon = "send",
+        Callback = function()
+            task.spawn(function()
+                WindUI:Notify({ Title = "Teleport", Content = "Searching for a better server...", Duration = 3, Icon = "loader" })
+                hopServer()
+            end)
+        end
+    })
+
+    local hopIntervalInput = AutoTeleportTab:Input({
+        Title = "Hop Interval (seconds)",
+        Default = tostring(hopInterval),
+        Flag = "HopInterval",
+        Callback = function(text)
+            local num = tonumber(text)
+            if num and num > 0 then hopInterval = num end
+        end
+    })
+    uiElements.inputs["HopInterval"] = {
+        value = tostring(hopInterval),
+        setValue = function(v) hopIntervalInput:SetValue(v) end
+    }
+
+    local autoHopToggle = AutoTeleportTab:Toggle({
+        Title = "Auto Server Hop",
+        Flag = "AutoHopEnabled",
+        Default = false,
+        Callback = function(state)
+            autoHopEnabled = state
+            if state then
+                if hopLoopConnection then hopLoopConnection:Disconnect() end
+                hopLoopConnection = RunService.Heartbeat:Connect(function()
+                    if autoHopEnabled then
+                        hopServer()
+                        task.wait(hopInterval)
+                    end
+                end)
+            else
+                if hopLoopConnection then
+                    hopLoopConnection:Disconnect()
+                    hopLoopConnection = nil
+                end
+            end
+        end
+    })
+    uiElements.toggles["AutoHopEnabled"] = { state = false, setValue = function(v) autoHopToggle:SetValue(v) end }
 
     -- ========== MISC TAB ==========
     local MiscTab = Window:Tab({ Title = "Misc", Icon = "settings" })
@@ -734,8 +1114,27 @@ local function showGUI()
         end)
     end
     
-    MiscTab:Input({ Title = "Fly Speed", Default = "50", Callback = function(v) local n = tonumber(v); if n then flySpeed = n end end })
-    MiscTab:Toggle({ Title = "Fly", Default = false, Callback = function(s) flyEnabled = s; if s then startFly() else stopFly() end end })
+    local flySpeedInput = MiscTab:Input({
+        Title = "Fly Speed",
+        Default = "50",
+        Flag = "FlySpeed",
+        Callback = function(v)
+            local n = tonumber(v)
+            if n then flySpeed = n end
+        end
+    })
+    uiElements.inputs["FlySpeed"] = { value = "50", setValue = function(v) flySpeedInput:SetValue(v) end }
+    
+    local flyToggle = MiscTab:Toggle({
+        Title = "Fly",
+        Flag = "FlyEnabled",
+        Default = false,
+        Callback = function(s)
+            flyEnabled = s
+            if s then startFly() else stopFly() end
+        end
+    })
+    uiElements.toggles["FlyEnabled"] = { state = false, setValue = function(v) flyToggle:SetValue(v) end }
     
     MiscTab:Section({ Title = "Speed" })
     local speedEnabled = false
@@ -758,91 +1157,27 @@ local function showGUI()
         end)
     end
     
-    MiscTab:Input({ Title = "Walk Speed", Default = "50", Callback = function(v) local n = tonumber(v); if n then walkSpeed = n end end })
-    MiscTab:Toggle({ Title = "Speed", Default = false, Callback = function(s) speedEnabled = s; if s then startSpeed() else stopSpeed() end end })
-
-    -- ========== SUPPORT TAB ==========
-    local SupportTab = Window:Tab({ Title = "Support", Icon = "heart" })
-    local InviteCode = "D5NKtBJEzz"
-    local DiscordAPI = "https://discord.com/api/v10/invites/" .. InviteCode .. "?with_counts=true&with_expiration=true"
-    
-    local function httpGet(url)
-        local body = nil
-        local success = false
-        if syn and syn.request then
-            success, body = pcall(function() return syn.request({ Url = url, Method = "GET" }).Body end)
-        elseif http and http.request then
-            success, body = pcall(function() return http.request({ Url = url, Method = "GET" }).Body end)
-        elseif request then
-            success, body = pcall(function() return request({ Url = url, Method = "GET" }).Body end)
-        elseif http_request then
-            success, body = pcall(function() return http_request({ Url = url, Method = "GET" }).Body end)
-        end
-        if success and body then return body else return nil end
-    end
-    
-    local Response = {}
-    local raw = httpGet(DiscordAPI)
-    if raw then pcall(function() Response = HttpService:JSONDecode(raw) end) end
-    local onlineCount = Response and Response.approximate_presence_count or "?"
-    local totalCount = Response and Response.approximate_member_count or "?"
-    local guildName = (Response and Response.guild and Response.guild.name) or "ZyroYonk Hub Discord"
-    local iconUrl = nil
-    if Response and Response.guild and Response.guild.id and Response.guild.icon then
-        iconUrl = "https://cdn.discordapp.com/icons/" .. tostring(Response.guild.id) .. "/" .. tostring(Response.guild.icon) .. ".png?size=256"
-    end
-    
-    SupportTab:Section({ Title = "Join our Discord", Desc = "Get updates, report bugs, and hang out with the community!" })
-    
-    local cardProps = { 
-        Title = guildName, 
-        Desc = "🟢 Online: " .. onlineCount .. "   👥 Members: " .. totalCount, 
-        ImageSize = 64,
-        ThumbnailSize = 100,
-        Color = Color3.fromHex("#2C2F33"),
-        Buttons = { 
-            { 
-                Title = "Copy Invite", 
-                Callback = function() 
-                    copyToClipboard("https://discord.gg/" .. InviteCode)
-                    WindUI:Notify({ Title = "Copied!", Content = "Invite link copied to clipboard", Duration = 2, Icon = "clipboard-check" }) 
-                end 
-            },
-            { 
-                Title = "Join Discord", 
-                Callback = function()
-                    if syn and syn.websocket then
-                        pcall(function() syn.websocket:connect("discord.gg/" .. InviteCode) end)
-                    elseif openUrl then
-                        openUrl("https://discord.gg/" .. InviteCode)
-                    else
-                        copyToClipboard("https://discord.gg/" .. InviteCode)
-                        WindUI:Notify({ Title = "Link Copied!", Content = "Paste in browser to join", Duration = 3, Icon = "globe" })
-                    end
-                end
-            }
-        } 
-    }
-    if iconUrl then cardProps.Image = iconUrl end
-    SupportTab:Paragraph(cardProps)
-
-    SupportTab:Section({ Title = "Help & Information" })
-    SupportTab:Paragraph({
-        Title = "📌 Executor Compatibility",
-        Desc = "Currently using: **" .. executorName .. "**\n\nIf you encounter issues, please report them in our Discord.",
-        Color = Color3.fromHex("#2C2F33"),
-        Image = "https://cdn-icons-png.flaticon.com/512/1828/1828665.png",
-        ImageSize = 40
-    })
-    
-    SupportTab:Button({
-        Title = "Report a Bug",
-        Icon = "bug",
-        Callback = function()
-            copyToClipboard("Bug Report - Executor: " .. executorName .. " - Please describe the issue:")
-            WindUI:Notify({ Title = "Template Copied!", Content = "Paste in Discord support channel", Duration = 4, Icon = "message-square" })
+    local walkSpeedInput = MiscTab:Input({
+        Title = "Walk Speed",
+        Default = "50",
+        Flag = "WalkSpeed",
+        Callback = function(v)
+            local n = tonumber(v)
+            if n then walkSpeed = n end
         end
     })
+    uiElements.inputs["WalkSpeed"] = { value = "50", setValue = function(v) walkSpeedInput:SetValue(v) end }
+    
+    local speedToggle = MiscTab:Toggle({
+        Title = "Speed",
+        Flag = "SpeedEnabled",
+        Default = false,
+        Callback = function(s)
+            speedEnabled = s
+            if s then startSpeed() else stopSpeed() end
+        end
+    })
+    uiElements.toggles["SpeedEnabled"] = { state = false, setValue = function(v) speedToggle:SetValue(v) end }
 
     -- ========== REQUEST TAB ==========
     local RequestTab = Window:Tab({ Title = "Request", Icon = "mail" })
@@ -962,6 +1297,92 @@ local function showGUI()
             end
         end
     })
+
+    -- ========== SUPPORT TAB ==========
+    local SupportTab = Window:Tab({ Title = "Support", Icon = "heart" })
+    local InviteCode = "D5NKtBJEzz"
+    local DiscordAPI = "https://discord.com/api/v10/invites/" .. InviteCode .. "?with_counts=true&with_expiration=true"
+    
+    local function httpGet(url)
+        local body = nil
+        local success = false
+        if syn and syn.request then
+            success, body = pcall(function() return syn.request({ Url = url, Method = "GET" }).Body end)
+        elseif http and http.request then
+            success, body = pcall(function() return http.request({ Url = url, Method = "GET" }).Body end)
+        elseif request then
+            success, body = pcall(function() return request({ Url = url, Method = "GET" }).Body end)
+        elseif http_request then
+            success, body = pcall(function() return http_request({ Url = url, Method = "GET" }).Body end)
+        end
+        if success and body then return body else return nil end
+    end
+    
+    local Response = {}
+    local raw = httpGet(DiscordAPI)
+    if raw then pcall(function() Response = HttpService:JSONDecode(raw) end) end
+    local onlineCount = Response and Response.approximate_presence_count or "?"
+    local totalCount = Response and Response.approximate_member_count or "?"
+    local guildName = (Response and Response.guild and Response.guild.name) or "ZyroYonk Hub Discord"
+    local iconUrl = nil
+    if Response and Response.guild and Response.guild.id and Response.guild.icon then
+        iconUrl = "https://cdn.discordapp.com/icons/" .. tostring(Response.guild.id) .. "/" .. tostring(Response.guild.icon) .. ".png?size=256"
+    end
+    
+    SupportTab:Section({ Title = "Join our Discord", Desc = "Get updates, report bugs, and hang out with the community!" })
+    
+    local cardProps = { 
+        Title = guildName, 
+        Desc = "🟢 Online: " .. onlineCount .. "   👥 Members: " .. totalCount, 
+        ImageSize = 64,
+        ThumbnailSize = 100,
+        Color = Color3.fromHex("#2C2F33"),
+        Buttons = { 
+            { 
+                Title = "Copy Invite", 
+                Callback = function() 
+                    copyToClipboard("https://discord.gg/" .. InviteCode)
+                    WindUI:Notify({ Title = "Copied!", Content = "Invite link copied to clipboard", Duration = 2, Icon = "clipboard-check" }) 
+                end 
+            },
+            { 
+                Title = "Join Discord", 
+                Callback = function()
+                    if syn and syn.websocket then
+                        pcall(function() syn.websocket:connect("discord.gg/" .. InviteCode) end)
+                    elseif openUrl then
+                        openUrl("https://discord.gg/" .. InviteCode)
+                    else
+                        copyToClipboard("https://discord.gg/" .. InviteCode)
+                        WindUI:Notify({ Title = "Link Copied!", Content = "Paste in browser to join", Duration = 3, Icon = "globe" })
+                    end
+                end
+            }
+        } 
+    }
+    if iconUrl then cardProps.Image = iconUrl end
+    SupportTab:Paragraph(cardProps)
+
+    SupportTab:Section({ Title = "Help & Information" })
+    SupportTab:Paragraph({
+        Title = "📌 Executor Compatibility",
+        Desc = "Currently using: **" .. executorName .. "**\n\nIf you encounter issues, please report them in our Discord.",
+        Color = Color3.fromHex("#2C2F33"),
+        Image = "https://cdn-icons-png.flaticon.com/512/1828/1828665.png",
+        ImageSize = 40
+    })
+    
+    SupportTab:Button({
+        Title = "Report a Bug",
+        Icon = "bug",
+        Callback = function()
+            copyToClipboard("Bug Report - Executor: " .. executorName .. " - Please describe the issue:")
+            WindUI:Notify({ Title = "Template Copied!", Content = "Paste in Discord support channel", Duration = 4, Icon = "message-square" })
+        end
+    })
+
+    -- Initial refresh of profile dropdown
+    refreshProfileList()
 end
 
 -- ================== STARTUP ==================
