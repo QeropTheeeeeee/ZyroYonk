@@ -167,7 +167,7 @@ local function showGUI()
         HideSearchBar = false,
         ScrollBarEnabled = false,
         User = { Enabled = true, Anonymous = false, Callback = function() print("User button clicked") end },
-		KeySystem = {
+				KeySystem = {
     Note = "ZyroYonk Hub Keysystem",
     SaveKey = true,
 
@@ -186,7 +186,7 @@ local function showGUI()
     })
 
     Window:Tag({ Title = "v1.0.1", Icon = "octagon-alert", Color = Color3.fromHex("#f00505"), Radius = 100 })
-	Window:Tag({ Title = "Beta Big Coming", Icon = "octagon-alert", Color = Color3.fromHex("#f00505"), Radius = 100 })
+	Window:Tag({ Title = "Beta", Icon = "octagon-alert", Color = Color3.fromHex("#f00505"), Radius = 100 })
 
     Window:EditOpenButton({
         Title = "Open ZyroYonk Hub",
@@ -238,7 +238,10 @@ local function showGUI()
         "cloverRolls2", "enemyCount5", "bossChance", "friendLuck2", "bossChance2",
         "luck5", "bonusRolls2", "goldenRolls4", "friendLuck3", "luck6",
         "invertedSlimes", "bossChance3", "goopDropRate1", "enemySpawnSpeed1",
-        "slots6", "slimeTargetRange1", "friendLuck4"
+        "slots6", "slimeTargetRange1", "friendLuck4",
+        "friendLuckBoost2", "enemySpawnSpeed2", "luck7", "slimeTargetRange2",
+        "coinIncome5", "rollSpeed4", "rollSpeed5", "diamondRolls3", "voidRolls",
+        "luck8", "luck9", "enemySpawnSpeed3", "overkill3", "overkill4", "lootPizza"
     }
 
     local function runUpgradeCycle()
@@ -563,7 +566,10 @@ local function showGUI()
         end
     })
 
-    -- Auto Claim Index Rewards
+    -- ================== AUTO CLAIM SECTION ==================
+    MainTab:Section({ Title = "Auto Claim" })
+
+    -- Auto Claim Index (moved from Auto Equip)
     local autoClaimIndex = false
     local indexConnection = nil
 
@@ -606,7 +612,7 @@ local function showGUI()
     end
 
     MainTab:Toggle({
-        Title = "Auto Claim Index Rewards",
+        Title = "Auto Claim Index",
         Default = false,
         Callback = function(state)
             autoClaimIndex = state
@@ -614,6 +620,61 @@ local function showGUI()
                 startAutoClaimIndex()
             else
                 stopAutoClaimIndex()
+            end
+        end
+    })
+
+    -- Auto Claim Code (new)
+    local autoClaimCode = false
+    local codeConnection = nil
+
+    local codes = {"2muchluck", "test", "gullible"}
+
+    local function redeemCode(code)
+        local success = pcall(function()
+            local networker = ReplicatedStorage:WaitForChild("Packages"):WaitForChild("_Index"):WaitForChild("leifstout_networker@0.3.1"):WaitForChild("networker")
+            local remote = networker:WaitForChild("_remotes"):WaitForChild("CodeService"):WaitForChild("RemoteFunction")
+            remote:InvokeServer("redeem", code)
+        end)
+        if not success then
+            warn("Failed to redeem code: " .. code)
+        end
+    end
+
+    local function redeemAllCodes()
+        for _, code in ipairs(codes) do
+            if not autoClaimCode then break end
+            redeemCode(code)
+            task.wait(0.5)
+        end
+    end
+
+    local function startAutoClaimCode()
+        if codeConnection then return end
+        codeConnection = RunService.Heartbeat:Connect(function()
+            if autoClaimCode then
+                redeemAllCodes()
+                task.wait(30) -- wait longer because codes may have cooldown
+            end
+        end)
+    end
+
+    local function stopAutoClaimCode()
+        if codeConnection then
+            codeConnection:Disconnect()
+            codeConnection = nil
+        end
+    end
+
+    MainTab:Toggle({
+        Title = "Auto Claim Code",
+        Default = false,
+        Callback = function(state)
+            autoClaimCode = state
+            if state then
+                startAutoClaimCode()
+            else
+                stopAutoClaimCode()
             end
         end
     })
