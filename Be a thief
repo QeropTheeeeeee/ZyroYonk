@@ -219,23 +219,8 @@ local function showGUI()
         SideBarWidth = 200,
         HideSearchBar = false,
         ScrollBarEnabled = false,
-        User = { Enabled = true, Anonymous = false, Callback = function() end },
-		KeySystem = {
-    Note = "StarForge Hub Keysystem",
-    SaveKey = true,
+        User = { Enabled = true, Anonymous = false, Callback = function() end }
 
-    API = {
-        {
-            Type = "pandadevelopment",
-            ServiceId = "httpslootlinkcoms0u4sku",
-            Desc = "Get Key 10 Hours"
-        }
-    },
-
-    Callback = function()
-        _G["1234"] = true
-    end
-}
     })
 
     -- Tags: version + live ping
