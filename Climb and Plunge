@@ -166,23 +166,7 @@ local function showGUI()
         BackgroundImageTransparency = 0.12,
         HideSearchBar = false,
         ScrollBarEnabled = false,
-        User = { Enabled = true, Anonymous = false, Callback = function() print("User button clicked") end },
-KeySystem = {
-    Note = "ZyroYonk Hub Keysystem",
-    SaveKey = true,
-
-    API = {
-        {
-            Type = "pandadevelopment",
-            ServiceId = "httpslootlinkcoms0u4sku",
-            Desc = "Super Easy To Get"
-        }
-    },
-
-    Callback = function()
-        _G["1234"] = true
-    end
-}
+        User = { Enabled = true, Anonymous = false, Callback = function() print("User button clicked") end }
     })
 
     Window:Tag({ Title = "v1.0.1", Icon = "octagon-alert", Color = Color3.fromHex("#f00505"), Radius = 100 })
