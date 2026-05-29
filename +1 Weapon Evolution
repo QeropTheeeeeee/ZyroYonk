@@ -200,7 +200,7 @@ local function showLoadingScreen()
     blur:Destroy()
 end
 
--- ================== MAIN GUI ==================
+-- ================== MAIN GUI (WITH KEY SYSTEM) ==================
 local function showGUI()
     local coolTitle = "+1 Weapon Evolution"
     local profileIconUrl = "https://i.pinimg.com/736x/37/3a/b3/373ab3e072178f47dcb7fdafaddb6854.jpg"
@@ -219,8 +219,18 @@ local function showGUI()
         SideBarWidth = 200,
         HideSearchBar = false,
         ScrollBarEnabled = false,
-        User = { Enabled = true, Anonymous = false, Callback = function() end }
-
+        User = { Enabled = true, Anonymous = false, Callback = function() end },
+        -- ================== KEY SYSTEM (PLATOBOOST) ==================
+        KeySystem = {                                                   
+            Note = "Enter your PlatoBoost key to access StarForge Hub.",              
+            API = {                                                     
+                { -- PlatoBoost
+                    Type = "platoboost",                                
+                    ServiceId = 22001, -- Your PlatoBoost service ID
+                    Secret = "945af45d-5779-4a05-a31c-432930563763", 
+                },                                                      
+            },                                                          
+        }
     })
 
     -- Tags: version + live ping
@@ -257,7 +267,7 @@ local function showGUI()
     local ChangelogTab = Window:Tab({ Title = "Changelog", Icon = "scroll" })
     ChangelogTab:Paragraph({
         Title = "Update v1.0.1",
-        Desc = "- Initial release",
+        Desc = "- Initial release\n- Added PlatoBoost Key System",
         Color = Color3.fromHex("#222222"),
         Thumbnail = profileIconUrl,
         ThumbnailSize = 100,
