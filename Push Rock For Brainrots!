@@ -7,6 +7,7 @@ local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
+local TeleportService = game:GetService("TeleportService")
 local player = Players.LocalPlayer
 
 -- ================== EXECUTOR DETECTION ==================
@@ -30,36 +31,22 @@ local function getExecutorName()
     if getgenv and getgenv().IS_CODE_X then return "Code X" end
     return "Unknown Executor"
 end
-
 local executorName = getExecutorName()
 
--- ================== ROBUST LIVE PING (MULTIPLE METHODS) ==================
+-- ================== PING ==================
 local function getPing()
     local success, stat = pcall(function()
         return game:GetService("Stats").Network.ServerStatsItem["Data Ping"]:GetValue()
     end)
-    if success and type(stat) == "number" and stat > 0 then
-        return math.floor(stat)
-    end
+    if success and type(stat) == "number" and stat > 0 then return math.floor(stat) end
     success, stat = pcall(function()
         return game:GetService("Stats").Network.ServerStatsItem["Ping"]:GetValue()
     end)
-    if success and type(stat) == "number" and stat > 0 then
-        return math.floor(stat)
-    end
+    if success and type(stat) == "number" and stat > 0 then return math.floor(stat) end
     success, stat = pcall(function()
         return game:GetService("Stats").Network.Ping:GetValue()
     end)
-    if success and type(stat) == "number" and stat > 0 then
-        return math.floor(stat)
-    end
-    local sent = tick()
-    local dummy = Instance.new("Part")
-    dummy.Parent = workspace
-    local received = tick()
-    dummy:Destroy()
-    local estimate = math.floor((received - sent) * 500)
-    if estimate > 0 then return estimate end
+    if success and type(stat) == "number" and stat > 0 then return math.floor(stat) end
     return 0
 end
 
@@ -71,7 +58,7 @@ WindUI:Notify({
     Icon = "terminal"
 })
 
--- ================== COPY TO CLIPBOARD ==================
+-- ================== COPY ==================
 local function copyToClipboard(text)
     if setclipboard then
         setclipboard(text)
@@ -92,42 +79,32 @@ local function copyToClipboard(text)
     end
 end
 
+-- ================== HWID ==================
+local function getHWID()
+    local success, id = pcall(function()
+        return game:GetService("RbxAnalyticsService"):GetClientId()
+    end)
+    if success and id and id ~= "" then return id end
+    success, id = pcall(function()
+        return game:GetService("HttpService"):GenerateGUID(false)
+    end)
+    if success and id then return id end
+    return "Unknown"
+end
+local hwid = getHWID()
+
 -- ================== THEME ==================
 WindUI:AddTheme({
     Name = "ZyroTheme",
     Font = Font.fromName("GothamSSm", Enum.FontWeight.Medium),
-    Background = WindUI:Gradient({
-        ["0"]   = { Color = Color3.fromHex("#1a1a1a") },
-        ["100"] = { Color = Color3.fromHex("#1a1a1a") }
-    }, { Rotation = 180 }),
-    Accent = WindUI:Gradient({
-        ["0"]   = { Color = Color3.fromHex("#2563eb") },
-        ["100"] = { Color = Color3.fromHex("#1d4ed8") }
-    }, { Rotation = 90 }),
-    SideBar = WindUI:Gradient({
-        ["0"]   = { Color = Color3.fromHex("#141414") },
-        ["100"] = { Color = Color3.fromHex("#141414") }
-    }, { Rotation = 180 }),
-    Tab = WindUI:Gradient({
-        ["0"]   = { Color = Color3.fromHex("#222222") },
-        ["100"] = { Color = Color3.fromHex("#222222") }
-    }, { Rotation = 90 }),
-    Toggle = WindUI:Gradient({
-        ["0"]   = { Color = Color3.fromHex("#16a34a") },
-        ["100"] = { Color = Color3.fromHex("#15803d") }
-    }, { Rotation = 90 }),
-    Button = WindUI:Gradient({
-        ["0"]   = { Color = Color3.fromHex("#2563eb") },
-        ["100"] = { Color = Color3.fromHex("#1e40af") }
-    }, { Rotation = 135 }),
-    Text = WindUI:Gradient({
-        ["0"]   = { Color = Color3.fromHex("#ffffff") },
-        ["100"] = { Color = Color3.fromHex("#d1d5db") }
-    }, { Rotation = 90 }),
-    Icon = WindUI:Gradient({
-        ["0"]   = { Color = Color3.fromHex("#ffffff") },
-        ["100"] = { Color = Color3.fromHex("#9ca3af") }
-    }, { Rotation = 90 }),
+    Background = WindUI:Gradient({ ["0"] = { Color = Color3.fromHex("#1a1a1a") }, ["100"] = { Color = Color3.fromHex("#1a1a1a") } }, { Rotation = 180 }),
+    Accent = WindUI:Gradient({ ["0"] = { Color = Color3.fromHex("#2563eb") }, ["100"] = { Color = Color3.fromHex("#1d4ed8") } }, { Rotation = 90 }),
+    SideBar = WindUI:Gradient({ ["0"] = { Color = Color3.fromHex("#141414") }, ["100"] = { Color = Color3.fromHex("#141414") } }, { Rotation = 180 }),
+    Tab = WindUI:Gradient({ ["0"] = { Color = Color3.fromHex("#222222") }, ["100"] = { Color = Color3.fromHex("#222222") } }, { Rotation = 90 }),
+    Toggle = WindUI:Gradient({ ["0"] = { Color = Color3.fromHex("#16a34a") }, ["100"] = { Color = Color3.fromHex("#15803d") } }, { Rotation = 90 }),
+    Button = WindUI:Gradient({ ["0"] = { Color = Color3.fromHex("#2563eb") }, ["100"] = { Color = Color3.fromHex("#1e40af") } }, { Rotation = 135 }),
+    Text = WindUI:Gradient({ ["0"] = { Color = Color3.fromHex("#ffffff") }, ["100"] = { Color = Color3.fromHex("#d1d5db") } }, { Rotation = 90 }),
+    Icon = WindUI:Gradient({ ["0"] = { Color = Color3.fromHex("#ffffff") }, ["100"] = { Color = Color3.fromHex("#9ca3af") } }, { Rotation = 90 }),
 })
 
 -- ================== LOADING SCREEN ==================
@@ -135,26 +112,21 @@ local function showLoadingScreen()
     local blur = Instance.new("BlurEffect", game:GetService("Lighting"))
     blur.Size = 0
     TweenService:Create(blur, TweenInfo.new(0.6), { Size = 18 }):Play()
-
     local screenGui = Instance.new("ScreenGui")
     screenGui.Parent = player:WaitForChild("PlayerGui")
     screenGui.Name = "ZyroYonkIntro"
     screenGui.ResetOnSpawn = false
     screenGui.IgnoreGuiInset = true
-
     local frame = Instance.new("Frame", screenGui)
     frame.Size = UDim2.new(1, 0, 1, 0)
     frame.BackgroundTransparency = 1
-
     local bg = Instance.new("Frame", frame)
     bg.Size = UDim2.new(1, 0, 1, 0)
     bg.BackgroundColor3 = Color3.fromRGB(25, 0, 40)
     bg.BackgroundTransparency = 1
     TweenService:Create(bg, TweenInfo.new(0.8), { BackgroundTransparency = 0.2 }):Play()
-
     local word = "StarForge Hub"
     local letters = {}
-
     for i = 1, #word do
         local char = word:sub(i, i)
         local label = Instance.new("TextLabel")
@@ -168,7 +140,6 @@ local function showLoadingScreen()
         label.Position = UDim2.new(0.5, (i - (#word / 2 + 0.5)) * 55, 0.5, 20)
         label.BackgroundTransparency = 1
         label.Parent = frame
-
         local gradient = Instance.new("UIGradient")
         gradient.Color = ColorSequence.new({
             ColorSequenceKeypoint.new(0, Color3.fromRGB(200, 120, 255)),
@@ -176,23 +147,18 @@ local function showLoadingScreen()
         })
         gradient.Rotation = 90
         gradient.Parent = label
-
         TweenService:Create(label, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
             TextTransparency = 0,
             TextSize = 55,
             Position = UDim2.new(0.5, (i - (#word / 2 + 0.5)) * 55, 0.5, 0)
         }):Play()
-
         table.insert(letters, label)
         task.wait(0.12)
     end
-
     task.wait(2)
-
     for _, label in pairs(letters) do
         TweenService:Create(label, TweenInfo.new(0.4), { TextTransparency = 1, TextSize = 20 }):Play()
     end
-
     TweenService:Create(bg, TweenInfo.new(0.6), { BackgroundTransparency = 1 }):Play()
     TweenService:Create(blur, TweenInfo.new(0.6), { Size = 0 }):Play()
     task.wait(0.7)
@@ -200,7 +166,31 @@ local function showLoadingScreen()
     blur:Destroy()
 end
 
--- ================== MAIN GUI (WITHOUT KEY SYSTEM) ==================
+-- ================== ANTI-AFK (LOOP) ==================
+local antiAfkRunning = false
+local antiAfkThread = nil
+local function antiAfkLoop()
+    while antiAfkRunning do
+        local success, vu = pcall(function() return game:GetService("VirtualUser") end)
+        if success and vu then
+            pcall(function() vu:CaptureController() vu:ClickButton2(Vector2.new()) end)
+        else
+            local char = player.Character
+            if char then
+                local hrp = char:FindFirstChild("HumanoidRootPart")
+                if hrp then
+                    local original = hrp.CFrame
+                    hrp.CFrame = original + Vector3.new(0, 0.01, 0)
+                    task.wait(0.05)
+                    hrp.CFrame = original
+                end
+            end
+        end
+        task.wait(30)
+    end
+end
+
+-- ================== MAIN GUI ==================
 local function showGUI()
     local coolTitle = "Push Rock For Brainrots!"
     local profileIconUrl = "https://i.pinimg.com/736x/37/3a/b3/373ab3e072178f47dcb7fdafaddb6854.jpg"
@@ -220,24 +210,18 @@ local function showGUI()
         HideSearchBar = false,
         ScrollBarEnabled = false,
         User = { Enabled = true, Anonymous = false, Callback = function() end },
-        -- Key system removed
     })
 
-    -- Tags: version + live ping
     local versionTag = Window:Tag({
         Title = "v1.0.2",
         Icon = "tag",
         Color = Color3.fromHex("#2563eb"),
         Radius = 100
     })
-
-    -- Optional: update ping every 5 seconds
     task.spawn(function()
         while true do
             local ping = getPing()
-            if versionTag then
-                versionTag:SetTitle("v1.0.1 | " .. ping .. "ms")
-            end
+            if versionTag then versionTag:SetTitle("v1.0.2 | " .. ping .. "ms") end
             task.wait(1)
         end
     end)
@@ -253,478 +237,399 @@ local function showGUI()
         Draggable = true,
     })
 
-    -- ========== CHANGELOG TAB ==========
+    -- ========== CHANGELOG TAB (FORMATTED) ==========
     local ChangelogTab = Window:Tab({ Title = "Changelog", Icon = "scroll" })
-    
     ChangelogTab:Paragraph({
-        Title = "v1.0.1",
-        Desc = "- Initial Release",
+        Title = "📋 Update Log",
+        Desc = [[
+v1.0.2
+- Added New Tab
+- Server Tab
+- Hop server
+- Rejoin
+- Reset
+- Anti Afk
+- Profile Age
+- Auto Farm Multi selection
+- Added Anti Cheat
+- Bug Fixed
+
+v1.0.1
+- Initial Release
+        ]],
         Color = Color3.fromHex("#222222"),
         Thumbnail = profileIconUrl,
         ThumbnailSize = 100,
     })
     
- -- ========== MAIN FEATURES TAB ==========
-local MainTab = Window:Tab({ Title = "Main Features", Icon = "house" })
+    -- ========== MAIN FEATURES TAB (MULTI‑ZONE) ==========
+    local MainTab = Window:Tab({ Title = "Main Features", Icon = "house" })
 
-MainTab:Section({ Title = "Auto Collect" })
+    MainTab:Section({ Title = "Auto Collect" })
 
-local zoneOptions = {
-    { title = "Common",    zone = "Zone1"  },
-    { title = "Rare",      zone = "Zone2"  },
-    { title = "Epic",      zone = "Zone3"  },
-    { title = "Legendary", zone = "Zone4"  },
-    { title = "Mythic",    zone = "Zone5"  },
-    { title = "Secret",    zone = "Zone6"  },
-    { title = "God",       zone = "Zone7"  },
-    { title = "Celestial", zone = "Zone8"  },
-    { title = "Divine",    zone = "Zone9"  },
-    { title = "Eternal",   zone = "Zone10" },
-}
+    local zoneOptions = {
+        { title = "Common",    zone = "Zone1"  },
+        { title = "Rare",      zone = "Zone2"  },
+        { title = "Epic",      zone = "Zone3"  },
+        { title = "Legendary", zone = "Zone4"  },
+        { title = "Mythic",    zone = "Zone5"  },
+        { title = "Secret",    zone = "Zone6"  },
+        { title = "God",       zone = "Zone7"  },
+        { title = "Celestial", zone = "Zone8"  },
+        { title = "Divine",    zone = "Zone9"  },
+        { title = "Eternal",   zone = "Zone10" },
+    }
+    local dropdownTitles = {}
+    for _, v in ipairs(zoneOptions) do table.insert(dropdownTitles, v.title) end
 
-local dropdownTitles = {}
-for _, v in ipairs(zoneOptions) do
-    table.insert(dropdownTitles, v.title)
-end
+    local selectedZones = {}
+    local selectedTitles = {}
 
-local selectedZone = "Zone1"
-local selectedZoneTitle = "Common"
+    local zoneInfoParagraph = MainTab:Paragraph({
+        Title = "Zone Rarity",
+        Desc = "Select Rarity from dropdown",
+        Color = Color3.fromHex("#222222"),
+    })
 
--- Restored paragraph that will update every 0.5s
-local zoneInfoParagraph = MainTab:Paragraph({
-    Title = "Zone Info — " .. selectedZoneTitle,
-    Desc = "Loading...",
-    Color = Color3.fromHex("#222222"),
-})
-
--- Function to update paragraph content
-local function updateZoneInfoParagraph()
-    local zonesFolder = workspace:FindFirstChild("Zones")
-    if not zonesFolder then
-        zoneInfoParagraph:SetTitle("Zone Info — " .. selectedZoneTitle)
-        zoneInfoParagraph:SetDesc("Zones folder not found!")
-        return
-    end
-
-    local zoneFolder = zonesFolder:FindFirstChild(selectedZone)
-    if not zoneFolder then
-        zoneInfoParagraph:SetTitle("Zone Info — " .. selectedZoneTitle)
-        zoneInfoParagraph:SetDesc("Zone '" .. selectedZone .. "' does not exist.")
-        return
-    end
-
-    local children = zoneFolder:GetChildren()
-    if #children == 0 then
-        zoneInfoParagraph:SetTitle("Zone Info — " .. selectedZoneTitle)
-        zoneInfoParagraph:SetDesc("(empty)")
-        return
-    end
-
-    local names = {}
-    for _, obj in ipairs(children) do
-        table.insert(names, "• " .. obj.Name)
-    end
-    zoneInfoParagraph:SetTitle("Zone Info — " .. selectedZoneTitle)
-    zoneInfoParagraph:SetDesc(table.concat(names, "\n"))
-end
-
--- Start a loop that updates paragraph every 0.5 seconds
-task.spawn(function()
-    while true do
-        updateZoneInfoParagraph()
-        task.wait(0.5)
-    end
-end)
-
--- Dropdown selection also updates the title for the next paragraph refresh
-MainTab:Dropdown({
-    Title = "Select Zone",
-    Desc = "Choose which zone to collect from",
-    Values = dropdownTitles,
-    Default = "Common",
-    Callback = function(value)
-        for _, v in ipairs(zoneOptions) do
-            if v.title == value then
-                selectedZone = v.zone
-                selectedZoneTitle = v.title
-                break
-            end
-        end
-        -- Immediate update so user sees the change
-        updateZoneInfoParagraph()
-        WindUI:Notify({
-            Title = "Zone Selected",
-            Content = "Selected: " .. value,
-            Duration = 2,
-            Icon = "map-pin"
-        })
-    end
-})
-
--- ===== Auto Collect Toggle (unchanged) =====
-local autoCollectEnabled = false
-local autoCollectThread = nil
-
-local function runAutoCollect()
-    while autoCollectEnabled do
-        local char = player.Character
-        if not char then task.wait(1) continue end
-        local hrp = char:FindFirstChild("HumanoidRootPart")
-        if not hrp then task.wait(1) continue end
-
-        local spawnLocation = workspace:FindFirstChild("SpawnLocation")
+    local function updateZoneInfoParagraph()
         local zonesFolder = workspace:FindFirstChild("Zones")
-        if not zonesFolder then task.wait(2) continue end
-
-        local zoneFolder = zonesFolder:FindFirstChild(selectedZone)
-        if not zoneFolder then task.wait(2) continue end
-
-        local targetPart = nil
-        local targetModel = nil
-        for _, target in ipairs(zoneFolder:GetChildren()) do
-            if target:IsA("BasePart") then
-                targetPart = target
-                targetModel = target
-            elseif target:IsA("Model") then
-                targetPart = target:FindFirstChild("HumanoidRootPart") or target:FindFirstChildWhichIsA("BasePart")
-                targetModel = target
+        if not zonesFolder then
+            zoneInfoParagraph:SetDesc("Zones folder not found!")
+            return
+        end
+        if #selectedZones == 0 then
+            zoneInfoParagraph:SetDesc("No Rarity selected")
+            return
+        end
+        local lines = {}
+        for _, zoneKey in ipairs(selectedZones) do
+            local zoneTitle = zoneKey
+            for _, opt in ipairs(zoneOptions) do
+                if opt.zone == zoneKey then zoneTitle = opt.title; break end
             end
-            if targetPart then break end
+            local folder = zonesFolder:FindFirstChild(zoneKey)
+            if not folder then
+                lines[#lines+1] = zoneTitle .. " — (missing)"
+            else
+                local children = folder:GetChildren()
+                if #children == 0 then
+                    lines[#lines+1] = zoneTitle .. " — (empty)"
+                else
+                    lines[#lines+1] = zoneTitle
+                    for _, obj in ipairs(children) do
+                        lines[#lines+1] = "  • " .. obj.Name
+                    end
+                end
+            end
         end
-
-        if not targetPart then task.wait(2) continue end
-
-        hrp.CFrame = targetPart.CFrame + Vector3.new(0, 3, 0)
-        task.wait(0.5)
-
-        local prompt = targetModel:FindFirstChildWhichIsA("ProximityPrompt", true)
-        if prompt then
-            fireproximityprompt(prompt)
-            task.wait(0.3)
-        end
-
-        if spawnLocation then
-            hrp.CFrame = spawnLocation.CFrame + Vector3.new(0, 3, 0)
-        end
-        task.wait(0.5)
+        zoneInfoParagraph:SetTitle("Rarity Contents (" .. #selectedZones .. ")")
+        zoneInfoParagraph:SetDesc(table.concat(lines, "\n"))
     end
-end
 
-MainTab:Toggle({
-    Title = "Auto Collect",
-    Desc = "Teleport to selected zone, collect, return to spawn",
-    Default = false,
-    Callback = function(state)
-        autoCollectEnabled = state
-        if state then
-            autoCollectThread = task.spawn(runAutoCollect)
-            WindUI:Notify({ Title = "Auto Collect ON", Content = "Collecting from: " .. selectedZoneTitle, Duration = 3, Icon = "play" })
-        else
-            autoCollectEnabled = false
-            if autoCollectThread then task.cancel(autoCollectThread); autoCollectThread = nil end
-            WindUI:Notify({ Title = "Auto Collect OFF", Content = "Stopped.", Duration = 2, Icon = "square" })
+    task.spawn(function()
+        while true do
+            updateZoneInfoParagraph()
+            task.wait(0.5)
+        end
+    end)
+
+    MainTab:Dropdown({
+        Title = "Select Rarity",
+        Desc = "Choose one or more Rarity to collect from",
+        Values = dropdownTitles,
+        Value = {},
+        Multi = true,
+        AllowNone = true,
+        Callback = function(selected)
+            selectedTitles = selected
+            selectedZones = {}
+            for _, title in ipairs(selectedTitles) do
+                for _, opt in ipairs(zoneOptions) do
+                    if opt.title == title then
+                        table.insert(selectedZones, opt.zone)
+                        break
+                    end
+                end
+            end
+            updateZoneInfoParagraph()
+            WindUI:Notify({ Title = "Zones Updated", Content = #selectedTitles .. " zone(s)", Duration = 2 })
+        end
+    })
+
+    local autoCollectEnabled = false
+    local autoCollectThread = nil
+
+    local function runAutoCollect()
+        while autoCollectEnabled do
+            if #selectedZones == 0 then
+                task.wait(1)
+                continue
+            end
+            local char = player.Character
+            if not char then task.wait(1) continue end
+            local hrp = char:FindFirstChild("HumanoidRootPart")
+            if not hrp then task.wait(1) continue end
+            local spawnLocation = workspace:FindFirstChild("SpawnLocation")
+            local zonesFolder = workspace:FindFirstChild("Zones")
+            if not zonesFolder then task.wait(2) continue end
+
+            for _, zoneKey in ipairs(selectedZones) do
+                if not autoCollectEnabled then break end
+                local zoneFolder = zonesFolder:FindFirstChild(zoneKey)
+                if not zoneFolder then
+                    task.wait(0.2)
+                    continue
+                end
+                local targetPart = nil
+                local targetModel = nil
+                for _, target in ipairs(zoneFolder:GetChildren()) do
+                    if target:IsA("BasePart") then
+                        targetPart = target
+                        targetModel = target
+                    elseif target:IsA("Model") then
+                        targetPart = target:FindFirstChild("HumanoidRootPart") or target:FindFirstChildWhichIsA("BasePart")
+                        targetModel = target
+                    end
+                    if targetPart then break end
+                end
+                if not targetPart then
+                    task.wait(0.2)
+                    continue
+                end
+                hrp.CFrame = targetPart.CFrame + Vector3.new(0, 3, 0)
+                task.wait(0.5)
+                local prompt = targetModel:FindFirstChildWhichIsA("ProximityPrompt", true)
+                if prompt then
+                    fireproximityprompt(prompt)
+                    task.wait(0.3)
+                end
+                if spawnLocation then
+                    hrp.CFrame = spawnLocation.CFrame + Vector3.new(0, 3, 0)
+                end
+                task.wait(0.5)
+            end
+            task.wait(0.5)
         end
     end
-})
 
--- ========== AUTO UPGRADE & REBIRTH SECTION ==========
-MainTab:Section({ Title = "Auto Upgrade & Rebirth" })
-
--- Helper to create toggles with loops
-local function createAutoToggle(title, desc, interval, fireFunction)
-    local enabled = false
-    local thread = nil
     MainTab:Toggle({
-        Title = title,
-        Desc = desc,
+        Title = "Auto Collect",
+        Desc = "Cycle through selected zones, collect, return to spawn",
         Default = false,
         Callback = function(state)
-            enabled = state
+            autoCollectEnabled = state
             if state then
-                thread = task.spawn(function()
-                    while enabled do
-                        fireFunction()
-                        task.wait(interval)
-                    end
-                end)
-                WindUI:Notify({ Title = title .. " ON", Content = "Every " .. interval .. "s", Duration = 2, Icon = "play" })
+                if #selectedZones == 0 then
+                    WindUI:Notify({ Title = "No Zones", Content = "Select at least one zone", Duration = 3, Icon = "warning" })
+                    autoCollectEnabled = false
+                    return
+                end
+                autoCollectThread = task.spawn(runAutoCollect)
+                WindUI:Notify({ Title = "Auto Collect ON", Content = "Cycling " .. #selectedZones .. " zones", Duration = 3, Icon = "play" })
             else
-                enabled = false
-                if thread then task.cancel(thread); thread = nil end
-                WindUI:Notify({ Title = title .. " OFF", Content = "Stopped.", Duration = 2, Icon = "square" })
+                autoCollectEnabled = false
+                if autoCollectThread then task.cancel(autoCollectThread); autoCollectThread = nil end
+                WindUI:Notify({ Title = "Auto Collect OFF", Content = "Stopped.", Duration = 2, Icon = "square" })
             end
         end
     })
-end
 
--- 1. Auto Upgrade Brainrots (1 to 40 as separate args, no wait = fastest)
-createAutoToggle("Auto Upgrade Brainrots", "Upgrades characters 1‑40 rapidly", 0, function()
-    local args = {}
-    for i = 1, 40 do args[i] = i end
-    game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("upgradeCharacterEvent"):FireServer(unpack(args))
-end)
+    -- ========== AUTO UPGRADE & REBIRTH ==========
+    MainTab:Section({ Title = "Auto Upgrade & Rebirth" })
 
--- 2. Auto Rebirth (every 1 second)
-createAutoToggle("Auto Rebirth", "Rebirth every 1 second", 1, function()
-    game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("doRebirthEvent"):FireServer()
-end)
-
--- 3. Auto Buy Strength (every 0.1 seconds)
-createAutoToggle("Auto Buy Strength", "Buys strength upgrade fast", 0.1, function()
-    local args = { 1 }
-    game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("buySoloEvent"):FireServer(unpack(args))
-end)
-
--- 4. Auto Buy Carry (every 0.5 seconds)
-createAutoToggle("Auto Buy Carry", "Buys carry upgrade", 0.5, function()
-    game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("buyCarryEvent"):FireServer()
-end)
-
--- 5. Auto Sell All (loops every 0.5 seconds)
-local sellAllEnabled = false
-local sellAllThread = nil
-MainTab:Toggle({
-    Title = "Auto Sell All",
-    Desc = "Continuously sells all characters (0.5s loop)",
-    Default = false,
-    Callback = function(state)
-        sellAllEnabled = state
-        if state then
-            sellAllThread = task.spawn(function()
-                while sellAllEnabled do
-                    game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("sellAllCharactersEvent"):FireServer()
-                    task.wait(0.5)
+    local function createAutoToggle(title, desc, interval, fireFunction)
+        local enabled = false
+        local thread = nil
+        MainTab:Toggle({
+            Title = title,
+            Desc = desc,
+            Default = false,
+            Callback = function(state)
+                enabled = state
+                if state then
+                    thread = task.spawn(function()
+                        while enabled do
+                            fireFunction()
+                            task.wait(interval)
+                        end
+                    end)
+                    WindUI:Notify({ Title = title .. " ON", Content = "Every " .. interval .. "s", Duration = 2, Icon = "play" })
+                else
+                    enabled = false
+                    if thread then task.cancel(thread); thread = nil end
+                    WindUI:Notify({ Title = title .. " OFF", Content = "Stopped.", Duration = 2, Icon = "square" })
                 end
-            end)
-            WindUI:Notify({ Title = "Auto Sell All ON", Content = "Selling every 0.5s", Duration = 2, Icon = "play" })
-        else
-            sellAllEnabled = false
-            if sellAllThread then task.cancel(sellAllThread); sellAllThread = nil end
-            WindUI:Notify({ Title = "Auto Sell All OFF", Content = "Stopped.", Duration = 2, Icon = "square" })
-        end
+            end
+        })
     end
-})
+
+    local events = ReplicatedStorage:WaitForChild("Events")
+    createAutoToggle("Auto Upgrade Brainrots", "Upgrades characters 1‑40 rapidly", 0, function()
+        local args = {}
+        for i = 1, 40 do args[i] = i end
+        events.upgradeCharacterEvent:FireServer(unpack(args))
+    end)
+    createAutoToggle("Auto Rebirth", "Rebirth every 1 second", 1, function()
+        events.doRebirthEvent:FireServer()
+    end)
+    createAutoToggle("Auto Buy Strength", "Buys strength upgrade fast", 0.1, function()
+        events.buySoloEvent:FireServer(1)
+    end)
+    createAutoToggle("Auto Buy Carry", "Buys carry upgrade", 0.5, function()
+        events.buyCarryEvent:FireServer()
+    end)
+
+    local sellAllEnabled = false
+    local sellAllThread = nil
+    MainTab:Toggle({
+        Title = "Auto Sell All",
+        Desc = "Continuously sells all characters (0.5s loop)",
+        Default = false,
+        Callback = function(state)
+            sellAllEnabled = state
+            if state then
+                sellAllThread = task.spawn(function()
+                    while sellAllEnabled do
+                        events.sellAllCharactersEvent:FireServer()
+                        task.wait(0.5)
+                    end
+                end)
+                WindUI:Notify({ Title = "Auto Sell All ON", Content = "Selling every 0.5s", Duration = 2, Icon = "play" })
+            else
+                sellAllEnabled = false
+                if sellAllThread then task.cancel(sellAllThread); sellAllThread = nil end
+                WindUI:Notify({ Title = "Auto Sell All OFF", Content = "Stopped.", Duration = 2, Icon = "square" })
+            end
+        end
+    })
 
     -- ========== MISC TAB ==========
     local MiscTab = Window:Tab({ Title = "Misc", Icon = "wrench" })
 
-    -- Fly Section
     MiscTab:Section({ Title = "Fly" })
-
     local flySpeed = 50
     local flyEnabled = false
-    local flyBodyVelocity = nil
-    local flyBodyGyro = nil
-    local flyLoopThread = nil
-
+    local flyBodyVelocity, flyBodyGyro, flyLoopThread = nil, nil, nil
     local function startFly()
         local char = player.Character
         if not char then return end
         local root = char:FindFirstChild("HumanoidRootPart")
-        local hum  = char:FindFirstChild("Humanoid")
+        local hum = char:FindFirstChild("Humanoid")
         if not root or not hum then return end
-
         hum.PlatformStand = true
-
         flyBodyVelocity = Instance.new("BodyVelocity")
-        flyBodyVelocity.Velocity = Vector3.new(0, 0, 0)
-        flyBodyVelocity.MaxForce = Vector3.new(1e9, 1e9, 1e9)
+        flyBodyVelocity.Velocity = Vector3.new(0,0,0)
+        flyBodyVelocity.MaxForce = Vector3.new(1e9,1e9,1e9)
         flyBodyVelocity.Parent = root
-
         flyBodyGyro = Instance.new("BodyGyro")
-        flyBodyGyro.MaxTorque = Vector3.new(1e9, 1e9, 1e9)
+        flyBodyGyro.MaxTorque = Vector3.new(1e9,1e9,1e9)
         flyBodyGyro.D = 100
         flyBodyGyro.CFrame = root.CFrame
         flyBodyGyro.Parent = root
-
         flyLoopThread = task.spawn(function()
             while flyEnabled do
-                local char = player.Character
-                if not char then break end
-                local root = char:FindFirstChild("HumanoidRootPart")
-                if not root then break end
-                local camera = workspace.CurrentCamera
+                local c = player.Character
+                if not c then break end
+                local r = c:FindFirstChild("HumanoidRootPart")
+                if not r then break end
+                local cam = workspace.CurrentCamera
                 local dir = Vector3.new()
-
-                if UserInputService:IsKeyDown(Enum.KeyCode.W) then
-                    dir = dir + camera.CFrame.LookVector
-                end
-                if UserInputService:IsKeyDown(Enum.KeyCode.S) then
-                    dir = dir - camera.CFrame.LookVector
-                end
-                if UserInputService:IsKeyDown(Enum.KeyCode.A) then
-                    dir = dir - camera.CFrame.RightVector
-                end
-                if UserInputService:IsKeyDown(Enum.KeyCode.D) then
-                    dir = dir + camera.CFrame.RightVector
-                end
-                if UserInputService:IsKeyDown(Enum.KeyCode.Space) then
-                    dir = dir + Vector3.new(0, 1, 0)
-                end
-                if UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) or
-                   UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then
-                    dir = dir - Vector3.new(0, 1, 0)
-                end
-
-                if dir.Magnitude > 0 then
-                    flyBodyVelocity.Velocity = dir.Unit * flySpeed
-                else
-                    flyBodyVelocity.Velocity = Vector3.new(0, 0, 0)
-                end
-
-                flyBodyGyro.CFrame = camera.CFrame
+                if UserInputService:IsKeyDown(Enum.KeyCode.W) then dir = dir + cam.CFrame.LookVector end
+                if UserInputService:IsKeyDown(Enum.KeyCode.S) then dir = dir - cam.CFrame.LookVector end
+                if UserInputService:IsKeyDown(Enum.KeyCode.A) then dir = dir - cam.CFrame.RightVector end
+                if UserInputService:IsKeyDown(Enum.KeyCode.D) then dir = dir + cam.CFrame.RightVector end
+                if UserInputService:IsKeyDown(Enum.KeyCode.Space) then dir = dir + Vector3.new(0,1,0) end
+                if UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) or UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then dir = dir - Vector3.new(0,1,0) end
+                if dir.Magnitude > 0 then flyBodyVelocity.Velocity = dir.Unit * flySpeed else flyBodyVelocity.Velocity = Vector3.new(0,0,0) end
+                flyBodyGyro.CFrame = cam.CFrame
                 task.wait()
             end
         end)
     end
-
     local function stopFly()
-        if flyBodyVelocity then flyBodyVelocity:Destroy() flyBodyVelocity = nil end
-        if flyBodyGyro    then flyBodyGyro:Destroy()    flyBodyGyro    = nil end
-        if flyLoopThread  then task.cancel(flyLoopThread) flyLoopThread = nil end
-
+        if flyBodyVelocity then flyBodyVelocity:Destroy() end
+        if flyBodyGyro then flyBodyGyro:Destroy() end
+        if flyLoopThread then task.cancel(flyLoopThread) end
         local char = player.Character
         if char then
             local hum = char:FindFirstChild("Humanoid")
             if hum then hum.PlatformStand = false end
         end
     end
-
     MiscTab:Input({
         Title = "Fly Speed",
         Desc = "Set fly speed (default: 50)",
         Placeholder = "Enter speed...",
         Numeric = true,
         Finished = true,
-        Callback = function(value)
-            local num = tonumber(value)
-            if num and num > 0 then
-                flySpeed = num
-                WindUI:Notify({
-                    Title = "Fly Speed Set",
-                    Content = "Speed: " .. tostring(num),
-                    Duration = 2,
-                    Icon = "zap"
-                })
-            end
+        Callback = function(v)
+            local num = tonumber(v)
+            if num and num > 0 then flySpeed = num; WindUI:Notify({ Title = "Fly Speed Set", Content = tostring(num), Duration = 2, Icon = "zap" }) end
         end
     })
-
     MiscTab:Toggle({
         Title = "Enable Fly",
         Desc = "WASD + Space / LCtrl",
         Default = false,
         Callback = function(state)
             flyEnabled = state
-            if state then
-                startFly()
-                WindUI:Notify({
-                    Title = "Fly ON",
-                    Content = "Speed: " .. tostring(flySpeed),
-                    Duration = 3,
-                    Icon = "arrow-up"
-                })
-            else
-                stopFly()
-                WindUI:Notify({
-                    Title = "Fly OFF",
-                    Content = "Fly disabled.",
-                    Duration = 2,
-                    Icon = "arrow-down"
-                })
-            end
+            if state then startFly() else stopFly() end
+            WindUI:Notify({ Title = state and "Fly ON" or "Fly OFF", Content = state and "Speed: " .. flySpeed or "Disabled", Duration = 2 })
         end
     })
-
     player.CharacterAdded:Connect(function()
-        if flyEnabled then
-            task.wait(1)
-            startFly()
-        end
+        if flyEnabled then task.wait(1); startFly() end
     end)
 
-    -- Movement Speed Section
     MiscTab:Section({ Title = "Movement Speed" })
-
     local moveSpeed = 16
     local moveSpeedEnabled = false
     local moveSpeedConn = nil
-
     MiscTab:Input({
         Title = "Movement Speed",
         Desc = "Set walk speed (default: 16)",
         Placeholder = "Enter speed...",
         Numeric = true,
         Finished = true,
-        Callback = function(value)
-            local num = tonumber(value)
+        Callback = function(v)
+            local num = tonumber(v)
             if num and num > 0 then
                 moveSpeed = num
                 if moveSpeedEnabled then
                     local char = player.Character
-                    if char then
-                        local hum = char:FindFirstChild("Humanoid")
-                        if hum then hum.WalkSpeed = moveSpeed end
-                    end
+                    if char and char:FindFirstChild("Humanoid") then char.Humanoid.WalkSpeed = moveSpeed end
                 end
-                WindUI:Notify({
-                    Title = "Move Speed Set",
-                    Content = "Speed: " .. tostring(num),
-                    Duration = 2,
-                    Icon = "zap"
-                })
+                WindUI:Notify({ Title = "Move Speed Set", Content = "Speed: " .. tostring(num), Duration = 2, Icon = "zap" })
             end
         end
     })
-
     MiscTab:Toggle({
         Title = "Enable Move Speed",
         Default = false,
         Callback = function(state)
             moveSpeedEnabled = state
-
             local function applySpeed()
                 local char = player.Character
-                if char then
-                    local hum = char:FindFirstChild("Humanoid")
-                    if hum then
-                        hum.WalkSpeed = state and moveSpeed or 16
-                    end
+                if char and char:FindFirstChild("Humanoid") then
+                    char.Humanoid.WalkSpeed = state and moveSpeed or 16
                 end
             end
-
             applySpeed()
-
             if state then
                 moveSpeedConn = player.CharacterAdded:Connect(function(char)
                     task.wait(1)
-                    if moveSpeedEnabled then
-                        local hum = char:WaitForChild("Humanoid")
-                        hum.WalkSpeed = moveSpeed
+                    if moveSpeedEnabled and char:FindFirstChild("Humanoid") then
+                        char.Humanoid.WalkSpeed = moveSpeed
                     end
                 end)
-                WindUI:Notify({
-                    Title = "Move Speed ON",
-                    Content = "Speed: " .. tostring(moveSpeed),
-                    Duration = 3,
-                    Icon = "activity"
-                })
+                WindUI:Notify({ Title = "Move Speed ON", Content = "Speed: " .. tostring(moveSpeed), Duration = 3, Icon = "activity" })
             else
-                if moveSpeedConn then
-                    moveSpeedConn:Disconnect()
-                    moveSpeedConn = nil
-                end
-                WindUI:Notify({
-                    Title = "Move Speed OFF",
-                    Content = "Reset to 16.",
-                    Duration = 2,
-                    Icon = "minus-circle"
-                })
+                if moveSpeedConn then moveSpeedConn:Disconnect(); moveSpeedConn = nil end
+                WindUI:Notify({ Title = "Move Speed OFF", Content = "Reset to 16.", Duration = 2, Icon = "minus-circle" })
             end
         end
     })
 
-    -- Reset Button
     MiscTab:Section({ Title = "Reset" })
     MiscTab:Button({
         Title = "Reset Position & Health",
@@ -741,11 +646,7 @@ MainTab:Toggle({
                 WindUI:Notify({ Title = "Error", Content = "Humanoid or RootPart missing.", Duration = 2, Icon = "alert-triangle" })
                 return
             end
-
-            -- Heal
             hum.Health = hum.MaxHealth
-
-            -- Teleport to CommonFloorBest
             local destination = workspace.Break_Map and workspace.Break_Map.Locations and workspace.Break_Map.Locations.CommonFloorBest
             if destination then
                 root.CFrame = destination.CFrame + Vector3.new(0, 5, 0)
@@ -756,85 +657,85 @@ MainTab:Toggle({
         end
     })
 
-    -- ========== SUPPORT TAB (with Discord) ==========
+    -- ========== SUPPORT TAB (Discord) ==========
     local SupportTab = Window:Tab({ Title = "Support", Icon = "heart" })
-
     local InviteCode = "D5NKtBJEzz"
     local DiscordAPI = "https://discord.com/api/v10/invites/" .. InviteCode .. "?with_counts=true&with_expiration=true"
 
     local function httpGet(url)
-        local body, success = nil, false
         if syn and syn.request then
-            success, body = pcall(function() return syn.request({ Url = url, Method = "GET" }).Body end)
-        elseif http and http.request then
-            success, body = pcall(function() return http.request({ Url = url, Method = "GET" }).Body end)
+            local res = syn.request({ Url = url, Method = "GET" })
+            if res and res.Body then return res.Body end
         elseif request then
-            success, body = pcall(function() return request({ Url = url, Method = "GET" }).Body end)
+            local res = request({ Url = url, Method = "GET" })
+            if res and res.Body then return res.Body end
         elseif http_request then
-            success, body = pcall(function() return http_request({ Url = url, Method = "GET" }).Body end)
+            local res = http_request({ Url = url, Method = "GET" })
+            if res and res.Body then return res.Body end
         end
-        if success and body then return body else return nil end
+        return nil
     end
 
-    local Response, raw = {}, httpGet(DiscordAPI)
+    local raw = httpGet(DiscordAPI)
+    local Response = {}
     if raw then pcall(function() Response = HttpService:JSONDecode(raw) end) end
-
     local onlineCount = Response and Response.approximate_presence_count or "?"
-    local totalCount  = Response and Response.approximate_member_count  or "?"
-    local guildName   = (Response and Response.guild and Response.guild.name) or "ZyroYonk Hub"
-    local iconUrl     = nil
+    local totalCount = Response and Response.approximate_member_count or "?"
+    local guildName = (Response and Response.guild and Response.guild.name) or "ZyroYonk Hub"
+    local iconUrl = nil
     if Response and Response.guild and Response.guild.id and Response.guild.icon then
-        iconUrl = "https://cdn.discordapp.com/icons/"
-            .. tostring(Response.guild.id) .. "/"
-            .. tostring(Response.guild.icon) .. ".png?size=256"
+        iconUrl = "https://cdn.discordapp.com/icons/" .. tostring(Response.guild.id) .. "/" .. tostring(Response.guild.icon) .. ".png?size=256"
     end
 
     SupportTab:Section({ Title = "Discord Server" })
-
     local cardProps = {
-        Title         = guildName,
-        Desc          = "Online: " .. tostring(onlineCount) .. "   Members: " .. tostring(totalCount) .. "\n\nJoin for updates & support.",
-        Color         = Color3.fromHex("#222222"),
-        ImageSize     = 64,
+        Title = guildName,
+        Desc = "Online: " .. tostring(onlineCount) .. "   Members: " .. tostring(totalCount) .. "\n\nJoin for updates & support.",
+        Color = Color3.fromHex("#222222"),
+        ImageSize = 64,
         ThumbnailSize = 100,
         Buttons = {
-            {
-                Title = "Copy Invite",
-                Callback = function()
-                    copyToClipboard("https://discord.gg/" .. InviteCode)
-                    WindUI:Notify({ Title = "Copied!", Content = "Invite link copied.", Duration = 2, Icon = "clipboard-check" })
-                end
-            },
-            {
-                Title = "Join Discord",
-                Callback = function()
-                    if openUrl then
-                        openUrl("https://discord.gg/" .. InviteCode)
-                    else
-                        copyToClipboard("https://discord.gg/" .. InviteCode)
-                        WindUI:Notify({ Title = "Link Copied", Content = "Open in your browser.", Duration = 3, Icon = "globe" })
-                    end
-                end
-            }
+            { Title = "Copy Invite", Callback = function() copyToClipboard("https://discord.gg/" .. InviteCode); WindUI:Notify({ Title = "Copied!", Duration = 2, Icon = "clipboard-check" }) end },
+            { Title = "Join Discord", Callback = function() if openUrl then openUrl("https://discord.gg/" .. InviteCode) else copyToClipboard("https://discord.gg/" .. InviteCode); WindUI:Notify({ Title = "Link Copied", Duration = 2, Icon = "globe" }) end end }
         }
     }
     if iconUrl then cardProps.Image = iconUrl end
     SupportTab:Paragraph(cardProps)
 
     SupportTab:Section({ Title = "Help" })
+    SupportTab:Paragraph({ Title = "Executor", Desc = "Using: " .. executorName .. "\nReport issues in Discord.", Color = Color3.fromHex("#222222") })
+    SupportTab:Button({ Title = "Report a Bug", Icon = "bug", Callback = function() copyToClipboard("Bug Report\nExecutor: " .. executorName .. "\nScript: ZyroYonk Hub v1.0.2\n\nDescribe the issue:"); WindUI:Notify({ Title = "Template Copied", Content = "Paste in Discord support channel.", Duration = 4, Icon = "message-square" }) end })
 
-    SupportTab:Paragraph({
-        Title = "Executor",
-        Desc  = "Using: " .. executorName .. "\nReport issues in Discord.",
+    -- ========== SERVER TAB ==========
+    local ServerTab = Window:Tab({ Title = "Server", Icon = "server" })
+
+    ServerTab:Section({ Title = "Player Info" })
+    ServerTab:Paragraph({
+        Title = "ℹ️ Your Details",
+        Desc = string.format("Name: %s\nAccount Age: %d days\nHWID: %s", player.Name, player.AccountAge, hwid),
         Color = Color3.fromHex("#222222"),
     })
 
-    SupportTab:Button({
-        Title = "Report a Bug",
-        Icon  = "bug",
-        Callback = function()
-            copyToClipboard("Bug Report\nExecutor: " .. executorName .. "\nScript: ZyroYonk Hub v1.0.2\n\nDescribe the issue:")
-            WindUI:Notify({ Title = "Template Copied", Content = "Paste in Discord support channel.", Duration = 4, Icon = "message-square" })
+    ServerTab:Section({ Title = "Server Actions" })
+    ServerTab:Button({ Title = "Hop Server", Icon = "repeat", Callback = function() WindUI:Notify({ Title = "Hopping...", Duration = 2 }); TeleportService:Teleport(game.PlaceId) end })
+    ServerTab:Button({ Title = "Rejoin", Icon = "log-in", Callback = function() WindUI:Notify({ Title = "Rejoining...", Duration = 2 }); TeleportService:Teleport(game.PlaceId, player) end })
+    ServerTab:Button({ Title = "Reset Avatar", Icon = "user-x", Callback = function() player:LoadCharacter(); WindUI:Notify({ Title = "Reset", Content = "Avatar respawned", Duration = 2, Icon = "check-circle" }) end })
+
+    ServerTab:Section({ Title = "Anti AFK" })
+    ServerTab:Toggle({
+        Title = "Prevent AFK Kick",
+        Desc = "Simulates activity every 30 seconds",
+        Default = false,
+        Callback = function(state)
+            antiAfkRunning = state
+            if state then
+                if antiAfkThread then task.cancel(antiAfkThread) end
+                antiAfkThread = task.spawn(antiAfkLoop)
+                WindUI:Notify({ Title = "Anti-AFK ON", Content = "You won't be kicked", Duration = 3, Icon = "shield" })
+            else
+                if antiAfkThread then task.cancel(antiAfkThread); antiAfkThread = nil end
+                WindUI:Notify({ Title = "Anti-AFK OFF", Duration = 2, Icon = "shield-off" })
+            end
         end
     })
 end
