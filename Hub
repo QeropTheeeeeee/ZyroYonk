@@ -50,7 +50,8 @@ local gameScripts = {
     ["98033586806203"] = "https://raw.githubusercontent.com/ZyroYonk/ZyroYonk/refs/heads/main/%5B%F0%9F%8D%94%5D%20Get%20HEAVY%20for%20Brainrots",
     ["111193035915763"] = "https://raw.githubusercontent.com/ZyroYonk/ZyroYonk/refs/heads/main/Be%20a%20thief",
     ["73108986061082"] = "https://raw.githubusercontent.com/ZyroYonk/ZyroYonk/refs/heads/main/%2B1%20Weapon%20Evolution",
-    ["103525960981185"] = "https://raw.githubusercontent.com/ZyroYonk/ZyroYonk/refs/heads/main/Dumpling%20Squishy%20Race%F0%9F%A5%9F"
+    ["103525960981185"] = "https://raw.githubusercontent.com/ZyroYonk/ZyroYonk/refs/heads/main/Dumpling%20Squishy%20Race%F0%9F%A5%9F",
+    ["85226187927655"] = "https://raw.githubusercontent.com/ZyroYonk/ZyroYonk/refs/heads/main/%2B1%20Weapon%20Evolution"
 }
 
 -- Execute only for the current game
