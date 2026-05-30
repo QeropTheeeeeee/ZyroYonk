@@ -200,6 +200,40 @@ local function showLoadingScreen()
     blur:Destroy()
 end
 
+-- ================== ANTI CHEAT (Simple Detection) ==================
+local antiCheatDetected = false
+local function antiCheatCheck()
+    -- Check for common anti-cheat flags
+    local suspicious = false
+    
+    -- Check if game has specific anti-cheat services
+    if game:GetService("Players").LocalPlayer:FindFirstChild("AntiCheat") then
+        suspicious = true
+    end
+    
+    -- Check for banned remote events
+    local bannedRemotes = {"BanService", "AntiExploit", "CheatDetection"}
+    for _, remote in ipairs(bannedRemotes) do
+        if ReplicatedStorage:FindFirstChild(remote) then
+            suspicious = true
+            break
+        end
+    end
+    
+    if suspicious then
+        antiCheatDetected = true
+        WindUI:Notify({
+            Title = "⚠️ Anti-Cheat Detected",
+            Content = "Proceed with caution! Some features may be limited.",
+            Duration = 8,
+            Icon = "shield-alert"
+        })
+    end
+end
+
+-- Run anti-cheat check
+task.spawn(antiCheatCheck)
+
 -- ================== MAIN GUI ==================
 local function showGUI()
     local coolTitle = "Dumpling Squishy Race🥟"
@@ -220,12 +254,12 @@ local function showGUI()
         HideSearchBar = false,
         ScrollBarEnabled = false,
         User = { Enabled = true, Anonymous = false, Callback = function() end },
-                KeySystem = {                                                   
+        KeySystem = {                                                   
             Note = "Enter your PlatoBoost key to access StarForge Hub.",              
             API = {                                                     
                 { -- PlatoBoost
                     Type = "platoboost",                                
-                    ServiceId = 22001, -- Your PlatoBoost service ID
+                    ServiceId = 22001,
                     Secret = "945af45d-5779-4a05-a31c-432930563763", 
                 },                                                      
             },                                                          
@@ -234,7 +268,7 @@ local function showGUI()
 
     -- Tags: version + live ping
     local versionTag = Window:Tag({
-        Title = "v1.0.6",
+        Title = "v1.0.2",
         Icon = "tag",
         Color = Color3.fromHex("#2563eb"),
         Radius = 100
@@ -244,7 +278,7 @@ local function showGUI()
         while true do
             local ping = getPing()
             if versionTag then
-                versionTag:SetTitle("v1.0.6 | " .. ping .. "ms")
+                versionTag:SetTitle("v1.0.2 | " .. ping .. "ms")
             end
             task.wait(0.1)
         end
@@ -263,9 +297,20 @@ local function showGUI()
 
     -- ========== CHANGELOG TAB ==========
     local ChangelogTab = Window:Tab({ Title = "Changelog", Icon = "scroll" })
+    
+    -- v1.0.2
     ChangelogTab:Paragraph({
-        Title = "Update v1.0.1",
-        Desc = "- Initial release",
+        Title = "📦 Update v1.0.2",
+        Desc = "• Added 4 New Egg Dropdown (Mythical, Exotic, Divine, Superior)\n• Added Auto Claim Achievements\n• Improved Auto Wins (faster & more stable)\n• Added Anti-Cheat Detection System",
+        Color = Color3.fromHex("#222222"),
+        Thumbnail = profileIconUrl,
+        ThumbnailSize = 100,
+    })
+    
+    -- v1.0.1
+    ChangelogTab:Paragraph({
+        Title = "📦 Update v1.0.1",
+        Desc = "• Initial Release\n• Auto Wins\n• Auto Rebirth\n• Auto Buy Squishy\n• Auto Equip Best Pet\n• Auto Upgrades (All types)\n• Auto Claim Rewards\n• Auto Buy Trails\n• Auto Buy Partner\n• Fly & Movement Speed\n• Reset Position",
         Color = Color3.fromHex("#222222"),
         Thumbnail = profileIconUrl,
         ThumbnailSize = 100,
@@ -273,6 +318,15 @@ local function showGUI()
 
     -- ========== MAIN FEATURES TAB ==========
     local MainTab = Window:Tab({ Title = "Main Features", Icon = "house" })
+
+    -- Show anti-cheat warning if detected
+    if antiCheatDetected then
+        MainTab:Paragraph({
+            Title = "⚠️ ANTI-CHEAT WARNING",
+            Desc = "Anti-cheat has been detected on this game! Use features at your own risk.",
+            Color = Color3.fromHex("#dc2626"),
+        })
+    end
 
     -- ========== RACE SECTION ==========
     MainTab:Section({ Title = "Race" })
@@ -303,7 +357,7 @@ local function showGUI()
                 return parts
             end
             
-            local tweenInfo = TweenInfo.new(0.35, Enum.EasingStyle.Linear)
+            local tweenInfo = TweenInfo.new(0.25, Enum.EasingStyle.Linear) -- Improved speed
             local parts = getParts()
             
             for _, part in ipairs(parts) do
@@ -320,7 +374,7 @@ local function showGUI()
 
     MainTab:Toggle({
         Title = "Auto Wins",
-        Desc = "Automatically starts race and runs the reward path",
+        Desc = "Automatically starts race and runs the reward path (Improved v1.0.2)",
         Default = false,
         Callback = function(state)
             autoWinsEnabled = state
@@ -330,10 +384,10 @@ local function showGUI()
                     while autoWinsEnabled do
                         pcall(function()
                             startRace()
-                            task.wait(1)
+                            task.wait(0.5) -- Faster race start
                             runPath()
                         end)
-                        task.wait(0.1)
+                        task.wait(0.05) -- Faster loop
                     end
                 end)
             else
@@ -790,7 +844,8 @@ local function showGUI()
         "PlayTime",
         "Rebirths",
         "UnlockedTrainers",
-        "UnlockedMounts"
+        "UnlockedMounts",
+        "UnlockedWorlds"
     }
 
     local function claimAllAchievements()
@@ -805,7 +860,7 @@ local function showGUI()
 
     MainTab:Toggle({
         Title = "Auto Claim Achievements",
-        Desc = "Automatically claims all achievements (TotalWins, HighestPower, EggsHatched, RaceCompleted, PlayTime, Rebirths, UnlockedTrainers, UnlockedMounts)",
+        Desc = "Automatically claims all achievements (TotalWins, HighestPower, EggsHatched, RaceCompleted, PlayTime, Rebirths, UnlockedTrainers, UnlockedMounts, UnlockedWorlds)",
         Default = false,
         Callback = function(state)
             autoClaimAchievementsEnabled = state
@@ -829,14 +884,18 @@ local function showGUI()
 
     local autoHatchEggsEnabled = false
     local autoHatchEggsThread = nil
-    local selectedEggs = { "Egg1" } -- Default: Basic Egg
+    local selectedEggs = { "Egg1" }
 
-    local eggsList = { "Basic Egg", "Rare Egg", "Epic Egg", "Legendary Egg" }
+    local eggsList = { "Basic Egg", "Rare Egg", "Epic Egg", "Legendary Egg", "Mythical Egg", "Exotic Egg", "Divine Egg", "Superior Egg" }
     local eggsValues = {
         ["Basic Egg"] = "Egg1",
         ["Rare Egg"] = "Egg2",
         ["Epic Egg"] = "Egg3",
-        ["Legendary Egg"] = "Egg4"
+        ["Legendary Egg"] = "Egg4",
+        ["Mythical Egg"] = "Egg5",
+        ["Exotic Egg"] = "Egg6",
+        ["Divine Egg"] = "Egg7",
+        ["Superior Egg"] = "Egg8"
     }
 
     local function hatchEgg(eggValue)
@@ -846,7 +905,6 @@ local function showGUI()
         end)
     end
 
-    -- Dropdown for egg selection (Multi)
     local eggDropdown = MainTab:Dropdown({
         Title = "Select Eggs",
         Desc = "Choose which eggs to auto-hatch (you can select multiple)",
@@ -868,14 +926,12 @@ local function showGUI()
         end
     })
 
-    -- Description reminder
     MainTab:Paragraph({
         Title = "⚠️ Reminder",
         Desc = "The Egg Hatchers is World 1, so please be patient!",
         Color = Color3.fromHex("#222222"),
     })
 
-    -- Toggle for auto hatching
     MainTab:Toggle({
         Title = "Auto Hatch Eggs",
         Desc = "Automatically hatches the selected eggs in order",
@@ -899,12 +955,11 @@ local function showGUI()
                 end
                 WindUI:Notify({ Title = "Auto Hatch Eggs ON", Content = "Hatching: " .. table.concat(eggNames, ", "), Duration = 3, Icon = "egg" })
                 autoHatchEggsThread = task.spawn(function()
-                    local currentIndex = 1
                     while autoHatchEggsEnabled do
                         for _, eggValue in ipairs(selectedEggs) do
                             if not autoHatchEggsEnabled then break end
                             hatchEgg(eggValue)
-                            task.wait(1) -- Wait 1 second between hatches
+                            task.wait(1)
                         end
                         task.wait(0.5)
                     end
@@ -1242,7 +1297,7 @@ local function showGUI()
         Title = "Report a Bug",
         Icon  = "bug",
         Callback = function()
-            copyToClipboard("Bug Report\nExecutor: " .. executorName .. "\nScript: ZyroYonk Hub v1.0.6\n\nDescribe the issue:")
+            copyToClipboard("Bug Report\nExecutor: " .. executorName .. "\nScript: StarForge Hub v1.0.2\n\nDescribe the issue:")
             WindUI:Notify({ Title = "Template Copied", Content = "Paste in Discord support channel.", Duration = 4, Icon = "message-square" })
         end
     })
