@@ -220,8 +220,7 @@ local function showGUI()
         HideSearchBar = false,
         ScrollBarEnabled = false,
         User = { Enabled = true, Anonymous = false, Callback = function() end },
-        -- ================== KEY SYSTEM (PLATOBOOST) ==================
-        KeySystem = {                                                   
+                KeySystem = {                                                   
             Note = "Enter your PlatoBoost key to access StarForge Hub.",              
             API = {                                                     
                 { -- PlatoBoost
@@ -235,7 +234,7 @@ local function showGUI()
 
     -- Tags: version + live ping
     local versionTag = Window:Tag({
-        Title = "v1.0.1",
+        Title = "v1.0.2",
         Icon = "tag",
         Color = Color3.fromHex("#2563eb"),
         Radius = 100
@@ -246,7 +245,7 @@ local function showGUI()
         while true do
             local ping = getPing()
             if versionTag then
-                versionTag:SetTitle("v1.0.1 | " .. ping .. "ms")
+                versionTag:SetTitle("v1.0.2 | " .. ping .. "ms")
             end
             task.wait(5)
         end
@@ -266,8 +265,16 @@ local function showGUI()
     -- ========== CHANGELOG TAB ==========
     local ChangelogTab = Window:Tab({ Title = "Changelog", Icon = "scroll" })
     ChangelogTab:Paragraph({
-        Title = "Update v1.0.1",
-        Desc = "- Initial release\n- Added PlatoBoost Key System",
+        Title = "Update v1.0.2",
+        Desc = "- World 2 Section Added\n- Auto Buy Best Hammer (World 2)\n- Auto Hatch Best Egg (World 2)\n- Anti Cheat Improvements\n- Auto Win Detection Improvements",
+        Color = Color3.fromHex("#222222"),
+        Thumbnail = profileIconUrl,
+        ThumbnailSize = 100,
+    })
+    
+    ChangelogTab:Paragraph({
+        Title = "v1.0.1",
+        Desc = "- Initial Release",
         Color = Color3.fromHex("#222222"),
         Thumbnail = profileIconUrl,
         ThumbnailSize = 100,
@@ -276,9 +283,10 @@ local function showGUI()
     -- ========== MAIN FEATURES TAB ==========
     local MainTab = Window:Tab({ Title = "Main Features", Icon = "house" })
 
-    -- Auto Teleport to Wins 18 Toggle
+    -- Auto Teleport to Wins 18 Toggle (with anti-detection improvements)
     local autoTeleportEnabled = false
     local autoTeleportThread = nil
+    local teleportCooldown = false
 
     MainTab:Toggle({
         Title = "Auto Win",
@@ -288,27 +296,32 @@ local function showGUI()
             if state then
                 WindUI:Notify({
                     Title = "Auto Win ON",
-                    Content = "Teleporting to Wins 18 every 2 seconds",
+                    Content = "Teleporting to Wins 18 with anti-detection",
                     Duration = 3,
                     Icon = "map-pin"
                 })
                 autoTeleportThread = task.spawn(function()
                     while autoTeleportEnabled do
-                        local character = player.Character
-                        if character then
-                            local hrp = character:FindFirstChild("HumanoidRootPart")
-                            if hrp then
-                                local target = workspace.WinsStage and workspace.WinsStage["18"] and workspace.WinsStage["18"]:FindFirstChild("Wins")
-                                if target then
-                                    pcall(function()
-                                        if target:IsA("BasePart") then
-                                            hrp.CFrame = target.CFrame + Vector3.new(0, 5, 0)
-                                        elseif target:IsA("Model") then
-                                            hrp.CFrame = target:GetPivot() + Vector3.new(0, 5, 0)
-                                        end
-                                    end)
+                        if not teleportCooldown then
+                            teleportCooldown = true
+                            local character = player.Character
+                            if character then
+                                local hrp = character:FindFirstChild("HumanoidRootPart")
+                                if hrp then
+                                    local target = workspace.WinsStage and workspace.WinsStage["18"] and workspace.WinsStage["18"]:FindFirstChild("Wins")
+                                    if target then
+                                        pcall(function()
+                                            if target:IsA("BasePart") then
+                                                hrp.CFrame = target.CFrame + Vector3.new(0, 5, 0)
+                                            elseif target:IsA("Model") then
+                                                hrp.CFrame = target:GetPivot() + Vector3.new(0, 5, 0)
+                                            end
+                                        end)
+                                    end
                                 end
                             end
+                            task.wait(1.5)
+                            teleportCooldown = false
                         end
                         task.wait(1)
                     end
@@ -318,6 +331,7 @@ local function showGUI()
                     task.cancel(autoTeleportThread)
                     autoTeleportThread = nil
                 end
+                teleportCooldown = false
                 WindUI:Notify({
                     Title = "Auto Win OFF",
                     Content = "Stopped teleporting",
@@ -383,7 +397,7 @@ local function showGUI()
         end
     })
 
-    -- Auto Hatch Best Egg Toggle
+    -- Auto Hatch Best Egg Toggle (WORLD 1)
     local autoHatchEnabled = false
     local autoHatchThread = nil
     local eggHatchEvent = nil
@@ -491,7 +505,7 @@ local function showGUI()
         end
     })
 
-    -- Auto Buy Best Hammer Toggle (NOW A TOGGLE)
+    -- Auto Buy Best Hammer Toggle (WORLD 1)
     local autoBuyHammerEnabled = false
     local autoBuyHammerThread = nil
     local weaponShiEvent = nil
@@ -594,6 +608,89 @@ local function showGUI()
                     Content = "Stopped equipping",
                     Duration = 2,
                     Icon = "user-minus"
+                })
+            end
+        end
+    })
+
+    -- ================== WORLD 2 SECTION ==================
+    MainTab:Section({ Title = "World 2" })
+
+    -- Auto Buy Best Hammer (World 2)
+    local autoBuyHammerWorld2Enabled = false
+    local autoBuyHammerWorld2Thread = nil
+
+    MainTab:Toggle({
+        Title = "Auto Buy Best Hammer",
+        Default = false,
+        Callback = function(state)
+            autoBuyHammerWorld2Enabled = state
+            if state then
+                WindUI:Notify({
+                    Title = "Auto Buy Hammer (World 2) ON",
+                    Content = "Buying Dragon's Breath every 2 seconds",
+                    Duration = 3,
+                    Icon = "shopping-cart"
+                })
+                autoBuyHammerWorld2Thread = task.spawn(function()
+                    while autoBuyHammerWorld2Enabled do
+                        pcall(function()
+                            local args = { "Buy", "Dragons Breath" }
+                            game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("WeaponShi"):InvokeServer(unpack(args))
+                        end)
+                        task.wait(2)
+                    end
+                end)
+            else
+                if autoBuyHammerWorld2Thread then
+                    task.cancel(autoBuyHammerWorld2Thread)
+                    autoBuyHammerWorld2Thread = nil
+                end
+                WindUI:Notify({
+                    Title = "Auto Buy Hammer (World 2) OFF",
+                    Content = "Stopped buying hammer",
+                    Duration = 2,
+                    Icon = "shopping-cart-off"
+                })
+            end
+        end
+    })
+
+    -- Auto Hatch Best Egg (World 2)
+    local autoHatchWorld2Enabled = false
+    local autoHatchWorld2Thread = nil
+
+    MainTab:Toggle({
+        Title = "Auto Hatch Best Egg",
+        Default = false,
+        Callback = function(state)
+            autoHatchWorld2Enabled = state
+            if state then
+                WindUI:Notify({
+                    Title = "Auto Hatch (World 2) ON",
+                    Content = "Hatching egg with parameters 8 & 1",
+                    Duration = 3,
+                    Icon = "egg"
+                })
+                autoHatchWorld2Thread = task.spawn(function()
+                    while autoHatchWorld2Enabled do
+                        pcall(function()
+                            local args = { "8", 1 }
+                            game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("EggHatch"):InvokeServer(unpack(args))
+                        end)
+                        task.wait(0.5)
+                    end
+                end)
+            else
+                if autoHatchWorld2Thread then
+                    task.cancel(autoHatchWorld2Thread)
+                    autoHatchWorld2Thread = nil
+                end
+                WindUI:Notify({
+                    Title = "Auto Hatch (World 2) OFF",
+                    Content = "Stopped hatching",
+                    Duration = 2,
+                    Icon = "egg-off"
                 })
             end
         end
@@ -853,7 +950,7 @@ local function showGUI()
     -- ========== SUPPORT TAB (with Discord) ==========
     local SupportTab = Window:Tab({ Title = "Support", Icon = "heart" })
 
-    local InviteCode = "gCa2bb39UM"
+    local InviteCode = "D5NKtBJEzz"
     local DiscordAPI = "https://discord.com/api/v10/invites/" .. InviteCode .. "?with_counts=true&with_expiration=true"
 
     local function httpGet(url)
