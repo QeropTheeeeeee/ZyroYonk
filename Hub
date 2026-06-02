@@ -54,7 +54,8 @@ local gameScripts = {
     ["85226187927655"] = "https://raw.githubusercontent.com/ZyroYonk/Junkie-Key/refs/heads/main/%2B1%20Weapon%20Evolution",
     ["122889506854558"] = "https://raw.githubusercontent.com/ZyroYonk/ZyroYonk/refs/heads/main/Find%20and%20snipe%20Brainrot%E3%80%90update%E3%80%91",
     ["136066387156306"] = "https://raw.githubusercontent.com/ZyroYonk/Junkie-Key/refs/heads/main/Be%20Flash%20For%20Brainrots!",
-    ["75888315541325"] = "https://raw.githubusercontent.com/ZyroYonk/Junkie-Key/refs/heads/main/Push%20Rock%20For%20Brainrots!"
+    ["75888315541325"] = "https://raw.githubusercontent.com/ZyroYonk/Junkie-Key/refs/heads/main/Push%20Rock%20For%20Brainrots!",
+    ["109509029034984"] = "https://raw.githubusercontent.com/ZyroYonk/Junkie-Key/refs/heads/main/%2B1%20Aura%20Per%20Click"
 }
 
 -- Execute only for the current game
