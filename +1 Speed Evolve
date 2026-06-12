@@ -239,16 +239,13 @@ local function showGUI()
 
     -- ========== TABS WITH DIVIDERS ==========
     local ChangelogTab = Window:Tab({ Title = "Changelog", Icon = "scroll" })
-    Window:Divider()  -- Divider after Changelog
+    Window:Divider()
 
     local MainTab = Window:Tab({ Title = "Main Features", Icon = "house" })
-    Window:Divider()  -- Divider after Main Features
+    Window:Divider()
 
     local MiscTab = Window:Tab({ Title = "Misc", Icon = "wrench" })
-    -- No divider after Misc, then Support tab
     local SupportTab = Window:Tab({ Title = "Support", Icon = "heart" })
-    -- No divider after Support
-
     local ServerTab = Window:Tab({ Title = "Server", Icon = "server" })
 
     -- ========== CHANGELOG TAB CONTENT ==========
@@ -265,7 +262,6 @@ v1.0.1
     })
     
     -- ========== MAIN FEATURES TAB CONTENT ==========
-    -- ----- SECTION: WORLD 1 -----
     MainTab:Section({ Title = "World 1" })
     
     -- Auto Level
@@ -437,7 +433,7 @@ v1.0.1
     -- ----- SECTION: WORLD 2 -----
     MainTab:Section({ Title = "World 2" })
     
-    -- Auto Win (World 2)
+    -- Auto Win (World 2) - NOW USING workspace.Wins["13"]
     local autoWinWorld2Enabled = false
     local autoWinWorld2Thread = nil
     
@@ -452,7 +448,7 @@ v1.0.1
             if hrp then
                 local wins = workspace:FindFirstChild("Wins")
                 if wins then
-                    local target = wins:FindFirstChild("7")
+                    local target = wins:FindFirstChild("13")
                     if target then
                         if target:IsA("BasePart") then
                             hrp.CFrame = target.CFrame + Vector3.new(0, 3, 0)
