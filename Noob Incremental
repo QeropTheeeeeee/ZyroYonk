@@ -220,7 +220,7 @@ local function showGUI()
     task.spawn(function()
         while true do
             local ping = getPing()
-            if versionTag then versionTag:SetTitle("v1.0.2 | " .. ping .. "ms") end
+            if versionTag then versionTag:SetTitle("v1.0.3 | " .. ping .. "ms") end
             task.wait(1)
         end
     end)
@@ -251,6 +251,14 @@ local function showGUI()
     ChangelogTab:Paragraph({
         Title = "📋 Update Log",
         Desc = [[
+v1.0.3
+- added Text Box Convert
+- added 6x Tree Upgrade
+- added auto roll 
+- added auto upgrade Blaze
+- Smooth Convert Blaze
+- Added Anti Cheat
+
 v1.0.2
 - added auto upgrade fire
 - added more upgrade rebirth
@@ -259,7 +267,7 @@ v1.0.2
 - smooth ui
 
 v1.0.1
-initial Release
+- initial Release
 
         ]],
         Color = Color3.fromHex("#222222"),
@@ -271,7 +279,7 @@ initial Release
     -- Helper: get MainRemote
     local mainRemote = ReplicatedStorage:WaitForChild("__Net"):WaitForChild("MainRemote")
 
-    -- Auto Upgrade Noob (now includes both normal and max)
+    -- Auto Upgrade Noob
     local autoUpgradeNoobEnabled = false
     local autoUpgradeNoobThread = nil
     local function autoUpgradeNoobLoop()
@@ -298,7 +306,7 @@ initial Release
         end
     })
 
-    -- Auto Buy Noob (Starter, Cooker, Farmer)
+    -- Auto Buy Noob
     local autoBuyNoobEnabled = false
     local autoBuyNoobThread = nil
     local zonePaths = {
@@ -398,7 +406,7 @@ initial Release
         end
     })
 
-    -- Auto Upgrade Rebirth (MoreRebirth, MoreOof, MoreFire)
+    -- Auto Upgrade Rebirth
     local autoUpgradeRebirthEnabled = false
     local autoUpgradeRebirthThread = nil
     local function autoUpgradeRebirthLoop()
@@ -445,12 +453,17 @@ initial Release
         "CashMul",
         "BlazeMul",
         "TierBulkMul",
-        -- new nodes
         "MoreWalkspeed",
         "TierBulkMul1",
         "FasterPrismLeft",
         "RuneBulkMulRight1",
-        "FireAndBlazeMul"
+        "FireAndBlazeMul",
+        -- New nodes added
+        "WheatConverterSpeedMul",
+        "TierLuckMul1",
+        "RuneCloneFor100k",
+        "RunePriceDecrease",
+        "RuneLuckMulRight2"
     }
     local function autoUpgradeTreeLoop()
         while autoUpgradeTreeEnabled do
@@ -505,7 +518,7 @@ initial Release
     })
     MainTab:Divider()
 
-    -- Auto Upgrade Fire (single toggle: MoreFire, MoreOof, MoreRebirth, MoreBulk)
+    -- Auto Upgrade Fire
     local autoUpgradeFireEnabled = false
     local autoUpgradeFireThread = nil
     local fireUpgrades = {
@@ -518,7 +531,7 @@ initial Release
         while autoUpgradeFireEnabled do
             for _, upgrade in ipairs(fireUpgrades) do
                 if not autoUpgradeFireEnabled then break end
-                mainRemote:FireServer("UpgradeUpgradeMax", "Fire", upgrade)
+                mainRemote:FireServer("UpgradeUpgrade", "Fire", upgrade)
                 task.wait(0.05)
             end
             task.wait(0.5)
@@ -536,6 +549,194 @@ initial Release
             else
                 if autoUpgradeFireThread then task.cancel(autoUpgradeFireThread); autoUpgradeFireThread = nil end
                 WindUI:Notify({ Title = "Auto Upgrade Fire OFF", Duration = 2, Icon = "square" })
+            end
+        end
+    })
+    MainTab:Divider()
+
+    -- ================== AUTO CONVERT WITH CUSTOM THRESHOLD ==================
+    local convertThreshold = 150000  -- default
+    local autoConvertEnabled = false
+    local autoConvertConnection = nil
+    local autoConvertRemote = mainRemote
+    local autoConvertTextObject = nil
+    local autoConvertCanFire = true
+
+    -- Input for threshold
+    MainTab:Input({
+        Title = "Convert Blaze",
+        Placeholder = "Enter number (e.g., 500000)",
+        Numeric = true,
+        Finished = true,
+        Callback = function(value)
+            local num = tonumber(value)
+            if num and num > 0 then
+                convertThreshold = num
+                WindUI:Notify({ Title = "Threshold Set", Content = tostring(convertThreshold), Duration = 2, Icon = "check-circle" })
+            else
+                WindUI:Notify({ Title = "Invalid Number", Content = "Using previous: " .. convertThreshold, Duration = 2, Icon = "alert-triangle" })
+            end
+        end
+    })
+
+    local function parseCurrencyTextForConvert(text)
+        if type(text) ~= "string" then return 0 end
+        local cleaned = text:gsub("[%s,]", "")
+        if cleaned:upper():match("K$") then
+            local num = tonumber(cleaned:sub(1, -2))
+            return (num or 0) * 1000
+        elseif cleaned:upper():match("M$") then
+            local num = tonumber(cleaned:sub(1, -2))
+            return (num or 0) * 1000000
+        else
+            return tonumber(cleaned) or 0
+        end
+    end
+
+    local function checkAndFireConvert()
+        if not autoConvertEnabled then return end
+        if not autoConvertCanFire then return end
+        if not autoConvertTextObject then return end
+        local value = parseCurrencyTextForConvert(autoConvertTextObject.Text)
+        if value >= convertThreshold then
+            autoConvertCanFire = false
+            autoConvertRemote:FireServer("Blaze")
+            task.wait(1)
+            autoConvertCanFire = true
+        end
+    end
+
+    local function startAutoConvert()
+        pcall(function()
+            local localPlayer = Players.LocalPlayer
+            local playerGui = localPlayer:WaitForChild("PlayerGui", 5)
+            if not playerGui then return end
+            local fullScreen = playerGui:FindFirstChild("FullScreen")
+            if not fullScreen then return end
+            local currencies = fullScreen:FindFirstChild("Currencies")
+            if not currencies then return end
+            local scrollingFrame = currencies:FindFirstChild("ScrollingFrame")
+            if not scrollingFrame then return end
+            local fireElement = scrollingFrame:FindFirstChild("Fire")
+            if not fireElement then return end
+
+            local textObj = nil
+            if fireElement:IsA("TextLabel") or fireElement:IsA("TextButton") or fireElement:IsA("TextBox") then
+                textObj = fireElement
+            elseif fireElement:IsA("Frame") then
+                textObj = fireElement:FindFirstChildWhichIsA("TextLabel") or fireElement:FindFirstChildWhichIsA("TextButton")
+            end
+            if textObj then
+                autoConvertTextObject = textObj
+                autoConvertConnection = autoConvertTextObject:GetPropertyChangedSignal("Text"):Connect(checkAndFireConvert)
+                checkAndFireConvert()
+            end
+        end)
+    end
+
+    local function stopAutoConvert()
+        if autoConvertConnection then
+            autoConvertConnection:Disconnect()
+            autoConvertConnection = nil
+        end
+        autoConvertTextObject = nil
+        autoConvertCanFire = true
+    end
+
+    MainTab:Toggle({
+        Title = "Auto Convert",
+        Default = false,
+        Callback = function(state)
+            autoConvertEnabled = state
+            if state then
+                stopAutoConvert()
+                startAutoConvert()
+                WindUI:Notify({ Title = "Auto Convert ON", Content = "Will convert at " .. convertThreshold, Duration = 3, Icon = "refresh-cw" })
+            else
+                stopAutoConvert()
+                WindUI:Notify({ Title = "Auto Convert OFF", Duration = 2, Icon = "square" })
+            end
+        end
+    })
+
+    -- Toggle Blaze Upgrades
+    local toggleBlazeUpgradesEnabled = false
+    local toggleBlazeUpgradesThread = nil
+    local blazeUpgrades = {
+        "MoreBlaze",
+        "MoreFire",
+        "MoreOof"
+    }
+    local function toggleBlazeUpgradesLoop()
+        while toggleBlazeUpgradesEnabled do
+            for _, upgrade in ipairs(blazeUpgrades) do
+                if not toggleBlazeUpgradesEnabled then break end
+                mainRemote:FireServer("UpgradeUpgrade", "Blaze", upgrade)
+                task.wait(0.05)
+            end
+            task.wait(0.5)
+        end
+    end
+    MainTab:Toggle({
+        Title = "Auto Upgrade Blaze",
+        Default = false,
+        Callback = function(state)
+            toggleBlazeUpgradesEnabled = state
+            if state then
+                if toggleBlazeUpgradesThread then task.cancel(toggleBlazeUpgradesThread) end
+                toggleBlazeUpgradesThread = task.spawn(toggleBlazeUpgradesLoop)
+                WindUI:Notify({ Title = "Toggle Blaze Upgrades ON", Duration = 2, Icon = "flame" })
+            else
+                if toggleBlazeUpgradesThread then task.cancel(toggleBlazeUpgradesThread); toggleBlazeUpgradesThread = nil end
+                WindUI:Notify({ Title = "Toggle Blaze Upgrades OFF", Duration = 2, Icon = "square" })
+            end
+        end
+    })
+
+    -- ================== NEW SECTION: AUTO ROLL RUNES ==================
+    MainTab:Divider()
+    MainTab:Section({ Title = "Rune Rolling" })
+
+    local autoRollRunesEnabled = false
+    local autoRollRunesThread = nil
+    local runeZone = workspace.__GAME_CONTENT.RuneZones.Basic._Zone_Rune_Roll
+
+    local function touchRuneZone()
+        if not runeZone or not runeZone:IsA("BasePart") then
+            warn("Rune zone not found!")
+            return false
+        end
+        local char = player.Character
+        if not char then return false end
+        local rootPart = char:FindFirstChild("HumanoidRootPart")
+        if not rootPart then return false end
+        local originalCFrame = rootPart.CFrame
+        local touchPos = runeZone.CFrame + Vector3.new(0, 2, 0)
+        rootPart.CFrame = touchPos
+        task.wait(0.1)
+        rootPart.CFrame = originalCFrame
+        return true
+    end
+
+    local function autoRollRunesLoop()
+        while autoRollRunesEnabled do
+            touchRuneZone()
+            task.wait(1) -- Wait 1 second between rolls
+        end
+    end
+
+    MainTab:Toggle({
+        Title = "Auto Roll Runes",
+        Default = false,
+        Callback = function(state)
+            autoRollRunesEnabled = state
+            if state then
+                if autoRollRunesThread then task.cancel(autoRollRunesThread) end
+                autoRollRunesThread = task.spawn(autoRollRunesLoop)
+                WindUI:Notify({ Title = "Auto Roll Runes ON", Duration = 2, Icon = "dice" })
+            else
+                if autoRollRunesThread then task.cancel(autoRollRunesThread); autoRollRunesThread = nil end
+                WindUI:Notify({ Title = "Auto Roll Runes OFF", Duration = 2, Icon = "square" })
             end
         end
     })
