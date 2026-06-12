@@ -221,7 +221,7 @@ local function showGUI()
     task.spawn(function()
         while true do
             local ping = getPing()
-            if versionTag then versionTag:SetTitle("v1.0.1 | " .. ping .. "ms") end
+            if versionTag then versionTag:SetTitle("v1.0.2 | " .. ping .. "ms") end
             task.wait(1)
         end
     end)
@@ -252,6 +252,11 @@ local function showGUI()
     ChangelogTab:Paragraph({
         Title = "📋 Update Log",
         Desc = [[
+
+v1.0.2
+
+World 2 Buff Added wins
+
 v1.0.1
 - initial Release
 
