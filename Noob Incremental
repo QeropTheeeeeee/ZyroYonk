@@ -220,7 +220,7 @@ local function showGUI()
     task.spawn(function()
         while true do
             local ping = getPing()
-            if versionTag then versionTag:SetTitle("Beta v1.0.1 | " .. ping .. "ms") end
+            if versionTag then versionTag:SetTitle("v1.0.2 | " .. ping .. "ms") end
             task.wait(1)
         end
     end)
@@ -251,26 +251,34 @@ local function showGUI()
     ChangelogTab:Paragraph({
         Title = "📋 Update Log",
         Desc = [[
+v1.0.2
+- added auto upgrade fire
+- added more upgrade rebirth
+- added more upgrade Noob
+- added auto buy noob
+- smooth ui
+
 v1.0.1
-- initial Release
-- Pleas Wait About New Added i release this as early acces i am still working on it now Pleas wait
+initial Release
 
         ]],
         Color = Color3.fromHex("#222222"),
     })
     
     -- ========== MAIN FEATURES TAB CONTENT ==========
-    MainTab:Section({ Title = "Main Features" })
+    MainTab:Section({ Title = "You Understand Right" })
 
     -- Helper: get MainRemote
     local mainRemote = ReplicatedStorage:WaitForChild("__Net"):WaitForChild("MainRemote")
 
-    -- Auto Upgrade Noob
+    -- Auto Upgrade Noob (now includes both normal and max)
     local autoUpgradeNoobEnabled = false
     local autoUpgradeNoobThread = nil
     local function autoUpgradeNoobLoop()
         while autoUpgradeNoobEnabled do
             mainRemote:FireServer("UpgradeNoob", "Starter")
+            task.wait(0.05)
+            mainRemote:FireServer("UpgradeNoobMax", "Cooker")
             task.wait()
         end
     end
@@ -290,12 +298,13 @@ v1.0.1
         end
     })
 
-    -- Auto Buy Noob (touch zones)
+    -- Auto Buy Noob (Starter, Cooker, Farmer)
     local autoBuyNoobEnabled = false
     local autoBuyNoobThread = nil
     local zonePaths = {
         workspace.__GAME_CONTENT.Noobs.Starter._Zone_Buy_Noob,
-        workspace.__GAME_CONTENT.Noobs.Cooker._Zone_Buy_Noob
+        workspace.__GAME_CONTENT.Noobs.Cooker._Zone_Buy_Noob,
+        workspace.__GAME_CONTENT.Noobs.Farmer._Zone_Buy_Noob
     }
     local function touchZone(zonePart)
         if not zonePart or not zonePart:IsA("BasePart") then return false end
@@ -336,7 +345,7 @@ v1.0.1
         end
     })
 
-    -- Auto Upgrade Off (Only UpgradeUpgradeMax for Oof)
+    -- Auto Upgrade Off
     local autoUpgradeOffEnabled = false
     local autoUpgradeOffThread = nil
     local function autoUpgradeOffLoop()
@@ -389,7 +398,7 @@ v1.0.1
         end
     })
 
-    -- Auto Upgrade Rebirth (Only UpgradeUpgradeMax for Rebirth)
+    -- Auto Upgrade Rebirth (MoreRebirth, MoreOof, MoreFire)
     local autoUpgradeRebirthEnabled = false
     local autoUpgradeRebirthThread = nil
     local function autoUpgradeRebirthLoop()
@@ -397,6 +406,8 @@ v1.0.1
             mainRemote:FireServer("UpgradeUpgradeMax", "Rebirth", "MoreRebirth")
             task.wait(0.05)
             mainRemote:FireServer("UpgradeUpgradeMax", "Rebirth", "MoreOof")
+            task.wait(0.05)
+            mainRemote:FireServer("UpgradeUpgradeMax", "Rebirth", "MoreFire")
             task.wait()
         end
     end
@@ -417,7 +428,7 @@ v1.0.1
     })
     MainTab:Divider()
 
-    -- Auto Upgrade Tree (Combine all BuyUITreeNode)
+    -- Auto Upgrade Tree (expanded with new nodes)
     local autoUpgradeTreeEnabled = false
     local autoUpgradeTreeThread = nil
     local treeNodes = {
@@ -428,7 +439,18 @@ v1.0.1
         "OofMulti1",
         "RebirthMul",
         "FireMul",
-        "RuneSpeedMulRight1"
+        "RuneSpeedMulRight1",
+        "MorePrismPlus2",
+        "RuneLuckMulRight1",
+        "CashMul",
+        "BlazeMul",
+        "TierBulkMul",
+        -- new nodes
+        "MoreWalkspeed",
+        "TierBulkMul1",
+        "FasterPrismLeft",
+        "RuneBulkMulRight1",
+        "FireAndBlazeMul"
     }
     local function autoUpgradeTreeLoop()
         while autoUpgradeTreeEnabled do
@@ -478,6 +500,42 @@ v1.0.1
             else
                 if autoPrestigeThread then task.cancel(autoPrestigeThread); autoPrestigeThread = nil end
                 WindUI:Notify({ Title = "Auto Prestige OFF", Duration = 2, Icon = "square" })
+            end
+        end
+    })
+    MainTab:Divider()
+
+    -- Auto Upgrade Fire (single toggle: MoreFire, MoreOof, MoreRebirth, MoreBulk)
+    local autoUpgradeFireEnabled = false
+    local autoUpgradeFireThread = nil
+    local fireUpgrades = {
+        "MoreFire",
+        "MoreOof",
+        "MoreRebirth",
+        "MoreBulk"
+    }
+    local function autoUpgradeFireLoop()
+        while autoUpgradeFireEnabled do
+            for _, upgrade in ipairs(fireUpgrades) do
+                if not autoUpgradeFireEnabled then break end
+                mainRemote:FireServer("UpgradeUpgradeMax", "Fire", upgrade)
+                task.wait(0.05)
+            end
+            task.wait(0.5)
+        end
+    end
+    MainTab:Toggle({
+        Title = "Auto Upgrade Fire",
+        Default = false,
+        Callback = function(state)
+            autoUpgradeFireEnabled = state
+            if state then
+                if autoUpgradeFireThread then task.cancel(autoUpgradeFireThread) end
+                autoUpgradeFireThread = task.spawn(autoUpgradeFireLoop)
+                WindUI:Notify({ Title = "Auto Upgrade Fire ON", Duration = 2, Icon = "flame" })
+            else
+                if autoUpgradeFireThread then task.cancel(autoUpgradeFireThread); autoUpgradeFireThread = nil end
+                WindUI:Notify({ Title = "Auto Upgrade Fire OFF", Duration = 2, Icon = "square" })
             end
         end
     })
