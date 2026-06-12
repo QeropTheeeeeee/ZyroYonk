@@ -60,7 +60,8 @@ local gameScripts = {
     ["91695551099066"] = "https://raw.githubusercontent.com/ZyroYonk/Junkie-Key/refs/heads/main/%2B1%20Shrink%20Per%20Step",
     ["79268393072444"] = "https://raw.githubusercontent.com/ZyroYonk/Junkie-Key/refs/heads/main/Sell%20Lemons%20%F0%9F%8D%8B",
     ["107654875426558"] = "https://raw.githubusercontent.com/ZyroYonk/Junkie-Key/refs/heads/main/%2B1%20Speed%20Evovle",
-    ["83569851223739"] = "https://raw.githubusercontent.com/ZyroYonk/Junkie-Key/refs/heads/main/%2B1%20Speed%20Evovle"
+    ["83569851223739"] = "https://raw.githubusercontent.com/ZyroYonk/Junkie-Key/refs/heads/main/%2B1%20Speed%20Evovle",
+    ["76911729991355"] = "https://raw.githubusercontent.com/ZyroYonk/Junkie-Key/refs/heads/main/%5BRELEASE%F0%9F%94%A5%5D%20Noob%20Incremental"
 }
 
 -- Execute only for the current game
