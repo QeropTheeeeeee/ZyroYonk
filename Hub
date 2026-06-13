@@ -62,7 +62,10 @@ local gameScripts = {
     ["107654875426558"] = "https://raw.githubusercontent.com/ZyroYonk/Junkie-Key/refs/heads/main/%2B1%20Speed%20Evovle",
     ["83569851223739"] = "https://raw.githubusercontent.com/ZyroYonk/Junkie-Key/refs/heads/main/%2B1%20Speed%20Evovle",
     ["76911729991355"] = "https://raw.githubusercontent.com/ZyroYonk/Junkie-Key/refs/heads/main/%5BRELEASE%F0%9F%94%A5%5D%20Noob%20Incremental",
-    ["109578395590751"] = "https://raw.githubusercontent.com/ZyroYonk/Junkie-Key/refs/heads/main/%2B1%20Brick%20Speed%20Escape"
+    ["109578395590751"] = "https://raw.githubusercontent.com/ZyroYonk/Junkie-Key/refs/heads/main/%2B1%20Brick%20Speed%20Escape",
+    ["134792184564881"] = "https://raw.githubusercontent.com/ZyroYonk/Junkie-Key/refs/heads/main/%5BW3%F0%9F%8D%AD%5DGet%20Fat%20to%20Break%20Tape%20%F0%9F%8D%97",
+    ["75568173037446"] = "https://raw.githubusercontent.com/ZyroYonk/Junkie-Key/refs/heads/main/%5BW3%F0%9F%8D%AD%5DGet%20Fat%20to%20Break%20Tape%20%F0%9F%8D%97",
+    ["79162127792867"] = "https://raw.githubusercontent.com/ZyroYonk/Junkie-Key/refs/heads/main/%5BW3%F0%9F%8D%AD%5DGet%20Fat%20to%20Break%20Tape%20%F0%9F%8D%97"
 }
 
 -- Execute only for the current game
