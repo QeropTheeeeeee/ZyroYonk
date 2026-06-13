@@ -436,7 +436,8 @@ v1.0.1
     })
     MainTab:Divider()
 
-    -- Auto Upgrade Tree (expanded with new nodes)
+    -- ========== TREE UPGRADE TOGGLES ==========
+    -- 1) Original remote-based Auto Upgrade Tree
     local autoUpgradeTreeEnabled = false
     local autoUpgradeTreeThread = nil
     local treeNodes = {
@@ -458,7 +459,6 @@ v1.0.1
         "FasterPrismLeft",
         "RuneBulkMulRight1",
         "FireAndBlazeMul",
-        -- New nodes added
         "WheatConverterSpeedMul",
         "TierLuckMul1",
         "RuneCloneFor100k",
@@ -487,6 +487,41 @@ v1.0.1
             else
                 if autoUpgradeTreeThread then task.cancel(autoUpgradeTreeThread); autoUpgradeTreeThread = nil end
                 WindUI:Notify({ Title = "Auto Upgrade Tree OFF", Duration = 2, Icon = "square" })
+            end
+        end
+    })
+
+    -- 2) Click-detector based Auto Upgrade Starter Tree (your requested one)
+    local autoUpgradeStarterTreeEnabled = false
+    local autoUpgradeStarterTreeThread = nil
+    local function autoUpgradeStarterTreeLoop()
+        while autoUpgradeStarterTreeEnabled do
+            local success, folder = pcall(function()
+                return workspace.__GAME_CONTENT.UpgradeTree.StarterTree
+            end)
+            if success and folder then
+                for _, v in ipairs(folder:GetDescendants()) do
+                    if v:IsA("ClickDetector") then
+                        pcall(fireclickdetector, v)
+                        task.wait(0.05)
+                    end
+                end
+            end
+            task.wait(0.5)
+        end
+    end
+    MainTab:Toggle({
+        Title = "Auto Upgrade Starter Tree",
+        Default = false,
+        Callback = function(state)
+            autoUpgradeStarterTreeEnabled = state
+            if state then
+                if autoUpgradeStarterTreeThread then task.cancel(autoUpgradeStarterTreeThread) end
+                autoUpgradeStarterTreeThread = task.spawn(autoUpgradeStarterTreeLoop)
+                WindUI:Notify({ Title = "Auto Upgrade Starter Tree ON", Duration = 2, Icon = "git-branch" })
+            else
+                if autoUpgradeStarterTreeThread then task.cancel(autoUpgradeStarterTreeThread); autoUpgradeStarterTreeThread = nil end
+                WindUI:Notify({ Title = "Auto Upgrade Starter Tree OFF", Duration = 2, Icon = "square" })
             end
         end
     })
@@ -555,14 +590,13 @@ v1.0.1
     MainTab:Divider()
 
     -- ================== AUTO CONVERT WITH CUSTOM THRESHOLD ==================
-    local convertThreshold = 150000  -- default
+    local convertThreshold = 150000
     local autoConvertEnabled = false
     local autoConvertConnection = nil
     local autoConvertRemote = mainRemote
     local autoConvertTextObject = nil
     local autoConvertCanFire = true
 
-    -- Input for threshold
     MainTab:Input({
         Title = "Convert Blaze",
         Placeholder = "Enter number (e.g., 500000)",
@@ -659,18 +693,18 @@ v1.0.1
         end
     })
 
-    -- Toggle Blaze Upgrades
-    local toggleBlazeUpgradesEnabled = false
-    local toggleBlazeUpgradesThread = nil
+    -- Auto Upgrade Blaze
+    local autoUpgradeBlazeEnabled = false
+    local autoUpgradeBlazeThread = nil
     local blazeUpgrades = {
         "MoreBlaze",
         "MoreFire",
         "MoreOof"
     }
-    local function toggleBlazeUpgradesLoop()
-        while toggleBlazeUpgradesEnabled do
+    local function autoUpgradeBlazeLoop()
+        while autoUpgradeBlazeEnabled do
             for _, upgrade in ipairs(blazeUpgrades) do
-                if not toggleBlazeUpgradesEnabled then break end
+                if not autoUpgradeBlazeEnabled then break end
                 mainRemote:FireServer("UpgradeUpgrade", "Blaze", upgrade)
                 task.wait(0.05)
             end
@@ -681,19 +715,19 @@ v1.0.1
         Title = "Auto Upgrade Blaze",
         Default = false,
         Callback = function(state)
-            toggleBlazeUpgradesEnabled = state
+            autoUpgradeBlazeEnabled = state
             if state then
-                if toggleBlazeUpgradesThread then task.cancel(toggleBlazeUpgradesThread) end
-                toggleBlazeUpgradesThread = task.spawn(toggleBlazeUpgradesLoop)
-                WindUI:Notify({ Title = "Toggle Blaze Upgrades ON", Duration = 2, Icon = "flame" })
+                if autoUpgradeBlazeThread then task.cancel(autoUpgradeBlazeThread) end
+                autoUpgradeBlazeThread = task.spawn(autoUpgradeBlazeLoop)
+                WindUI:Notify({ Title = "Auto Upgrade Blaze ON", Duration = 2, Icon = "flame" })
             else
-                if toggleBlazeUpgradesThread then task.cancel(toggleBlazeUpgradesThread); toggleBlazeUpgradesThread = nil end
-                WindUI:Notify({ Title = "Toggle Blaze Upgrades OFF", Duration = 2, Icon = "square" })
+                if autoUpgradeBlazeThread then task.cancel(autoUpgradeBlazeThread); autoUpgradeBlazeThread = nil end
+                WindUI:Notify({ Title = "Auto Upgrade Blaze OFF", Duration = 2, Icon = "square" })
             end
         end
     })
 
-    -- ================== NEW SECTION: AUTO ROLL RUNES ==================
+    -- ================== RUNE ROLLING ==================
     MainTab:Divider()
     MainTab:Section({ Title = "Rune Rolling" })
 
@@ -721,7 +755,7 @@ v1.0.1
     local function autoRollRunesLoop()
         while autoRollRunesEnabled do
             touchRuneZone()
-            task.wait(1) -- Wait 1 second between rolls
+            task.wait(1)
         end
     end
 
