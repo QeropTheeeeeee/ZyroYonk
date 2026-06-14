@@ -220,7 +220,7 @@ local function showGUI()
     task.spawn(function()
         while true do
             local ping = getPing()
-            if versionTag then versionTag:SetTitle("v1.0.3 | " .. ping .. "ms") end
+            if versionTag then versionTag:SetTitle("v1.0.4 | " .. ping .. "ms") end
             task.wait(1)
         end
     end)
@@ -251,6 +251,15 @@ local function showGUI()
     ChangelogTab:Paragraph({
         Title = "📋 Update Log",
         Desc = [[
+
+v1.0.4 
+ - added Auto Upgrade Cash 
+ - added Auto reset tycoon
+ - added Auto super rune 
+ - added Auto Buy Starter Tree 
+ - added x3 Auto Upgrade Tree
+ - Improvement Anti 
+
 v1.0.3
 - added Text Box Convert
 - added 6x Tree Upgrade
@@ -491,7 +500,7 @@ v1.0.1
         end
     })
 
-    -- 2) Click-detector based Auto Upgrade Starter Tree (your requested one)
+    -- 2) Click-detector based Auto Upgrade Starter Tree
     local autoUpgradeStarterTreeEnabled = false
     local autoUpgradeStarterTreeThread = nil
     local function autoUpgradeStarterTreeLoop()
@@ -525,6 +534,41 @@ v1.0.1
             end
         end
     })
+
+    -- 3) NEW: Auto Upgrade Extra Tree (specific nodes)
+    local autoUpgradeExtraTreeEnabled = false
+    local autoUpgradeExtraTreeThread = nil
+    local extraTreeNodes = {
+        "WheatGenerationSpeedMul",
+        "NewFireUpgradeForTiers",
+        "RuneSpeedMulRight2"
+    }
+    local function autoUpgradeExtraTreeLoop()
+        while autoUpgradeExtraTreeEnabled do
+            for _, node in ipairs(extraTreeNodes) do
+                if not autoUpgradeExtraTreeEnabled then break end
+                mainRemote:FireServer("BuyUITreeNode", node)
+                task.wait(0.05)
+            end
+            task.wait(0.5)
+        end
+    end
+    MainTab:Toggle({
+        Title = "Auto Upgrade Extra Tree",
+        Default = false,
+        Callback = function(state)
+            autoUpgradeExtraTreeEnabled = state
+            if state then
+                if autoUpgradeExtraTreeThread then task.cancel(autoUpgradeExtraTreeThread) end
+                autoUpgradeExtraTreeThread = task.spawn(autoUpgradeExtraTreeLoop)
+                WindUI:Notify({ Title = "Auto Upgrade Extra Tree ON", Duration = 2, Icon = "git-branch" })
+            else
+                if autoUpgradeExtraTreeThread then task.cancel(autoUpgradeExtraTreeThread); autoUpgradeExtraTreeThread = nil end
+                WindUI:Notify({ Title = "Auto Upgrade Extra Tree OFF", Duration = 2, Icon = "square" })
+            end
+        end
+    })
+
     MainTab:Divider()
 
     -- Auto Prestige
@@ -727,25 +771,85 @@ v1.0.1
         end
     })
 
+    -- ================== NEW TOGGLES (Cash & Tycoon) ==================
+    MainTab:Divider()  -- Divider before Auto Upgrade Cash
+
+    -- Auto Upgrade Cash
+    local autoUpgradeCashEnabled = false
+    local autoUpgradeCashThread = nil
+    local cashUpgrades = {
+        "MoreCash",
+        "FasterDropper",
+        "MoreRuneLuck"
+    }
+    local function autoUpgradeCashLoop()
+        while autoUpgradeCashEnabled do
+            for _, upgrade in ipairs(cashUpgrades) do
+                if not autoUpgradeCashEnabled then break end
+                mainRemote:FireServer("UpgradeUpgrade", "Cash", upgrade)
+                task.wait(0.05)
+            end
+            task.wait(0.5)
+        end
+    end
+    MainTab:Toggle({
+        Title = "Auto Upgrade Cash",
+        Default = false,
+        Callback = function(state)
+            autoUpgradeCashEnabled = state
+            if state then
+                if autoUpgradeCashThread then task.cancel(autoUpgradeCashThread) end
+                autoUpgradeCashThread = task.spawn(autoUpgradeCashLoop)
+                WindUI:Notify({ Title = "Auto Upgrade Cash ON", Duration = 2, Icon = "dollar-sign" })
+            else
+                if autoUpgradeCashThread then task.cancel(autoUpgradeCashThread); autoUpgradeCashThread = nil end
+                WindUI:Notify({ Title = "Auto Upgrade Cash OFF", Duration = 2, Icon = "square" })
+            end
+        end
+    })
+
+    -- Auto Reset Tycoon
+    local autoResetTycoonEnabled = false
+    local autoResetTycoonThread = nil
+    local function autoResetTycoonLoop()
+        while autoResetTycoonEnabled do
+            mainRemote:FireServer("Tycoon")
+            task.wait(1)  -- Add delay to prevent spam
+        end
+    end
+    MainTab:Toggle({
+        Title = "Auto Reset Tycoon",
+        Default = false,
+        Callback = function(state)
+            autoResetTycoonEnabled = state
+            if state then
+                if autoResetTycoonThread then task.cancel(autoResetTycoonThread) end
+                autoResetTycoonThread = task.spawn(autoResetTycoonLoop)
+                WindUI:Notify({ Title = "Auto Reset Tycoon ON", Duration = 2, Icon = "refresh-cw" })
+            else
+                if autoResetTycoonThread then task.cancel(autoResetTycoonThread); autoResetTycoonThread = nil end
+                WindUI:Notify({ Title = "Auto Reset Tycoon OFF", Duration = 2, Icon = "square" })
+            end
+        end
+    })
+
     -- ================== RUNE ROLLING ==================
     MainTab:Divider()
     MainTab:Section({ Title = "Rune Rolling" })
 
+    -- Auto Roll Runes (Basic)
     local autoRollRunesEnabled = false
     local autoRollRunesThread = nil
     local runeZone = workspace.__GAME_CONTENT.RuneZones.Basic._Zone_Rune_Roll
 
-    local function touchRuneZone()
-        if not runeZone or not runeZone:IsA("BasePart") then
-            warn("Rune zone not found!")
-            return false
-        end
+    local function touchRuneZone(zone)
+        if not zone or not zone:IsA("BasePart") then return false end
         local char = player.Character
         if not char then return false end
         local rootPart = char:FindFirstChild("HumanoidRootPart")
         if not rootPart then return false end
         local originalCFrame = rootPart.CFrame
-        local touchPos = runeZone.CFrame + Vector3.new(0, 2, 0)
+        local touchPos = zone.CFrame + Vector3.new(0, 2, 0)
         rootPart.CFrame = touchPos
         task.wait(0.1)
         rootPart.CFrame = originalCFrame
@@ -754,7 +858,7 @@ v1.0.1
 
     local function autoRollRunesLoop()
         while autoRollRunesEnabled do
-            touchRuneZone()
+            touchRuneZone(runeZone)
             task.wait(1)
         end
     end
@@ -771,6 +875,34 @@ v1.0.1
             else
                 if autoRollRunesThread then task.cancel(autoRollRunesThread); autoRollRunesThread = nil end
                 WindUI:Notify({ Title = "Auto Roll Runes OFF", Duration = 2, Icon = "square" })
+            end
+        end
+    })
+
+    -- Auto Super Rune
+    local autoSuperRuneEnabled = false
+    local autoSuperRuneThread = nil
+    local superRuneZone = workspace.__GAME_CONTENT.RuneZones.Super._Zone_Rune_Roll
+
+    local function autoSuperRuneLoop()
+        while autoSuperRuneEnabled do
+            touchRuneZone(superRuneZone)
+            task.wait(1)
+        end
+    end
+
+    MainTab:Toggle({
+        Title = "Auto Super Rune",
+        Default = false,
+        Callback = function(state)
+            autoSuperRuneEnabled = state
+            if state then
+                if autoSuperRuneThread then task.cancel(autoSuperRuneThread) end
+                autoSuperRuneThread = task.spawn(autoSuperRuneLoop)
+                WindUI:Notify({ Title = "Auto Super Rune ON", Duration = 2, Icon = "star" })
+            else
+                if autoSuperRuneThread then task.cancel(autoSuperRuneThread); autoSuperRuneThread = nil end
+                WindUI:Notify({ Title = "Auto Super Rune OFF", Duration = 2, Icon = "square" })
             end
         end
     })
