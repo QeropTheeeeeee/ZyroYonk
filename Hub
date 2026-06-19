@@ -68,7 +68,10 @@ local gameScripts = {
     ["79162127792867"] = "https://raw.githubusercontent.com/ZyroYonk/Junkie-Key/refs/heads/main/%5BW3%F0%9F%8D%AD%5DGet%20Fat%20to%20Break%20Tape%20%F0%9F%8D%97",
     ["91993686765070"] = "https://raw.githubusercontent.com/ZyroYonk/Junkie-Key/refs/heads/main/Bike%20Downhill",
     ["108389155265141"] = "https://raw.githubusercontent.com/ZyroYonk/Junkie-Key/refs/heads/main/Bike%20Downhill",
-    ["86378115369061"] = "https://raw.githubusercontent.com/ZyroYonk/Junkie-Key/refs/heads/main/%2B1%20Backflip%20Obby%20Escape"
+    ["86378115369061"] = "https://raw.githubusercontent.com/ZyroYonk/Junkie-Key/refs/heads/main/%2B1%20Backflip%20Obby%20Escape",
+    ["120766636586332"] = "https://raw.githubusercontent.com/ZyroYonk/Junkie-Key/refs/heads/main/%5BW3%5D%20%2B1%20Strength%20Per%20Click",
+    ["92962161611839"] = "https://raw.githubusercontent.com/ZyroYonk/Junkie-Key/refs/heads/main/%5BW3%5D%20%2B1%20Strength%20Per%20Click",
+    ["123357266221249"] = "https://raw.githubusercontent.com/ZyroYonk/Junkie-Key/refs/heads/main/%5BW3%5D%20%2B1%20Strength%20Per%20Click"
 }
 
 -- Execute only for the current game
