@@ -9,8 +9,8 @@ local Workspace = game:GetService("Workspace")
 local TeleportService = game:GetService("TeleportService")
 local player = Players.LocalPlayer
 
--- Remote for dungeon damage
-local remote = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("DealMobDamage")
+-- ===== REMOTE WILL BE FETCHED LATER =====
+local remote = nil  -- will be set when Fast Kill is enabled
 
 -- ===== Executor Detection =====
 local function getExecutorName()
@@ -192,7 +192,7 @@ end
 -- ===== Main GUI =====
 local function showGUI()
     local Window = WindUI:CreateWindow({
-        Title = "💪 StarForge Hub",
+        Title = "+1 Magic Evolution",
         Icon = "hammer",
         Author = "Vloods",
         Folder = "ZyroYonk Hub",
@@ -216,7 +216,7 @@ local function showGUI()
     task.spawn(function()
         while true do
             local ping = getPing()
-            if versionTag then versionTag:SetTitle("v1.0.0 | " .. ping .. "ms") end
+            if versionTag then versionTag:SetTitle("v1.0.1 | " .. ping .. "ms") end
             task.wait(1)
         end
     end)
@@ -235,7 +235,9 @@ local function showGUI()
     -- Tabs
     local ChangelogTab = Window:Tab({ Title = "Changelog", Icon = "scroll" })
     ChangelogTab:Paragraph({ Title = "Initial Release", Desc = "StarForge Hub v1.0.0", Color = Color3.fromHex("#2563eb") })
-
+        -- Only ONE divider
+    Window:Divider()
+	
     local MainTab = Window:Tab({ Title = "Main Features", Icon = "house" })
 
     -- Auto Win
@@ -321,7 +323,69 @@ local function showGUI()
         end
     })
 
-    -- Auto Collect (all items including Lunar)
+    -- Auto Rebirth
+    MainTab:Section({ Title = "Auto Rebirth" })
+    local autoRebirthRunning = false
+    local autoRebirthThread = nil
+    local function autoRebirthLoop()
+        while autoRebirthRunning do
+            pcall(function()
+                ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("Rebirth"):FireServer()
+            end)
+            task.wait(0.5)
+        end
+    end
+    MainTab:Toggle({
+        Title = "Auto Rebirth",
+        Default = false,
+        Callback = function(state)
+            autoRebirthRunning = state
+            if state then
+                if autoRebirthThread then task.cancel(autoRebirthThread) end
+                autoRebirthThread = task.spawn(autoRebirthLoop)
+                WindUI:Notify({ Title = "Auto Rebirth", Content = "Started", Duration = 2, Icon = "play" })
+            else
+                if autoRebirthThread then task.cancel(autoRebirthThread); autoRebirthThread = nil end
+                WindUI:Notify({ Title = "Auto Rebirth", Content = "Stopped", Duration = 2, Icon = "stop" })
+            end
+        end
+    })
+
+    -- ===== AUTO UPGRADE DUNGEON SHOP (NEW) =====
+    MainTab:Section({ Title = "Auto Upgrade Dungeon Shop" })
+    local autoShopRunning = false
+    local autoShopThread = nil
+    local function autoShopLoop()
+        local upgrades = {"Defense", "Health", "Speed", "Power"}
+        while autoShopRunning do
+            for _, upgrade in ipairs(upgrades) do
+                if not autoShopRunning then break end
+                pcall(function()
+                    local remote = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("DungeonShop")
+                    remote:FireServer("buyUpgrade", upgrade)
+                end)
+                task.wait(0.5)
+            end
+            task.wait(0.5)
+        end
+    end
+    MainTab:Toggle({
+        Title = "Auto Upgrade",
+        Default = false,
+        Callback = function(state)
+            autoShopRunning = state
+            if state then
+                if autoShopThread then task.cancel(autoShopThread) end
+                autoShopThread = task.spawn(autoShopLoop)
+                WindUI:Notify({ Title = "Auto Shop Upgrade", Content = "Started", Duration = 2, Icon = "play" })
+            else
+                if autoShopThread then task.cancel(autoShopThread); autoShopThread = nil end
+                WindUI:Notify({ Title = "Auto Shop Upgrade", Content = "Stopped", Duration = 2, Icon = "stop" })
+            end
+        end
+    })
+
+    -- Auto Collect
     MainTab:Section({ Title = "Auto Collect Item" })
     local autoCollectItems = {}
     local autoCollectRunning = false
@@ -362,9 +426,9 @@ local function showGUI()
                                     remote:FireServer(item)
                                 end
                             end)
-                            task.wait(1)
+                            task.wait(2)
                         end
-                        task.wait(0.5)
+                        task.wait(2)
                     end
                 end)
                 WindUI:Notify({ Title = "Auto Collect", Content = "Started", Duration = 2, Icon = "play" })
@@ -375,7 +439,7 @@ local function showGUI()
         end
     })
 
-    -- Auto Dungeon Safe (fixed offset 25)
+    -- Auto Dungeon Safe
     MainTab:Section({ Title = "Auto Dungeon Safe" })
     local dungeonSafeRunning = false
     local dungeonSafeOriginalHipHeight = nil
@@ -436,24 +500,68 @@ local function showGUI()
         end
     })
 
-    -- ===== Fast Kill Dungeon (constant 0.1s) =====
+    -- ===== Fast Kill Dungeon =====
     MainTab:Section({ Title = "Fast Kill Dungeon" })
     local fastKillRunning = false
     local fastKillThread = nil
+
+    local function getDealMobRemote()
+        local success, rem = pcall(function()
+            return ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("DealMobDamage")
+        end)
+        if success and rem then
+            return rem
+        else
+            return nil
+        end
+    end
+
+    local function getMobs()
+        local mobs = {}
+        local dungeonFolder = workspace:FindFirstChild("DungeonMobs")
+        if not dungeonFolder then return mobs end
+
+        local function collect(instance)
+            if instance:IsA("Model") or instance:IsA("Folder") then
+                for _, child in ipairs(instance:GetChildren()) do
+                    if child:FindFirstChildWhichIsA("Humanoid") then
+                        table.insert(mobs, child)
+                    else
+                        collect(child)
+                    end
+                end
+            end
+        end
+        collect(dungeonFolder)
+        return mobs
+    end
+
     local function fastKillLoop()
-        local DAMAGE_AMOUNT = 1000000000
-        local MIN_INTERVAL = 0.1
-        local MAX_INTERVAL = 0.3
+        local DAMAGE = 999999
+        local MIN_INTERVAL = 0.15
+        local MAX_INTERVAL = 0.35
+
+        remote = getDealMobRemote()
+        if not remote then
+            WindUI:Notify({
+                Title = "Fast Kill",
+                Content = "Remote 'DealMobDamage' not found! Enter a dungeon first.",
+                Duration = 4,
+                Icon = "alert-triangle"
+            })
+            fastKillRunning = false
+            return
+        end
+
         while fastKillRunning do
-            local dungeonFolder = workspace:FindFirstChild("DungeonMobs")
-            if dungeonFolder then
-                local mobs = dungeonFolder:GetChildren()
+            local success, mobs = pcall(getMobs)
+            if success and mobs then
                 for _, mob in ipairs(mobs) do
                     if not fastKillRunning then break end
-                    local humanoid = mob:FindFirstChild("Humanoid")
-                    if humanoid and humanoid.Health > 0 then
+                    local hum = mob:FindFirstChildWhichIsA("Humanoid")
+                    if hum and hum.Health > 0 then
                         pcall(function()
-                            remote:FireServer(mob, DAMAGE_AMOUNT)
+                            remote:FireServer(mob, DAMAGE)
                         end)
                     end
                 end
@@ -462,18 +570,18 @@ local function showGUI()
             task.wait(waitTime)
         end
     end
+
     MainTab:Toggle({
         Title = "Fast Kill Dungeon",
         Default = false,
         Callback = function(state)
             fastKillRunning = state
             if state then
-                if fastKillThread then task.cancel(fastKillThread) end
+                if fastKillThread then task.cancel(fastKillThread); fastKillThread = nil end
                 fastKillThread = task.spawn(fastKillLoop)
-                WindUI:Notify({ Title = "Fast Kill Dungeon", Content = "Started", Duration = 2, Icon = "sword" })
             else
                 if fastKillThread then task.cancel(fastKillThread); fastKillThread = nil end
-                WindUI:Notify({ Title = "Fast Kill Dungeon", Content = "Stopped", Duration = 2, Icon = "stop" })
+                WindUI:Notify({ Title = "Fast Kill", Content = "Stopped", Duration = 2, Icon = "stop" })
             end
         end
     })
@@ -484,7 +592,7 @@ local function showGUI()
     -- Misc Tab
     local MiscTab = Window:Tab({ Title = "Misc", Icon = "wrench" })
 
-    -- Fly (fixed speed 50)
+    -- Fly
     MiscTab:Section({ Title = "Fly" })
     local flyEnabled = false
     local flyBodyVelocity, flyBodyGyro, flyLoopThread = nil, nil, nil
@@ -547,7 +655,7 @@ local function showGUI()
         if flyEnabled then task.wait(1); startFly() end
     end)
 
-    -- Movement Speed (fixed 16)
+    -- Movement Speed
     MiscTab:Section({ Title = "Movement Speed" })
     local moveSpeedEnabled = false
     local moveSpeedConn = nil
