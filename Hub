@@ -83,4 +83,4 @@ local gameScripts = {
 }
 
 -- Execute only for the current game
-executeForCorrectGame(gameScripts)
+executeForCorrectGame(gameScripts) 
