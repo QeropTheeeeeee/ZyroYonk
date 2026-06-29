@@ -261,13 +261,13 @@ local function showGUI()
             end
             local rootPart = char and char:FindFirstChild("HumanoidRootPart")
             if not rootPart then
-                task.wait(1)
+                task.wait(0)
                 continue
             end
 
             local crystals = workspace:FindFirstChild("DroppedCrystals")
             if not crystals then
-                task.wait(1)
+                task.wait(0)
                 continue
             end
 
@@ -279,7 +279,7 @@ local function showGUI()
             end
 
             if #prompts == 0 then
-                task.wait(1)
+                task.wait(0)
                 continue
             end
 
@@ -293,11 +293,11 @@ local function showGUI()
                     pcall(function()
                         firePrompt(prompt)
                     end)
-                    task.wait(0.2)
+                    task.wait(0)
                 end
             end
 
-            task.wait(1)
+            task.wait(0)
         end
     end
 
@@ -342,7 +342,7 @@ local function showGUI()
                 crystals = crystals:FindFirstChild("Crystals")
             end
             if not crystals then
-                task.wait(1)
+                task.wait(0)
                 continue
             end
 
@@ -354,7 +354,7 @@ local function showGUI()
             end
 
             if #prompts == 0 then
-                task.wait(1)
+                task.wait(0)
                 continue
             end
 
@@ -366,7 +366,7 @@ local function showGUI()
                 task.wait(0)
             end
 
-            task.wait(0.5)
+            task.wait(0)
         end
     end
 
