@@ -417,7 +417,7 @@ local function showGUI()
             pcall(function()
                 requestRNGRoll:FireServer(17)
             end)
-            task.wait(0.1)
+            task.wait(0)
         end
     end
 
