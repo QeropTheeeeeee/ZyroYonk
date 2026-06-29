@@ -410,6 +410,21 @@ local function showGUI()
     })
     autoPlaceToggle:Lock()  -- Locks the toggle, making it non-interactive
 
+    ---- Auto Attack Aura (Locked / In Development) ----
+    MainTab:Section({ Title = "Auto Attack Aura" })
+
+    local autoAttackToggle = MainTab:Toggle({
+        Title = "Auto Attack Aura",
+        Desc = "In Development – Coming soon!",
+        Icon = "sword",
+        Type = "Checkbox",
+        Value = false,
+        Callback = function(state)
+            print("Auto Attack Aura toggled: " .. tostring(state))
+        end
+    })
+    autoAttackToggle:Lock()
+
     Window:Divider()
 
     -- ===== MISC TAB =====
