@@ -166,7 +166,7 @@ local function showGUI()
         BackgroundImageTransparency = 0.12,
         HideSearchBar = false,
         ScrollBarEnabled = false,
-        User = { Enabled = true, Anonymous = false, Callback = function() print("User button clicked") end } 
+        User = { Enabled = true, Anonymous = false, Callback = function() print("User button clicked") end },
                    KeySystem = {
     API = {
         {
