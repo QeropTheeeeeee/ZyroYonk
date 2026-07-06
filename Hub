@@ -1,29 +1,58 @@
 local function executeForCorrectGame(scripts)
-    local currentGameId = tostring(game.PlaceId)
-    
-    if scripts[currentGameId] then
-        -- Execute the script for this game ID
-        loadstring(game:HttpGet(scripts[currentGameId]))()
-        print("Script executed for game ID: " .. currentGameId)
-    else
-        print("No script found for game ID: " .. currentGameId)
+    local placeId = tostring(game.PlaceId)
+    local scriptUrl = scripts[placeId]
+
+    if not scriptUrl then
+        warn("[Loader] No script found for PlaceId:", placeId)
+        return
     end
+
+    if not loadstring then
+        warn("[Loader] Your executor does not support loadstring.")
+        return
+    end
+
+    local success, result = pcall(function()
+        return game:HttpGet(scriptUrl)
+    end)
+
+    if not success then
+        warn("[Loader] Failed to download script.")
+        warn(result)
+        return
+    end
+
+    local scriptFunction, compileError = loadstring(result)
+
+    if not scriptFunction then
+        warn("[Loader] Failed to compile script.")
+        warn(compileError)
+        return
+    end
+
+    local executed, runtimeError = pcall(scriptFunction)
+
+    if not executed then
+        warn("[Loader] Script runtime error.")
+        warn(runtimeError)
+        return
+    end
+
+    print("[Loader] Successfully loaded script for PlaceId:", placeId)
 end
 
--- Define all your game IDs and their corresponding scripts
 local gameScripts = {
-
-["134792184564881"] = "https://raw.githubusercontent.com/ZyroYonk/ZyroYonk/refs/heads/main/%5BW3%F0%9F%8D%AD%5DGet%20Fat%20to%20Break%20Tape%20%F0%9F%8D%97",
-["75568173037446"] = "https://raw.githubusercontent.com/ZyroYonk/ZyroYonk/refs/heads/main/%5BW3%F0%9F%8D%AD%5DGet%20Fat%20to%20Break%20Tape%20%F0%9F%8D%97",
-["79162127792867"] = "https://github.com/ZyroYonk/ZyroYonk/raw/refs/heads/main/%5BW3%F0%9F%8D%AD%5DGet%20Fat%20to%20Break%20Tape%20%F0%9F%8D%97",
-["91993686765070"] = "https://raw.githubusercontent.com/ZyroYonk/ZyroYonk/refs/heads/main/Bike%20Downhill",
-["108389155265141"] = "https://raw.githubusercontent.com/ZyroYonk/ZyroYonk/refs/heads/main/Bike%20Downhill",
-["86378115369061"] = "https://raw.githubusercontent.com/ZyroYonk/ZyroYonk/refs/heads/main/%2B1%20Backflip%20Obby%20Escape",
-["120766636586332"] = "https://raw.githubusercontent.com/ZyroYonk/ZyroYonk/refs/heads/main/%5BW3%5D%20%2B1%20Strength%20Per%20Click",
-["92962161611839"] = "https://raw.githubusercontent.com/ZyroYonk/ZyroYonk/refs/heads/main/%5BW3%5D%20%2B1%20Strength%20Per%20Click",
-["123357266221249"] = "https://raw.githubusercontent.com/ZyroYonk/ZyroYonk/refs/heads/main/%5BW3%5D%20%2B1%20Strength%20Per%20Click",
-["116223724643557"] = "https://raw.githubusercontent.com/ZyroYonk/ZyroYonk/refs/heads/main/%2B1%20Magic%20Evolution",
-["140070560575882"] = "https://raw.githubusercontent.com/ZyroYonk/ZyroYonk/refs/heads/main/%2B1%20Magic%20Evolution",
+    ["134792184564881"] = "https://raw.githubusercontent.com/ZyroYonk/ZyroYonk/refs/heads/main/%5BW3%F0%9F%8D%AD%5DGet%20Fat%20to%20Break%20Tape%20%F0%9F%8D%97",
+    ["75568173037446"] = "https://raw.githubusercontent.com/ZyroYonk/ZyroYonk/refs/heads/main/%5BW3%F0%9F%8D%AD%5DGet%20Fat%20to%20Break%20Tape%20%F0%9F%8D%97",
+    ["79162127792867"] = "https://raw.githubusercontent.com/ZyroYonk/ZyroYonk/refs/heads/main/%5BW3%F0%9F%8D%AD%5DGet%20Fat%20to%20Break%20Tape%20%F0%9F%8D%97",
+    ["91993686765070"] = "https://raw.githubusercontent.com/ZyroYonk/ZyroYonk/refs/heads/main/Bike%20Downhill",
+    ["108389155265141"] = "https://raw.githubusercontent.com/ZyroYonk/ZyroYonk/refs/heads/main/Bike%20Downhill",
+    ["86378115369061"] = "https://raw.githubusercontent.com/ZyroYonk/ZyroYonk/refs/heads/main/%2B1%20Backflip%20Obby%20Escape",
+    ["120766636586332"] = "https://raw.githubusercontent.com/ZyroYonk/ZyroYonk/refs/heads/main/%5BW3%5D%20%2B1%20Strength%20Per%20Click",
+    ["92962161611839"] = "https://raw.githubusercontent.com/ZyroYonk/ZyroYonk/refs/heads/main/%5BW3%5D%20%2B1%20Strength%20Per%20Click",
+    ["123357266221249"] = "https://raw.githubusercontent.com/ZyroYonk/ZyroYonk/refs/heads/main/%5BW3%5D%20%2B1%20Strength%20Per%20Click",
+    ["116223724643557"] = "https://raw.githubusercontent.com/ZyroYonk/ZyroYonk/refs/heads/main/%2B1%20Magic%20Evolution",
+    ["140070560575882"] = "https://raw.githubusercontent.com/ZyroYonk/ZyroYonk/refs/heads/main/%2B1%20Magic%20Evolution",
     ["131346454575416"] = "https://raw.githubusercontent.com/ZyroYonk/ZyroYonk/refs/heads/main/Mini%20war",
     ["92605157087535"] = "https://raw.githubusercontent.com/ZyroYonk/ZyroYonk/refs/heads/main/Crab%20Tycoon",
     ["137233438285284"] = "https://raw.githubusercontent.com/ZyroYonk/ZyroYonk/refs/heads/main/Chicken%20Farm",
@@ -33,5 +62,4 @@ local gameScripts = {
     ["18916922845"] = "https://raw.githubusercontent.com/ZyroYonk/ZyroYonk/refs/heads/main/Launch%20A%20Wheel"
 }
 
--- Execute only for the current game
-executeForCorrectGame(gameScripts) 
+executeForCorrectGame(gameScripts)
