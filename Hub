@@ -79,8 +79,8 @@ local gameScripts = {
     ["137233438285284"] = "https://raw.githubusercontent.com/ZyroYonk/Junkie-Key/refs/heads/main/Chicken%20Farm",
     ["125927821145949"] = "https://raw.githubusercontent.com/ZyroYonk/Junkie-Key/refs/heads/main/Mine%20A%20Mountain",
     ["78417665924734"] = "https://raw.githubusercontent.com/ZyroYonk/Junkie-Key/refs/heads/main/Build%20a%20Slime%20Defense%20%E2%9A%94%EF%B8%8F",
-    ["75738770295234"] = "https://raw.githubusercontent.com/ZyroYonk/Junkie-Key/refs/heads/main/Paint%20My%20keyboard",
-    ["18916922845"] = "https://raw.githubusercontent.com/ZyroYonk/Junkie-Key/refs/heads/main/%5B%F0%9F%8E%8910M!%5D%20Launch%20a%20Wheel!%20%F0%9F%9B%9E%F0%9F%92%A5"
+    ["75738770295234"] = "https://raw.githubusercontent.com/ZyroYonk/ZyroYonk/refs/heads/main/Paint%20My%20Keyboard",
+    ["18916922845"] = "https://raw.githubusercontent.com/ZyroYonk/ZyroYonk/refs/heads/main/Launch%20A%20Wheel"
 }
 
 -- Execute only for the current game
