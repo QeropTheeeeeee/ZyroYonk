@@ -220,16 +220,15 @@ local function showGUI()
         HideSearchBar = false,
         ScrollBarEnabled = false,
         User = { Enabled = true, Anonymous = false, Callback = function() end },
-                KeySystem = {                                                   
-            Note = "Enter your PlatoBoost key to access StarForge Hub.",              
-            API = {                                                     
-                { -- PlatoBoost
-                    Type = "platoboost",                                
-                    ServiceId = 22001, -- Your PlatoBoost service ID
-                    Secret = "945af45d-5779-4a05-a31c-432930563763", 
-                },                                                      
-            },                                                          
-        }
+                     KeySystem = {
+    API = {
+        {
+            Type = "luarmor",
+            ScriptId = "f655e944c9edb33149a2452215a9a950",  -- your Luarmor script ID
+            Discord = "https://discord.gg/ee6azTNsm6",     -- your Discord invite
+        },
+    },
+},   
     })
 
     -- Tags: version + live ping
