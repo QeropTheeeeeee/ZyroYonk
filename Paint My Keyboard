@@ -202,6 +202,17 @@ local function showGUI()
         HideSearchBar = false,
         ScrollBarEnabled = false,
         User = { Enabled = true, Anonymous = false, Callback = function() end },
+               -- ===== KEY SYSTEM ADDED =====
+        KeySystem = {
+            Note = "Get Key To Acces This", 
+            API = {
+                {
+                    Type = "luarmor",
+                    ScriptId = "a46a131b396bd4b558c1284d7f08fda4",  -- your Luarmor script ID
+                    Discord = "https://discord.gg/ee6azTNsm6",     -- your Discord invite
+                },
+            },
+        },
     })
 
     local versionTag = Window:Tag({
