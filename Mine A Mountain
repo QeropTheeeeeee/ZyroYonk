@@ -1,3 +1,4 @@
+-- Full StarForge Hub script with improved Auto Sell (teleport -> sell -> return)
 local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -7,6 +8,7 @@ local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 local TeleportService = game:GetService("TeleportService")
+local RunService = game:GetService("RunService") -- added for speed loop
 local player = Players.LocalPlayer
 
 -- ===== Executor Detection =====
@@ -242,7 +244,7 @@ local function showGUI()
 
     -- VERSION & PING TAGS
     local versionTag = Window:Tag({
-        Title = "v1.0.3",
+        Title = "v1.0.4",
         Icon = "tag",
         Color = Color3.fromHex("#2563eb"),
         Radius = 100
@@ -266,7 +268,7 @@ local function showGUI()
     end)
 
     Window:EditOpenButton({
-        Title = "StarForge Hub",
+        Title = "StarForge Hub Open",
         Icon = "hammer",
         CornerRadius = UDim.new(0, 8),
         StrokeThickness = 1,
@@ -413,62 +415,62 @@ local function showGUI()
     })
 
     -- ===== MAIN FEATURES TAB =====
-local MainTab = Window:Tab({ Title = "Main Features", Icon = "house" })
+    local MainTab = Window:Tab({ Title = "Main Features", Icon = "house" })
 
--- 🔵 Premium Maintenance Notice
-MainTab:Paragraph({
-    Title = "🔵 Feature Maintenance",
-    Desc = "Some features are currently undergoing maintenance.\n\n• Auto Mine\n• Auto Collect\n\nOur developer, **Vlood**, is working to improve their performance and reliability. These features will be available again in **v1.0.?**\n\nThank you for your patience and for supporting the project!",
-    Color = Color3.fromRGB(0, 120, 255), -- Blue
-})
+    -- 🔵 Premium Maintenance Notice
+    MainTab:Paragraph({
+        Title = "🔵 Feature Maintenance",
+        Desc = "Some features are currently undergoing maintenance.\n\n• Auto Mine\n• Auto Collect\n\nOur developer, **Vlood**, is working to improve their performance and reliability. These features will be available again in **v1.0.?**\n\nThank you for your patience and for supporting the project!",
+        Color = Color3.fromRGB(0, 120, 255), -- Blue
+    })
 
--- -------------------- Auto Collect Dropped Crystals --------------------
-MainTab:Section({ Title = "Auto Collect Dropped Crystals" })
-local collectCrystalsRunning = false
-local collectCrystalsThread = nil
+    -- -------------------- Auto Collect Dropped Crystals --------------------
+    MainTab:Section({ Title = "Auto Collect Dropped Crystals" })
+    local collectCrystalsRunning = false
+    local collectCrystalsThread = nil
 
-local function firePrompt(prompt)
-    if fireproximityprompt then
-        fireproximityprompt(prompt)
-    elseif fire_proximity_prompt then
-        fire_proximity_prompt(prompt)
-    else
-        warn("No fireproximityprompt function available")
-    end
-end
-
-local function collectCrystalsLoop()
-    -- ... existing loop code ...
-end
-
-local collectToggle = MainTab:Toggle({
-    Title = "Enable Auto Collect",
-    Default = false,
-    Callback = function(state)
-        collectCrystalsRunning = state
-        if state then
-            if collectCrystalsThread then task.cancel(collectCrystalsThread) end
-            collectCrystalsThread = task.spawn(collectCrystalsLoop)
-            WindUI:Notify({ Title = "Auto Collect", Content = "Started", Duration = 2, Icon = "play" })
+    local function firePrompt(prompt)
+        if fireproximityprompt then
+            fireproximityprompt(prompt)
+        elseif fire_proximity_prompt then
+            fire_proximity_prompt(prompt)
         else
-            if collectCrystalsThread then task.cancel(collectCrystalsThread); collectCrystalsThread = nil end
-            local spawn = workspace:FindFirstChild("SpawnLocation")
-            if spawn and spawn:IsA("SpawnLocation") then
-                local char = player.Character
-                if char then
-                    local root = char:FindFirstChild("HumanoidRootPart")
-                    if root then
-                        pcall(function()
-                            root.CFrame = spawn.CFrame * CFrame.new(0, 3, 0)
-                        end)
-                    end
-                end
-            end
-            WindUI:Notify({ Title = "Auto Collect", Content = "Stopped", Duration = 2, Icon = "stop" })
+            warn("No fireproximityprompt function available")
         end
     end
-})
-collectToggle:Lock()   -- 🔒 lock it
+
+    local function collectCrystalsLoop()
+        -- ... existing loop code ...
+    end
+
+    local collectToggle = MainTab:Toggle({
+        Title = "Enable Auto Collect",
+        Default = false,
+        Callback = function(state)
+            collectCrystalsRunning = state
+            if state then
+                if collectCrystalsThread then task.cancel(collectCrystalsThread) end
+                collectCrystalsThread = task.spawn(collectCrystalsLoop)
+                WindUI:Notify({ Title = "Auto Collect", Content = "Started", Duration = 2, Icon = "play" })
+            else
+                if collectCrystalsThread then task.cancel(collectCrystalsThread); collectCrystalsThread = nil end
+                local spawn = workspace:FindFirstChild("SpawnLocation")
+                if spawn and spawn:IsA("SpawnLocation") then
+                    local char = player.Character
+                    if char then
+                        local root = char:FindFirstChild("HumanoidRootPart")
+                        if root then
+                            pcall(function()
+                                root.CFrame = spawn.CFrame * CFrame.new(0, 3, 0)
+                            end)
+                        end
+                    end
+                end
+                WindUI:Notify({ Title = "Auto Collect", Content = "Stopped", Duration = 2, Icon = "stop" })
+            end
+        end
+    })
+    collectToggle:Lock()   -- 🔒 lock it
 
     -- =============================================================
     --  AUTO MINE – ORBIT + REAL 1.5s HOLD E (always in range)
@@ -485,10 +487,9 @@ collectToggle:Lock()   -- 🔒 lock it
     }
 
     local selectedTier = "T1"
-    -- === MODIFIED: Dropdown with "Development" description and LOCKED ===
     local tierDropdown = MainTab:Dropdown({
         Title = "Select Crystal Tier",
-        Desc = "Development",  -- changed
+        Desc = "Development",
         Values = {
             "Common",
             "Uncommon",
@@ -502,7 +503,7 @@ collectToggle:Lock()   -- 🔒 lock it
             selectedTier = tierMapping[option] or "T1"
         end
     })
-    tierDropdown:Lock()  -- LOCK the dropdown
+    tierDropdown:Lock()
 
     local autoMineRunning = false
     local autoMineThread = nil
@@ -510,7 +511,6 @@ collectToggle:Lock()   -- 🔒 lock it
     local currentHumanoid = nil
     local noclipConnection = nil
 
-    -- ===== NoClip =====
     local function setNoclip(state)
         local char = player.Character
         if not char then return end
@@ -537,7 +537,6 @@ collectToggle:Lock()   -- 🔒 lock it
         setNoclip(false)
     end
 
-    -- ===== Start/Stop =====
     local function stopAutoMine()
         autoMineRunning = false
         if autoMineThread then task.cancel(autoMineThread); autoMineThread = nil end
@@ -599,11 +598,10 @@ collectToggle:Lock()   -- 🔒 lock it
                     continue
                 end
 
-                -- === SMART ORBIT: stays inside MaxActivationDistance ===
                 local maxDist = prompt.MaxActivationDistance
-                local ORBIT_RADIUS = math.max(2, math.min(maxDist - 0.5, 5))   -- always 0.5 studs inside range
+                local ORBIT_RADIUS = math.max(2, math.min(maxDist - 0.5, 5))
                 local HEIGHT = 1.0
-                local ORBIT_SPEED = 0.5  -- slower for stability
+                local ORBIT_SPEED = 0.5
 
                 local orbitAngle = 0
                 local lastTime = tick()
@@ -617,11 +615,9 @@ collectToggle:Lock()   -- 🔒 lock it
                     return CFrame.new(pos, part.Position)
                 end
 
-                -- Teleport to starting angle 0
                 local targetCFrame = getTargetCFrame(bestPart, 0)
                 hrp.CFrame = targetCFrame
 
-                print("Orbiting & locked on:", bestCrystal.Name)
                 WindUI:Notify({ Title = "Auto Mine", Content = "Orbiting " .. selectedTier .. " (" .. bestCrystal.Name .. ")", Duration = 2, Icon = "rotate-cw" })
 
                 hum.PlatformStand = true
@@ -631,7 +627,6 @@ collectToggle:Lock()   -- 🔒 lock it
                 local part = bestPart
                 local active = true
 
-                -- ===== ORBIT FOLLOW (smooth & within range) =====
                 if followConnection then followConnection:Disconnect() end
                 followConnection = RunService.Heartbeat:Connect(function()
                     if not autoMineRunning or not crystal or not crystal.Parent or not part or not part.Parent then
@@ -639,7 +634,6 @@ collectToggle:Lock()   -- 🔒 lock it
                         followConnection:Disconnect()
                         followConnection = nil
                         if currentHumanoid then currentHumanoid.PlatformStand = false; currentHumanoid = nil end
-                        print("Crystal gone or toggle off")
                         return
                     end
 
@@ -651,26 +645,23 @@ collectToggle:Lock()   -- 🔒 lock it
                     local currentTarget = getTargetCFrame(part, orbitAngle)
                     local dist = (hrp.Position - currentTarget.Position).Magnitude
                     if dist > 1.5 then
-                        hrp.CFrame = currentTarget  -- snap if too far
+                        hrp.CFrame = currentTarget
                     else
                         hrp.CFrame = hrp.CFrame:Lerp(currentTarget, 0.7)
                     end
                 end)
 
-                -- Wait a moment for the prompt to become active
                 task.wait(0.3)
 
-                -- ===== REAL 1.5s HOLD E LOOP =====
                 while active and autoMineRunning and crystal and crystal.Parent and part and part.Parent do
                     pcall(function()
                         prompt:InputHoldBegin()
-                        task.wait(1.5)        -- exactly 1.5 seconds
+                        task.wait(1.5)
                         prompt:InputHoldEnd()
-                        task.wait(0.2)        -- quick repeat
+                        task.wait(0.2)
                     end)
                 end
 
-                -- Clean up
                 if followConnection then
                     followConnection:Disconnect()
                     followConnection = nil
@@ -679,13 +670,11 @@ collectToggle:Lock()   -- 🔒 lock it
                     currentHumanoid.PlatformStand = false
                     currentHumanoid = nil
                 end
-                print("Crystal lost – searching again")
                 task.wait(0.5)
             end
         end)
     end
 
-    -- === MODIFIED: Toggle assigned to variable and LOCKED ===
     local autoMineToggle = MainTab:Toggle({
         Title = "Enable Auto Mine",
         Default = false,
@@ -697,10 +686,10 @@ collectToggle:Lock()   -- 🔒 lock it
             end
         end
     })
-    autoMineToggle:Lock()  -- LOCK the toggle
+    autoMineToggle:Lock()
 
     -- =============================================================
-    --  AUTO SELL (detects BACKPACK FULL! text)
+    --  AUTO SELL — INSTANT TELEPORT (NO TWEEN)
     -- =============================================================
     MainTab:Section({ Title = "Auto Sell on Full" })
 
@@ -716,9 +705,9 @@ collectToggle:Lock()   -- 🔒 lock it
         local backpackPanel = explorerHud:FindFirstChild("BackpackPanel")
         if not backpackPanel then return false end
 
-        for _, child in ipairs(backpackPanel:GetChildren()) do
+        for _, child in ipairs(backpackPanel:GetDescendants()) do
             if child:IsA("TextLabel") or child:IsA("TextButton") then
-                if string.find(string.upper(child.Text), "FULL") and child.Visible == true then
+                if child.Visible and string.find(string.upper(child.Text), "FULL") then
                     return true
                 end
             end
@@ -726,6 +715,7 @@ collectToggle:Lock()   -- 🔒 lock it
         return false
     end
 
+    -- Improved teleportAndSell + autoSellLoop
     local function teleportAndSell()
         if cooldown then return end
         cooldown = true
@@ -737,6 +727,7 @@ collectToggle:Lock()   -- 🔒 lock it
             return
         end
 
+        -- Ensure we have a character & hrp
         local char = player.Character
         if not char or not char.Parent then
             char = player.CharacterAdded:Wait()
@@ -747,35 +738,74 @@ collectToggle:Lock()   -- 🔒 lock it
             return
         end
 
-        pcall(function()
-            hrp.CFrame = sellPart.CFrame + Vector3.new(0, 3, 0)
-        end)
+        -- Save original position
+        local originalCFrame = hrp.CFrame
 
-        task.wait(0.5)
+        -- Teleport to sell spot (instant)
+        local targetCFrame = sellPart.CFrame * CFrame.new(0, 2, 0)
+        pcall(function() hrp.CFrame = targetCFrame end)
+        task.wait(0.15)
 
-        local remote = ReplicatedStorage:FindFirstChild("Remotes")
+        -- Try server remote first, then fallback to proximity prompt
+        local sold = false
+        local remote = ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("SellRequest")
         if remote then
-            remote = remote:FindFirstChild("SellRequest")
+            -- Try a few times to trigger the sell and wait for inventory to update
+            for i = 1, 4 do
+                pcall(function() remote:FireServer("all") end)
+                task.wait(0.25)
+                if not isBackpackFull() then
+                    sold = true
+                    break
+                end
+            end
+        else
+            -- Fallback: attempt to fire a proximity prompt on the SellPart
+            local prompt = sellPart:FindFirstChildWhichIsA("ProximityPrompt", true)
+            if prompt then
+                pcall(function() firePrompt(prompt) end)
+                task.wait(0.25)
+                if not isBackpackFull() then
+                    sold = true
+                end
+            end
         end
-        if remote then
-            pcall(function()
-                remote:FireServer("all")
-            end)
+
+        -- Wait a short while (max timeout) for server to process if still full
+        if not sold and isBackpackFull() then
+            local timeout = 3
+            local started = tick()
+            while tick() - started < timeout and isBackpackFull() do
+                task.wait(0.15)
+            end
+            if not isBackpackFull() then sold = true end
+        end
+
+        -- Notify result
+        if sold then
             WindUI:Notify({ Title = "Auto Sell", Content = "Sold full backpack!", Duration = 2, Icon = "dollar-sign" })
         else
-            WindUI:Notify({ Title = "Auto Sell", Content = "Remote not found!", Duration = 3, Icon = "alert-triangle" })
+            WindUI:Notify({ Title = "Auto Sell", Content = "Sell attempt finished (may have failed)", Duration = 2, Icon = "alert-triangle" })
         end
 
-        task.wait(2)
+        -- Teleport back to original position
+        pcall(function() hrp.CFrame = originalCFrame end)
+        task.wait(0.12)
+
         cooldown = false
     end
 
     local function autoSellLoop()
         while autoSellRunning do
-            if isBackpackFull() then
+            if isBackpackFull() and not cooldown then
                 teleportAndSell()
+                -- wait a bit after selling to avoid immediate re-trigger; also let the UI update
+                local t0 = tick()
+                while isBackpackFull() and tick() - t0 < 5 do
+                    task.wait(0.2)
+                end
             end
-            task.wait(0.5)
+            task.wait(0.3)
         end
     end
 
@@ -799,7 +829,6 @@ collectToggle:Lock()   -- 🔒 lock it
     -- -------------------- Auto Upgrades --------------------
     MainTab:Section({ Title = "Auto Upgrades" })
 
-    -- Auto Upgrade Warmth
     local upgradeWarmthRunning = false
     local upgradeWarmthThread = nil
 
@@ -844,7 +873,6 @@ collectToggle:Lock()   -- 🔒 lock it
         end
     })
 
-    -- Auto Upgrade Backpack
     local upgradeBackpackRunning = false
     local upgradeBackpackThread = nil
 
@@ -945,8 +973,6 @@ collectToggle:Lock()   -- 🔒 lock it
         end
     })
 
-    -- No content inside – all features removed.
-
     Window:Divider()
 
     -- ===== MISC TAB =====
@@ -1034,12 +1060,59 @@ collectToggle:Lock()   -- 🔒 lock it
         if flyEnabled then task.wait(1); startFly() end
     end)
 
-    -- Walk Speed
+    -- ===== WALK SPEED — NOW WITH PERMANENT LOOP =====
     MiscTab:Section({ Title = "Walk Speed" })
 
     local walkSpeedValue = 16
     local moveSpeedEnabled = false
-    local moveSpeedConn = nil
+    local speedLoopThread = nil
+    local speedHeartbeat = nil
+
+    -- Function to apply speed to current character
+    local function applySpeedToChar(char)
+        if not char then return end
+        local hum = char:FindFirstChild("Humanoid")
+        if hum then
+            hum.WalkSpeed = moveSpeedEnabled and walkSpeedValue or 16
+        end
+    end
+
+    -- Loop that constantly applies speed (every 0.2 seconds)
+    local function speedLoop()
+        while moveSpeedEnabled do
+            local char = player.Character
+            if char then
+                applySpeedToChar(char)
+            end
+            task.wait(0.2)
+        end
+    end
+
+    -- Start/stop the permanent speed loop
+    local function updateSpeedLoop()
+        if moveSpeedEnabled then
+            if speedLoopThread then task.cancel(speedLoopThread) end
+            speedLoopThread = task.spawn(speedLoop)
+            -- Also attach to character respawn
+            if not speedHeartbeat then
+                speedHeartbeat = player.CharacterAdded:Connect(function(char)
+                    task.wait(0.2) -- wait for humanoid to load
+                    if moveSpeedEnabled then
+                        applySpeedToChar(char)
+                    end
+                end)
+            end
+        else
+            if speedLoopThread then task.cancel(speedLoopThread); speedLoopThread = nil end
+            if speedHeartbeat then speedHeartbeat:Disconnect(); speedHeartbeat = nil end
+            -- Reset to default
+            local char = player.Character
+            if char then
+                local hum = char:FindFirstChild("Humanoid")
+                if hum then hum.WalkSpeed = 16 end
+            end
+        end
+    end
 
     MiscTab:Slider({
         Title = "Walk Speed",
@@ -1052,10 +1125,11 @@ collectToggle:Lock()   -- 🔒 lock it
         },
         Callback = function(value)
             walkSpeedValue = value
+            -- Apply immediately if enabled
             if moveSpeedEnabled then
                 local char = player.Character
-                if char and char:FindFirstChild("Humanoid") then
-                    char.Humanoid.WalkSpeed = walkSpeedValue
+                if char then
+                    applySpeedToChar(char)
                 end
             end
         end
@@ -1066,23 +1140,16 @@ collectToggle:Lock()   -- 🔒 lock it
         Default = false,
         Callback = function(state)
             moveSpeedEnabled = state
-            local function applySpeed()
-                local char = player.Character
-                if char and char:FindFirstChild("Humanoid") then
-                    char.Humanoid.WalkSpeed = state and walkSpeedValue or 16
-                end
+            updateSpeedLoop()
+            -- Also apply to current character
+            local char = player.Character
+            if char then
+                applySpeedToChar(char)
             end
-            applySpeed()
             if state then
-                if moveSpeedConn then moveSpeedConn:Disconnect() end
-                moveSpeedConn = player.CharacterAdded:Connect(function(char)
-                    task.wait(1)
-                    if moveSpeedEnabled and char:FindFirstChild("Humanoid") then
-                        char.Humanoid.WalkSpeed = walkSpeedValue
-                    end
-                end)
+                WindUI:Notify({ Title = "Speed Boost", Content = "Enabled (" .. walkSpeedValue .. ")", Duration = 2, Icon = "zap" })
             else
-                if moveSpeedConn then moveSpeedConn:Disconnect(); moveSpeedConn = nil end
+                WindUI:Notify({ Title = "Speed Boost", Content = "Disabled", Duration = 2, Icon = "stop" })
             end
         end
     })
