@@ -243,7 +243,7 @@ local function showGUI()
 
     -- VERSION & PING TAGS
     local versionTag = Window:Tag({
-        Title = "v1.0.5",
+        Title = "v1.0.6",
         Icon = "tag",
         Color = Color3.fromHex("#2563eb"),
         Radius = 100
@@ -954,6 +954,132 @@ local function showGUI()
         end
     })
 
+    -- -------------------- Auto Buy Bomb --------------------
+    MainTab:Section({ Title = "Auto Buy Bomb" })
+
+    local bombTypes = {
+        "ClassicBomb",
+        "WindBomb",
+        "IceBomb",
+        "FireBomb",
+        "ThunderBomb",
+        "PoisoBomb",
+        "TimeBomb",
+        "AgonyBomb"
+    }
+
+    local buyBombRunning = false
+    local buyBombThread = nil
+
+    local function getBombRemote()
+        local success, remote = pcall(function()
+            return ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("BombBuyRequest")
+        end)
+        if success and remote then
+            return remote
+        end
+        return nil
+    end
+
+    local function buyBombLoop()
+        local remote = getBombRemote()
+        if not remote then
+            WindUI:Notify({ Title = "Auto Buy Bomb", Content = "Remote 'BombBuyRequest' not found!", Duration = 3, Icon = "alert-triangle" })
+            buyBombRunning = false
+            return
+        end
+        while buyBombRunning do
+            for _, bomb in ipairs(bombTypes) do
+                if not buyBombRunning then break end
+                pcall(function()
+                    remote:InvokeServer(bomb)
+                end)
+                task.wait(0.3)
+            end
+            task.wait(1)
+        end
+    end
+
+    MainTab:Toggle({
+        Title = "Enable Auto Buy Bomb",
+        Default = false,
+        Callback = function(state)
+            buyBombRunning = state
+            if state then
+                if buyBombThread then task.cancel(buyBombThread) end
+                buyBombThread = task.spawn(buyBombLoop)
+                WindUI:Notify({ Title = "Auto Buy Bomb", Content = "Started", Duration = 2, Icon = "bomb" })
+            else
+                if buyBombThread then task.cancel(buyBombThread); buyBombThread = nil end
+                WindUI:Notify({ Title = "Auto Buy Bomb", Content = "Stopped", Duration = 2, Icon = "stop" })
+            end
+        end
+    })
+
+    -- -------------------- Anti Ragdoll (MOVED HERE) --------------------
+    MainTab:Section({ Title = "Anti Ragdoll" })
+
+    local antiRagdollRunning = false
+    local antiRagdollConnection = nil
+
+    local function deleteRagdollRemotes()
+        local remotes = ReplicatedStorage:FindFirstChild("Remotes")
+        if not remotes then return end
+        local remoteNames = {
+            "GrabRagdollState",
+            "RagdollSound",
+            "RagdollRequest",
+            "FallDamage"
+        }
+        for _, name in ipairs(remoteNames) do
+            local remote = remotes:FindFirstChild(name)
+            if remote then
+                remote:Destroy()
+            end
+        end
+    end
+
+    local function setupAntiRagdoll()
+        -- Delete existing
+        deleteRagdollRemotes()
+        -- Watch for new ones
+        local remotes = ReplicatedStorage:FindFirstChild("Remotes")
+        if remotes then
+            antiRagdollConnection = remotes.ChildAdded:Connect(function(child)
+                if antiRagdollRunning then
+                    local remoteNames = {
+                        "GrabRagdollState",
+                        "RagdollSound",
+                        "RagdollRequest",
+                        "FallDamage"
+                    }
+                    if table.find(remoteNames, child.Name) then
+                        child:Destroy()
+                    end
+                end
+            end)
+        end
+    end
+
+    MainTab:Toggle({
+        Title = "Anti Ragdoll",
+        Desc = "Deletes ragdoll remotes to prevent being ragdolled",
+        Default = false,
+        Callback = function(state)
+            antiRagdollRunning = state
+            if state then
+                setupAntiRagdoll()
+                WindUI:Notify({ Title = "Anti Ragdoll", Content = "Enabled", Duration = 2, Icon = "shield" })
+            else
+                if antiRagdollConnection then
+                    antiRagdollConnection:Disconnect()
+                    antiRagdollConnection = nil
+                end
+                WindUI:Notify({ Title = "Anti Ragdoll", Content = "Disabled", Duration = 2, Icon = "stop" })
+            end
+        end
+    })
+
     Window:Divider()
 
     -- ===== MISC TAB =====
@@ -1210,4 +1336,4 @@ end
 
 showLoadingScreen()
 task.wait(2.5)
-showGUI()
+showGUI()	
