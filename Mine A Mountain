@@ -1,4 +1,3 @@
--- Full StarForge Hub script with improved Auto Sell (teleport -> sell -> return)
 local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -8,7 +7,7 @@ local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 local TeleportService = game:GetService("TeleportService")
-local RunService = game:GetService("RunService") -- added for speed loop
+local RunService = game:GetService("RunService")
 local player = Players.LocalPlayer
 
 -- ===== Executor Detection =====
@@ -244,7 +243,7 @@ local function showGUI()
 
     -- VERSION & PING TAGS
     local versionTag = Window:Tag({
-        Title = "v1.0.4",
+        Title = "v1.0.5",
         Icon = "tag",
         Color = Color3.fromHex("#2563eb"),
         Radius = 100
@@ -421,7 +420,7 @@ local function showGUI()
     MainTab:Paragraph({
         Title = "🔵 Feature Maintenance",
         Desc = "Some features are currently undergoing maintenance.\n\n• Auto Mine\n• Auto Collect\n\nOur developer, **Vlood**, is working to improve their performance and reliability. These features will be available again in **v1.0.?**\n\nThank you for your patience and for supporting the project!",
-        Color = Color3.fromRGB(0, 120, 255), -- Blue
+        Color = Color3.fromRGB(0, 120, 255),
     })
 
     -- -------------------- Auto Collect Dropped Crystals --------------------
@@ -689,7 +688,7 @@ local function showGUI()
     autoMineToggle:Lock()
 
     -- =============================================================
-    --  AUTO SELL — INSTANT TELEPORT (NO TWEEN)
+    --  AUTO SELL — INSTANT TELEPORT (NO TWEEN) with improved full backpack detection
     -- =============================================================
     MainTab:Section({ Title = "Auto Sell on Full" })
 
@@ -697,25 +696,37 @@ local function showGUI()
     local autoSellThread = nil
     local cooldown = false
 
+    -- 🔥 IMPROVED & SECURE BACKPACK FULL DETECTION
     local function isBackpackFull()
         local playerGui = player:FindFirstChild("PlayerGui")
         if not playerGui then return false end
-        local explorerHud = playerGui:FindFirstChild("ExplorerHud")
-        if not explorerHud then return false end
-        local backpackPanel = explorerHud:FindFirstChild("BackpackPanel")
-        if not backpackPanel then return false end
 
-        for _, child in ipairs(backpackPanel:GetDescendants()) do
+        -- Scan ALL descendants of PlayerGui
+        for _, child in ipairs(playerGui:GetDescendants()) do
             if child:IsA("TextLabel") or child:IsA("TextButton") then
-                if child.Visible and string.find(string.upper(child.Text), "FULL") then
-                    return true
+                -- Must be visible and have text
+                if child.Visible and child.Text and child.Text ~= "" then
+                    local upper = string.upper(child.Text)
+                    -- Detect "FULL" anywhere in the text
+                    if string.find(upper, "FULL") then
+                        -- Optional: avoid false positives like "FULLNESS" or "FULLY"
+                        -- by checking if the text is exactly "FULL" or "Full"
+                        if upper == "FULL" or child.Text == "Full" or child.Text == "Full!" then
+                            return true
+                        end
+                        -- If the text contains "FULL" but also other words, still consider it if
+                        -- the parent is likely the backpack UI
+                        local parent = child.Parent
+                        if parent and parent.Name and string.find(string.upper(parent.Name), "BACKPACK") then
+                            return true
+                        end
+                    end
                 end
             end
         end
         return false
     end
 
-    -- Improved teleportAndSell + autoSellLoop
     local function teleportAndSell()
         if cooldown then return end
         cooldown = true
@@ -727,7 +738,6 @@ local function showGUI()
             return
         end
 
-        -- Ensure we have a character & hrp
         local char = player.Character
         if not char or not char.Parent then
             char = player.CharacterAdded:Wait()
@@ -738,72 +748,43 @@ local function showGUI()
             return
         end
 
+        -- Notify that we detected a full backpack (optional debug)
+        WindUI:Notify({ Title = "Backpack Full", Content = "Selling...", Duration = 1, Icon = "package" })
+
         -- Save original position
         local originalCFrame = hrp.CFrame
 
-        -- Teleport to sell spot (instant)
+        -- INSTANT TELEPORT to sell
         local targetCFrame = sellPart.CFrame * CFrame.new(0, 2, 0)
-        pcall(function() hrp.CFrame = targetCFrame end)
-        task.wait(0.15)
+        hrp.CFrame = targetCFrame
 
-        -- Try server remote first, then fallback to proximity prompt
-        local sold = false
-        local remote = ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("SellRequest")
+        -- Sell
+        local remote = ReplicatedStorage:FindFirstChild("Remotes")
         if remote then
-            -- Try a few times to trigger the sell and wait for inventory to update
-            for i = 1, 4 do
-                pcall(function() remote:FireServer("all") end)
-                task.wait(0.25)
-                if not isBackpackFull() then
-                    sold = true
-                    break
-                end
-            end
+            remote = remote:FindFirstChild("SellRequest")
+        end
+        if remote then
+            pcall(function()
+                remote:FireServer("all")
+            end)
+            WindUI:Notify({ Title = "Auto Sell", Content = "Sold full backpack!", Duration = 1, Icon = "dollar-sign" })
         else
-            -- Fallback: attempt to fire a proximity prompt on the SellPart
-            local prompt = sellPart:FindFirstChildWhichIsA("ProximityPrompt", true)
-            if prompt then
-                pcall(function() firePrompt(prompt) end)
-                task.wait(0.25)
-                if not isBackpackFull() then
-                    sold = true
-                end
-            end
+            WindUI:Notify({ Title = "Auto Sell", Content = "Remote not found!", Duration = 3, Icon = "alert-triangle" })
+            cooldown = false
+            return
         end
 
-        -- Wait a short while (max timeout) for server to process if still full
-        if not sold and isBackpackFull() then
-            local timeout = 3
-            local started = tick()
-            while tick() - started < timeout and isBackpackFull() do
-                task.wait(0.15)
-            end
-            if not isBackpackFull() then sold = true end
-        end
+        -- INSTANT TELEPORT back to original position
+        hrp.CFrame = originalCFrame
 
-        -- Notify result
-        if sold then
-            WindUI:Notify({ Title = "Auto Sell", Content = "Sold full backpack!", Duration = 2, Icon = "dollar-sign" })
-        else
-            WindUI:Notify({ Title = "Auto Sell", Content = "Sell attempt finished (may have failed)", Duration = 2, Icon = "alert-triangle" })
-        end
-
-        -- Teleport back to original position
-        pcall(function() hrp.CFrame = originalCFrame end)
-        task.wait(0.12)
-
+        task.wait(0.5)
         cooldown = false
     end
 
     local function autoSellLoop()
         while autoSellRunning do
-            if isBackpackFull() and not cooldown then
+            if isBackpackFull() then
                 teleportAndSell()
-                -- wait a bit after selling to avoid immediate re-trigger; also let the UI update
-                local t0 = tick()
-                while isBackpackFull() and tick() - t0 < 5 do
-                    task.wait(0.2)
-                end
             end
             task.wait(0.3)
         end
@@ -1068,7 +1049,6 @@ local function showGUI()
     local speedLoopThread = nil
     local speedHeartbeat = nil
 
-    -- Function to apply speed to current character
     local function applySpeedToChar(char)
         if not char then return end
         local hum = char:FindFirstChild("Humanoid")
@@ -1077,7 +1057,6 @@ local function showGUI()
         end
     end
 
-    -- Loop that constantly applies speed (every 0.2 seconds)
     local function speedLoop()
         while moveSpeedEnabled do
             local char = player.Character
@@ -1088,15 +1067,13 @@ local function showGUI()
         end
     end
 
-    -- Start/stop the permanent speed loop
     local function updateSpeedLoop()
         if moveSpeedEnabled then
             if speedLoopThread then task.cancel(speedLoopThread) end
             speedLoopThread = task.spawn(speedLoop)
-            -- Also attach to character respawn
             if not speedHeartbeat then
                 speedHeartbeat = player.CharacterAdded:Connect(function(char)
-                    task.wait(0.2) -- wait for humanoid to load
+                    task.wait(0.2)
                     if moveSpeedEnabled then
                         applySpeedToChar(char)
                     end
@@ -1105,7 +1082,6 @@ local function showGUI()
         else
             if speedLoopThread then task.cancel(speedLoopThread); speedLoopThread = nil end
             if speedHeartbeat then speedHeartbeat:Disconnect(); speedHeartbeat = nil end
-            -- Reset to default
             local char = player.Character
             if char then
                 local hum = char:FindFirstChild("Humanoid")
@@ -1125,7 +1101,6 @@ local function showGUI()
         },
         Callback = function(value)
             walkSpeedValue = value
-            -- Apply immediately if enabled
             if moveSpeedEnabled then
                 local char = player.Character
                 if char then
@@ -1141,7 +1116,6 @@ local function showGUI()
         Callback = function(state)
             moveSpeedEnabled = state
             updateSpeedLoop()
-            -- Also apply to current character
             local char = player.Character
             if char then
                 applySpeedToChar(char)
