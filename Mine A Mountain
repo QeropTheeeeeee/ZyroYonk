@@ -242,7 +242,7 @@ local function showGUI()
 
     -- VERSION & PING TAGS
     local versionTag = Window:Tag({
-        Title = "v1.0.2",
+        Title = "v1.0.3",
         Icon = "tag",
         Color = Color3.fromHex("#2563eb"),
         Radius = 100
@@ -266,7 +266,7 @@ local function showGUI()
     end)
 
     Window:EditOpenButton({
-        Title = "Open Hub",
+        Title = "StarForge Hub",
         Icon = "hammer",
         CornerRadius = UDim.new(0, 8),
         StrokeThickness = 1,
@@ -412,100 +412,63 @@ local function showGUI()
         end
     })
 
-    -- ===== MAIN FEATURES TAB (EMPTY) =====
-    local MainTab = Window:Tab({ Title = "Main Features", Icon = "house" })
+    -- ===== MAIN FEATURES TAB =====
+local MainTab = Window:Tab({ Title = "Main Features", Icon = "house" })
 
-    -- -------------------- Auto Collect Dropped Crystals --------------------
-    MainTab:Section({ Title = "Auto Collect Dropped Crystals" })
-    local collectCrystalsRunning = false
-    local collectCrystalsThread = nil
+-- 🔵 Premium Maintenance Notice
+MainTab:Paragraph({
+    Title = "🔵 Feature Maintenance",
+    Desc = "Some features are currently undergoing maintenance.\n\n• Auto Mine\n• Auto Collect\n\nOur developer, **Vlood**, is working to improve their performance and reliability. These features will be available again in **v1.0.?**\n\nThank you for your patience and for supporting the project!",
+    Color = Color3.fromRGB(0, 120, 255), -- Blue
+})
 
-    local function firePrompt(prompt)
-        if fireproximityprompt then
-            fireproximityprompt(prompt)
-        elseif fire_proximity_prompt then
-            fire_proximity_prompt(prompt)
+-- -------------------- Auto Collect Dropped Crystals --------------------
+MainTab:Section({ Title = "Auto Collect Dropped Crystals" })
+local collectCrystalsRunning = false
+local collectCrystalsThread = nil
+
+local function firePrompt(prompt)
+    if fireproximityprompt then
+        fireproximityprompt(prompt)
+    elseif fire_proximity_prompt then
+        fire_proximity_prompt(prompt)
+    else
+        warn("No fireproximityprompt function available")
+    end
+end
+
+local function collectCrystalsLoop()
+    -- ... existing loop code ...
+end
+
+local collectToggle = MainTab:Toggle({
+    Title = "Enable Auto Collect",
+    Default = false,
+    Callback = function(state)
+        collectCrystalsRunning = state
+        if state then
+            if collectCrystalsThread then task.cancel(collectCrystalsThread) end
+            collectCrystalsThread = task.spawn(collectCrystalsLoop)
+            WindUI:Notify({ Title = "Auto Collect", Content = "Started", Duration = 2, Icon = "play" })
         else
-            warn("No fireproximityprompt function available")
-        end
-    end
-
-    local function collectCrystalsLoop()
-        while collectCrystalsRunning do
-            local char = player.Character
-            if not char then
-                player.CharacterAdded:Wait()
-                char = player.Character
-            end
-            local rootPart = char and char:FindFirstChild("HumanoidRootPart")
-            if not rootPart then
-                task.wait(0)
-                continue
-            end
-
-            local crystals = workspace:FindFirstChild("DroppedCrystals")
-            if not crystals then
-                task.wait(0)
-                continue
-            end
-
-            local prompts = {}
-            for _, obj in ipairs(crystals:GetDescendants()) do
-                if obj:IsA("ProximityPrompt") then
-                    table.insert(prompts, obj)
-                end
-            end
-
-            if #prompts == 0 then
-                task.wait(0)
-                continue
-            end
-
-            for _, prompt in ipairs(prompts) do
-                if not collectCrystalsRunning then break end
-                local crystalPart = prompt.Parent
-                if crystalPart and crystalPart:IsA("BasePart") then
-                    pcall(function()
-                        rootPart.CFrame = crystalPart.CFrame * CFrame.new(0, 2, 0)
-                    end)
-                    pcall(function()
-                        firePrompt(prompt)
-                    end)
-                    task.wait(0)
-                end
-            end
-
-            task.wait(0)
-        end
-    end
-
-    MainTab:Toggle({
-        Title = "Enable Auto Collect",
-        Default = false,
-        Callback = function(state)
-            collectCrystalsRunning = state
-            if state then
-                if collectCrystalsThread then task.cancel(collectCrystalsThread) end
-                collectCrystalsThread = task.spawn(collectCrystalsLoop)
-                WindUI:Notify({ Title = "Auto Collect", Content = "Started", Duration = 2, Icon = "play" })
-            else
-                if collectCrystalsThread then task.cancel(collectCrystalsThread); collectCrystalsThread = nil end
-                local spawn = workspace:FindFirstChild("SpawnLocation")
-                if spawn and spawn:IsA("SpawnLocation") then
-                    local char = player.Character
-                    if char then
-                        local root = char:FindFirstChild("HumanoidRootPart")
-                        if root then
-                            pcall(function()
-                                root.CFrame = spawn.CFrame * CFrame.new(0, 3, 0)
-                            end)
-                        end
+            if collectCrystalsThread then task.cancel(collectCrystalsThread); collectCrystalsThread = nil end
+            local spawn = workspace:FindFirstChild("SpawnLocation")
+            if spawn and spawn:IsA("SpawnLocation") then
+                local char = player.Character
+                if char then
+                    local root = char:FindFirstChild("HumanoidRootPart")
+                    if root then
+                        pcall(function()
+                            root.CFrame = spawn.CFrame * CFrame.new(0, 3, 0)
+                        end)
                     end
                 end
-                WindUI:Notify({ Title = "Auto Collect", Content = "Stopped", Duration = 2, Icon = "stop" })
             end
+            WindUI:Notify({ Title = "Auto Collect", Content = "Stopped", Duration = 2, Icon = "stop" })
         end
-    })
+    end
+})
+collectToggle:Lock()   -- 🔒 lock it
 
     -- =============================================================
     --  AUTO MINE – ORBIT + REAL 1.5s HOLD E (always in range)
