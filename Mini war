@@ -241,7 +241,15 @@ local function showGUI()
             HideSearchBar = false,
             ScrollBarEnabled = false,
             User = { Enabled = true, Anonymous = false, Callback = function() end },
-            -- Removed KeySystem to avoid dependency on external keys
+                   KeySystem = {
+            API = {
+                {
+                    Type = "luarmor",
+                    ScriptId = "f655e944c9edb33149a2452215a9a950",
+                    Discord = "https://discord.gg/ee6azTNsm6",
+                },
+            },
+        },  
         })
 
         -- VERSION & PING TAGS
