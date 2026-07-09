@@ -7,13 +7,8 @@ local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 local TeleportService = game:GetService("TeleportService")
+local RunService = game:GetService("RunService")
 local player = Players.LocalPlayer
-
--- Cache the dataRemoteEvent once
-local dataRemote = nil
-pcall(function()
-    dataRemote = ReplicatedStorage:WaitForChild("ncxyzero_bridgenet2-fork@1.1.5"):WaitForChild("dataRemoteEvent")
-end)
 
 -- ===== Executor Detection =====
 local function getExecutorName()
@@ -55,6 +50,14 @@ local function getPing()
     return 0
 end
 
+task.wait(1)
+WindUI:Notify({
+    Title = "Executor Detected",
+    Content = "Using: " .. executorName,
+    Duration = 5,
+    Icon = "terminal"
+})
+
 -- ===== Copy =====
 local function copyToClipboard(text)
     if setclipboard then setclipboard(text)
@@ -87,10 +90,34 @@ local function getHWID()
 end
 local hwid = getHWID()
 
+-- ===== HTTP GET =====
+local function httpGet(url)
+    if syn and syn.request then
+        local res = syn.request({ Url = url, Method = "GET" })
+        if res and res.Body then return res.Body end
+    elseif request then
+        local res = request({ Url = url, Method = "GET" })
+        if res and res.Body then return res.Body end
+    elseif http_request then
+        local res = http_request({ Url = url, Method = "GET" })
+        if res and res.Body then return res.Body end
+    end
+    return nil
+end
+
 -- ===== Theme =====
+-- Safe font: fallback to Gotham if Font.fromName is unavailable
+local function getFont()
+    local success, font = pcall(function()
+        return Font.fromName("GothamSSm", Enum.FontWeight.Medium)
+    end)
+    if success and font then return font end
+    return Enum.Font.Gotham
+end
+
 WindUI:AddTheme({
     Name = "ZyroTheme",
-    Font = Font.fromName("GothamSSm", Enum.FontWeight.Medium),
+    Font = getFont(),
     Background = WindUI:Gradient({ ["0"] = { Color = Color3.fromHex("#1a1a1a") }, ["100"] = { Color = Color3.fromHex("#1a1a1a") } }, { Rotation = 180 }),
     Accent = WindUI:Gradient({ ["0"] = { Color = Color3.fromHex("#2563eb") }, ["100"] = { Color = Color3.fromHex("#1d4ed8") } }, { Rotation = 90 }),
     SideBar = WindUI:Gradient({ ["0"] = { Color = Color3.fromHex("#141414") }, ["100"] = { Color = Color3.fromHex("#141414") } }, { Rotation = 180 }),
@@ -101,14 +128,18 @@ WindUI:AddTheme({
     Icon = WindUI:Gradient({ ["0"] = { Color = Color3.fromHex("#ffffff") }, ["100"] = { Color = Color3.fromHex("#9ca3af") } }, { Rotation = 90 }),
 })
 
--- ===== Anti-AFK =====
+-- ===== Anti‑AFK (improved) =====
 local antiAfkRunning = false
 local antiAfkThread = nil
+
 local function antiAfkLoop()
     while antiAfkRunning do
         local success, vu = pcall(function() return game:GetService("VirtualUser") end)
         if success and vu then
-            pcall(function() vu:CaptureController() vu:ClickButton2(Vector2.new()) end)
+            pcall(function()
+                vu:CaptureController()
+                vu:ClickButton2(Vector2.new())
+            end)
         else
             local char = player.Character
             if char then
@@ -121,9 +152,17 @@ local function antiAfkLoop()
                 end
             end
         end
-        task.wait(30)
+        task.wait(math.random(30, 45))
     end
 end
+
+local function restartAntiAfkIfNeeded()
+    if antiAfkRunning then
+        if antiAfkThread then task.cancel(antiAfkThread) end
+        antiAfkThread = task.spawn(antiAfkLoop)
+    end
+end
+player.CharacterAdded:Connect(restartAntiAfkIfNeeded)
 
 -- ===== Loading Screen =====
 local function showLoadingScreen()
@@ -184,84 +223,203 @@ local function showLoadingScreen()
     blur:Destroy()
 end
 
--- ===== HTTP Get (for Discord) =====
-local function httpGet(url)
-    if syn and syn.request then
-        local res = syn.request({ Url = url, Method = "GET" })
-        if res and res.Body then return res.Body end
-    elseif request then
-        local res = request({ Url = url, Method = "GET" })
-        if res and res.Body then return res.Body end
-    elseif http_request then
-        local res = http_request({ Url = url, Method = "GET" })
-        if res and res.Body then return res.Body end
-    end
-    return nil
-end
-
 -- ===== Main GUI =====
 local function showGUI()
-    local Window = WindUI:CreateWindow({
-        Title = "Mini War",
-        Icon = "hammer",
-        Author = "By Vloods" .. utf8.char(0xE000),
-        Folder = "ZyroYonk Hub",
-        Size = UDim2.fromOffset(560, 380),
-        MinSize = Vector2.new(560, 350),
-        MaxSize = Vector2.new(850, 560),
-        Theme = "ZyroTheme",
-        Resizable = true,
-        SideBarWidth = 200,
-        HideSearchBar = false,
-        ScrollBarEnabled = false,
-        User = { Enabled = true, Anonymous = false, Callback = function() end },
-                -- ===== KEY SYSTEM ADDED =====
-        KeySystem = {
-            Note = "Get Key To Acces This", 
-            API = {
-                {
-                    Type = "luarmor",
-                    ScriptId = "f655e944c9edb33149a2452215a9a950",  -- your Luarmor script ID
-                    Discord = "https://discord.gg/ee6azTNsm6",     -- your Discord invite
-                },
-            },
-        },
-    })
+    -- Wrap in pcall to catch any errors and notify user
+    local success, err = pcall(function()
+        local Window = WindUI:CreateWindow({
+            Title = "Mine A Mountain",
+            Icon = "hammer",
+            Author = "By Vloods" .. utf8.char(0xE000),
+            Folder = "ZyroYonk Hub",
+            Size = UDim2.fromOffset(560, 380),
+            MinSize = Vector2.new(560, 350),
+            MaxSize = Vector2.new(850, 560),
+            Theme = "ZyroTheme",
+            Resizable = true,
+            SideBarWidth = 200,
+            HideSearchBar = false,
+            ScrollBarEnabled = false,
+            User = { Enabled = true, Anonymous = false, Callback = function() end },
+            -- Removed KeySystem to avoid dependency on external keys
+        })
 
-    local versionTag = Window:Tag({
-        Title = "v1.0.0",
-        Icon = "tag",
-        Color = Color3.fromHex("#2563eb"),
-        Radius = 100
-    })
-    task.spawn(function()
-        while true do
-            local ping = getPing()
-            if versionTag then versionTag:SetTitle("v1.0.1 | " .. ping .. "ms") end
-            task.wait(1)
+        -- VERSION & PING TAGS
+        local versionTag = Window:Tag({
+            Title = "v1.0.2",
+            Icon = "tag",
+            Color = Color3.fromHex("#2563eb"),
+            Radius = 100
+        })
+
+        local pingTag = Window:Tag({
+            Title = "0ms",
+            Icon = "wifi",
+            Color = Color3.fromHex("#22c55e"),
+            Radius = 100
+        })
+
+        task.spawn(function()
+            while true do
+                local ping = getPing()
+                if pingTag and pingTag.SetTitle then
+                    pingTag:SetTitle(ping .. "ms")
+                end
+                task.wait(0.8)
+            end
+        end)
+
+        Window:EditOpenButton({
+            Title = "StarForge Hub Open",
+            Icon = "hammer",
+            CornerRadius = UDim.new(0, 8),
+            StrokeThickness = 1,
+            Color = ColorSequence.new(Color3.fromHex("#2563eb"), Color3.fromHex("#1d4ed8")),
+            OnlyMobile = false,
+            Enabled = true,
+            Draggable = true,
+        })
+
+        -- ===== INFORMATION TAB =====
+        local InfoTab = Window:Tab({ Title = "Information", Icon = "info" })
+
+        local avatarUrl = "https://www.roblox.com/headshot-thumbnail/image?userId=" .. player.UserId .. "&width=100&height=100&format=png"
+        InfoTab:Paragraph({
+            Title = "👋 Hi " .. player.Name .. "!",
+            Desc = "Welcome to StarForge Hub.\nIf you encounter any issues, please join our Discord via the Support tab.",
+            Color = Color3.fromHex("#222222"),
+            Image = avatarUrl,
+            ImageSize = 64,
+            ThumbnailSize = 80,
+        })
+
+        Window:Divider()
+
+        InfoTab:Section({ Title = "Player Selector" })
+
+        local selectedPlayerName = nil
+        local playersDropdown = nil
+        local profileParagraph = nil
+
+        local function updateProfile(plr)
+            if not plr then
+                if profileParagraph then
+                    profileParagraph:SetDesc("No player selected.")
+                    profileParagraph:SetImage("")
+                end
+                return
+            end
+
+            local age = plr.AccountAge or 0
+            local avatar = "https://www.roblox.com/headshot-thumbnail/image?userId=" .. plr.UserId .. "&width=100&height=100&format=png"
+            local desc = string.format("**Name:** %s\n**Account Age:** %d days\n**User ID:** %d", plr.Name, age, plr.UserId)
+
+            if profileParagraph then
+                profileParagraph:SetDesc(desc)
+                profileParagraph:SetImage(avatar)
+            else
+                profileParagraph = InfoTab:Paragraph({
+                    Title = "Selected Player Profile",
+                    Desc = desc,
+                    Color = Color3.fromHex("#222222"),
+                    Image = avatar,
+                    ImageSize = 64,
+                    ThumbnailSize = 80,
+                })
+            end
         end
-    end)
 
-    Window:EditOpenButton({
-        Title = "Open Hub",
-        Icon = "hammer",
-        CornerRadius = UDim.new(0, 8),
-        StrokeThickness = 1,
-        Color = ColorSequence.new(Color3.fromHex("#2563eb"), Color3.fromHex("#1d4ed8")),
-        OnlyMobile = false,
-        Enabled = true,
-        Draggable = true,
-    })
+        local function getPlayerNames()
+            local playerNames = {}
+            for _, p in pairs(Players:GetPlayers()) do
+                if p ~= player then
+                    table.insert(playerNames, p.Name)
+                end
+            end
+            if #playerNames == 0 then
+                table.insert(playerNames, "No other players")
+            end
+            return playerNames
+        end
 
-    -- Tabs
-    local ChangelogTab = Window:Tab({ Title = "Changelog", Icon = "scroll" })
-    ChangelogTab:Paragraph({ Title = "Initial Release", Desc = "StarForge Hub v1.0.0", Color = Color3.fromHex("#2563eb") })
-    
-    Window:Divider()
+        local function refreshPlayersDropdown()
+            local playerNames = getPlayerNames()
 
-    local MainTab = Window:Tab({ Title = "Main Features", Icon = "house" })
+            if playersDropdown then
+                playersDropdown:SetValues(playerNames)
+                if not table.find(playerNames, selectedPlayerName) then
+                    selectedPlayerName = playerNames[1]
+                    playersDropdown:SetValue(selectedPlayerName)
+                end
+            else
+                playersDropdown = InfoTab:Dropdown({
+                    Title = "Select a player",
+                    Desc = "Choose a player to view their profile and teleport to them",
+                    Values = playerNames,
+                    Value = playerNames[1],
+                    Callback = function(option)
+                        selectedPlayerName = option
+                        local target = Players:FindFirstChild(option)
+                        updateProfile(target)
+                    end
+                })
+                selectedPlayerName = playerNames[1]
+            end
 
-    -- ============================================================
+            local target = Players:FindFirstChild(selectedPlayerName)
+            updateProfile(target)
+        end
+
+        refreshPlayersDropdown()
+
+        Players.PlayerAdded:Connect(refreshPlayersDropdown)
+        Players.PlayerRemoving:Connect(refreshPlayersDropdown)
+
+        InfoTab:Button({
+            Title = "Refresh Players",
+            Icon = "refresh-cw",
+            Callback = function()
+                refreshPlayersDropdown()
+                WindUI:Notify({ Title = "Players Refreshed", Duration = 1, Icon = "check" })
+            end
+        })
+
+        InfoTab:Button({
+            Title = "Teleport to Player",
+            Icon = "send",
+            Callback = function()
+                if not selectedPlayerName or selectedPlayerName == "No other players" then
+                    WindUI:Notify({ Title = "No player selected", Duration = 2, Icon = "alert-circle" })
+                    return
+                end
+
+                local target = Players:FindFirstChild(selectedPlayerName)
+                if not target then
+                    WindUI:Notify({ Title = "Player not found", Duration = 2, Icon = "alert-circle" })
+                    return
+                end
+
+                local char = target.Character
+                if not char or not char:FindFirstChild("HumanoidRootPart") then
+                    WindUI:Notify({ Title = "Target has no character", Duration = 2, Icon = "alert-circle" })
+                    return
+                end
+
+                local myChar = player.Character
+                if not myChar or not myChar:FindFirstChild("HumanoidRootPart") then
+                    WindUI:Notify({ Title = "You have no character", Duration = 2, Icon = "alert-circle" })
+                    return
+                end
+
+                myChar.HumanoidRootPart.CFrame = target.Character.HumanoidRootPart.CFrame + Vector3.new(0, 2, 0)
+                WindUI:Notify({ Title = "Teleported to " .. target.Name, Duration = 2, Icon = "check" })
+            end
+        })
+
+        -- ===== MAIN FEATURES TAB (now with a placeholder so it's not empty) =====
+        local MainTab = Window:Tab({ Title = "Main Features", Icon = "house" })
+   
+ -- ============================================================
     -- 1. AUTO BUY FARM (shop = "Farm")
     -- ============================================================
     MainTab:Paragraph({
@@ -684,185 +842,268 @@ local function showGUI()
             end
         end
     })
+        -- ===== MISC TAB =====
+        local MiscTab = Window:Tab({ Title = "Misc", Icon = "wrench" })
+   
+        -- Fly
+        MiscTab:Section({ Title = "Fly" })
 
-    -- Misc Tab (unchanged)
-    local MiscTab = Window:Tab({ Title = "Misc", Icon = "wrench" })
+        local flyEnabled = false
+        local flyBodyVelocity, flyBodyGyro, flyLoopThread = nil, nil, nil
+        local flySpeed = 50
 
-    -- Fly
-    MiscTab:Section({ Title = "Fly" })
-    local flyEnabled = false
-    local flyBodyVelocity, flyBodyGyro, flyLoopThread = nil, nil, nil
-    local flySpeed = 50
-    local function startFly()
-        local char = player.Character
-        if not char then return end
-        local root = char:FindFirstChild("HumanoidRootPart")
-        local hum = char:FindFirstChild("Humanoid")
-        if not root or not hum then return end
-        hum.PlatformStand = true
-        flyBodyVelocity = Instance.new("BodyVelocity")
-        flyBodyVelocity.Velocity = Vector3.new(0,0,0)
-        flyBodyVelocity.MaxForce = Vector3.new(1e9,1e9,1e9)
-        flyBodyVelocity.Parent = root
-        flyBodyGyro = Instance.new("BodyGyro")
-        flyBodyGyro.MaxTorque = Vector3.new(1e9,1e9,1e9)
-        flyBodyGyro.D = 100
-        flyBodyGyro.CFrame = root.CFrame
-        flyBodyGyro.Parent = root
-        flyLoopThread = task.spawn(function()
-            while flyEnabled do
-                local c = player.Character
-                if not c then break end
-                local r = c:FindFirstChild("HumanoidRootPart")
-                if not r then break end
-                local cam = workspace.CurrentCamera
-                local dir = Vector3.new()
-                if UserInputService:IsKeyDown(Enum.KeyCode.W) then dir = dir + cam.CFrame.LookVector end
-                if UserInputService:IsKeyDown(Enum.KeyCode.S) then dir = dir - cam.CFrame.LookVector end
-                if UserInputService:IsKeyDown(Enum.KeyCode.A) then dir = dir - cam.CFrame.RightVector end
-                if UserInputService:IsKeyDown(Enum.KeyCode.D) then dir = dir + cam.CFrame.RightVector end
-                if UserInputService:IsKeyDown(Enum.KeyCode.Space) then dir = dir + Vector3.new(0,1,0) end
-                if UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) or UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then dir = dir - Vector3.new(0,1,0) end
-                if dir.Magnitude > 0 then flyBodyVelocity.Velocity = dir.Unit * flySpeed else flyBodyVelocity.Velocity = Vector3.new(0,0,0) end
-                flyBodyGyro.CFrame = cam.CFrame
-                task.wait()
-            end
-        end)
-    end
-    local function stopFly()
-        if flyBodyVelocity then flyBodyVelocity:Destroy() end
-        if flyBodyGyro then flyBodyGyro:Destroy() end
-        if flyLoopThread then task.cancel(flyLoopThread) end
-        local char = player.Character
-        if char then
+        local function startFly()
+            local char = player.Character
+            if not char then return end
+            local root = char:FindFirstChild("HumanoidRootPart")
             local hum = char:FindFirstChild("Humanoid")
-            if hum then hum.PlatformStand = false end
+            if not root or not hum then return end
+            hum.PlatformStand = true
+            flyBodyVelocity = Instance.new("BodyVelocity")
+            flyBodyVelocity.Velocity = Vector3.new(0,0,0)
+            flyBodyVelocity.MaxForce = Vector3.new(1e9,1e9,1e9)
+            flyBodyVelocity.Parent = root
+            flyBodyGyro = Instance.new("BodyGyro")
+            flyBodyGyro.MaxTorque = Vector3.new(1e9,1e9,1e9)
+            flyBodyGyro.D = 100
+            flyBodyGyro.CFrame = root.CFrame
+            flyBodyGyro.Parent = root
+            flyLoopThread = task.spawn(function()
+                while flyEnabled do
+                    local c = player.Character
+                    if not c then break end
+                    local r = c:FindFirstChild("HumanoidRootPart")
+                    if not r then break end
+                    local cam = workspace.CurrentCamera
+                    local dir = Vector3.new()
+                    if UserInputService:IsKeyDown(Enum.KeyCode.W) then dir = dir + cam.CFrame.LookVector end
+                    if UserInputService:IsKeyDown(Enum.KeyCode.S) then dir = dir - cam.CFrame.LookVector end
+                    if UserInputService:IsKeyDown(Enum.KeyCode.A) then dir = dir - cam.CFrame.RightVector end
+                    if UserInputService:IsKeyDown(Enum.KeyCode.D) then dir = dir + cam.CFrame.RightVector end
+                    if UserInputService:IsKeyDown(Enum.KeyCode.Space) then dir = dir + Vector3.new(0,1,0) end
+                    if UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) or UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then dir = dir - Vector3.new(0,1,0) end
+                    if dir.Magnitude > 0 then flyBodyVelocity.Velocity = dir.Unit * flySpeed else flyBodyVelocity.Velocity = Vector3.new(0,0,0) end
+                    flyBodyGyro.CFrame = cam.CFrame
+                    task.wait()
+                end
+            end)
         end
-    end
-    MiscTab:Toggle({
-        Title = "Enable Fly",
-        Default = false,
-        Callback = function(state)
-            flyEnabled = state
-            if state then startFly() else stopFly() end
-        end
-    })
-    player.CharacterAdded:Connect(function()
-        if flyEnabled then task.wait(1); startFly() end
-    end)
 
-    -- Movement Speed
-    MiscTab:Section({ Title = "Movement Speed" })
-    local moveSpeedEnabled = false
-    local moveSpeedConn = nil
-    local moveSpeed = 16
-    MiscTab:Toggle({
-        Title = "Enable Speed Boost",
-        Default = false,
-        Callback = function(state)
-            moveSpeedEnabled = state
-            local function applySpeed()
+        local function stopFly()
+            if flyBodyVelocity then flyBodyVelocity:Destroy() end
+            if flyBodyGyro then flyBodyGyro:Destroy() end
+            if flyLoopThread then task.cancel(flyLoopThread) end
+            local char = player.Character
+            if char then
+                local hum = char:FindFirstChild("Humanoid")
+                if hum then hum.PlatformStand = false end
+            end
+        end
+
+        MiscTab:Toggle({
+            Title = "Enable Fly",
+            Default = false,
+            Callback = function(state)
+                flyEnabled = state
+                if state then startFly() else stopFly() end
+            end
+        })
+
+        MiscTab:Slider({
+            Title = "Fly Speed",
+            Desc = "Adjust flight speed (10-200)",
+            Step = 1,
+            Value = {
+                Min = 10,
+                Max = 200,
+                Default = 50,
+            },
+            Callback = function(value)
+                flySpeed = value
+            end
+        })
+
+        player.CharacterAdded:Connect(function()
+            if flyEnabled then task.wait(1); startFly() end
+        end)
+
+        -- ===== WALK SPEED =====
+        MiscTab:Section({ Title = "Walk Speed" })
+
+        local walkSpeedValue = 16
+        local moveSpeedEnabled = false
+        local speedLoopThread = nil
+        local speedHeartbeat = nil
+
+        local function applySpeedToChar(char)
+            if not char then return end
+            local hum = char:FindFirstChild("Humanoid")
+            if hum then
+                hum.WalkSpeed = moveSpeedEnabled and walkSpeedValue or 16
+            end
+        end
+
+        local function speedLoop()
+            while moveSpeedEnabled do
                 local char = player.Character
-                if char and char:FindFirstChild("Humanoid") then
-                    char.Humanoid.WalkSpeed = state and moveSpeed or 16
+                if char then
+                    applySpeedToChar(char)
+                end
+                task.wait(0.2)
+            end
+        end
+
+        local function updateSpeedLoop()
+            if moveSpeedEnabled then
+                if speedLoopThread then task.cancel(speedLoopThread) end
+                speedLoopThread = task.spawn(speedLoop)
+                if not speedHeartbeat then
+                    speedHeartbeat = player.CharacterAdded:Connect(function(char)
+                        task.wait(0.2)
+                        if moveSpeedEnabled then
+                            applySpeedToChar(char)
+                        end
+                    end)
+                end
+            else
+                if speedLoopThread then task.cancel(speedLoopThread); speedLoopThread = nil end
+                if speedHeartbeat then speedHeartbeat:Disconnect(); speedHeartbeat = nil end
+                local char = player.Character
+                if char then
+                    local hum = char:FindFirstChild("Humanoid")
+                    if hum then hum.WalkSpeed = 16 end
                 end
             end
-            applySpeed()
-            if state then
-                moveSpeedConn = player.CharacterAdded:Connect(function(char)
-                    task.wait(1)
-                    if moveSpeedEnabled and char:FindFirstChild("Humanoid") then
-                        char.Humanoid.WalkSpeed = moveSpeed
+        end
+
+        MiscTab:Slider({
+            Title = "Walk Speed",
+            Desc = "Set your movement speed (16-120)",
+            Step = 1,
+            Value = {
+                Min = 16,
+                Max = 120,
+                Default = 16,
+            },
+            Callback = function(value)
+                walkSpeedValue = value
+                if moveSpeedEnabled then
+                    local char = player.Character
+                    if char then
+                        applySpeedToChar(char)
                     end
-                end)
-            else
-                if moveSpeedConn then moveSpeedConn:Disconnect(); moveSpeedConn = nil end
+                end
             end
-        end
-    })
+        })
 
-    -- Anti AFK
-    MiscTab:Section({ Title = "Anti AFK" })
-    MiscTab:Toggle({
-        Title = "Prevent AFK Kick",
-        Default = false,
-        Callback = function(state)
-            antiAfkRunning = state
-            if state then
-                if antiAfkThread then task.cancel(antiAfkThread) end
-                antiAfkThread = task.spawn(antiAfkLoop)
-            else
-                if antiAfkThread then task.cancel(antiAfkThread); antiAfkThread = nil end
+        MiscTab:Toggle({
+            Title = "Enable Speed Boost",
+            Default = false,
+            Callback = function(state)
+                moveSpeedEnabled = state
+                updateSpeedLoop()
+                local char = player.Character
+                if char then
+                    applySpeedToChar(char)
+                end
+                if state then
+                    WindUI:Notify({ Title = "Speed Boost", Content = "Enabled (" .. walkSpeedValue .. ")", Duration = 2, Icon = "zap" })
+                else
+                    WindUI:Notify({ Title = "Speed Boost", Content = "Disabled", Duration = 2, Icon = "stop" })
+                end
             end
+        })
+
+        -- Anti AFK
+        MiscTab:Section({ Title = "Anti AFK" })
+        MiscTab:Toggle({
+            Title = "Prevent AFK Kick",
+            Default = false,
+            Callback = function(state)
+                antiAfkRunning = state
+                if state then
+                    if antiAfkThread then task.cancel(antiAfkThread) end
+                    antiAfkThread = task.spawn(antiAfkLoop)
+                    WindUI:Notify({ Title = "Anti‑AFK", Content = "Started", Duration = 2, Icon = "shield" })
+                else
+                    if antiAfkThread then task.cancel(antiAfkThread); antiAfkThread = nil end
+                    WindUI:Notify({ Title = "Anti‑AFK", Content = "Stopped", Duration = 2, Icon = "stop" })
+                end
+            end
+        })
+
+        -- ===== SERVER TAB =====
+        local ServerTab = Window:Tab({ Title = "Server", Icon = "server" })
+        ServerTab:Section({ Title = "Player Info" })
+        local avatarUrlServer = "https://www.roblox.com/headshot-thumbnail/image?userId=" .. player.UserId .. "&width=100&height=100&format=png"
+        ServerTab:Paragraph({
+            Title = "Your Details",
+            Desc = string.format("Name: %s\nAge: %d days\nHWID: %s", player.Name, player.AccountAge, hwid),
+            Color = Color3.fromHex("#222222"),
+            Image = avatarUrlServer,
+            ImageSize = 64,
+            ThumbnailSize = 80,
+        })
+        ServerTab:Section({ Title = "Server Actions" })
+        ServerTab:Button({ Title = "Hop Server", Icon = "repeat", Callback = function() WindUI:Notify({ Title = "Hopping...", Duration = 2 }); TeleportService:Teleport(game.PlaceId) end })
+        ServerTab:Button({ Title = "Rejoin", Icon = "log-in", Callback = function() WindUI:Notify({ Title = "Rejoining...", Duration = 2 }); TeleportService:Teleport(game.PlaceId, player) end })
+        ServerTab:Button({ Title = "Reset Character", Icon = "refresh-cw", Callback = function()
+            local char = player.Character
+            if char then
+                char:BreakJoints()
+                WindUI:Notify({ Title = "Reset", Content = "Respawning...", Duration = 2, Icon = "refresh-cw" })
+            else
+                WindUI:Notify({ Title = "Reset", Content = "No character.", Duration = 2, Icon = "info" })
+            end
+        end})
+
+        -- ===== SUPPORT TAB =====
+        local SupportTab = Window:Tab({ Title = "Support", Icon = "heart" })
+        local InviteCode = "D5NKtBJEzz"
+        local DiscordAPI = "https://discord.com/api/v10/invites/" .. InviteCode .. "?with_counts=true&with_expiration=true"
+
+        local raw = httpGet(DiscordAPI)
+        local Response = {}
+        if raw then pcall(function() Response = HttpService:JSONDecode(raw) end) end
+        local onlineCount = Response and Response.approximate_presence_count or "?"
+        local totalCount = Response and Response.approximate_member_count or "?"
+        local guildName = (Response and Response.guild and Response.guild.name) or "ZyroYonk Hub"
+        local iconUrl = nil
+        if Response and Response.guild and Response.guild.id and Response.guild.icon then
+            iconUrl = "https://cdn.discordapp.com/icons/" .. tostring(Response.guild.id) .. "/" .. tostring(Response.guild.icon) .. ".png?size=256"
         end
-    })
-
-    -- Server Tab
-    local ServerTab = Window:Tab({ Title = "Server", Icon = "server" })
-    ServerTab:Section({ Title = "Player Info" })
-    local avatarUrl = "https://www.roblox.com/headshot-thumbnail/image?userId=" .. player.UserId .. "&width=100&height=100&format=png"
-    ServerTab:Paragraph({
-        Title = "Your Details",
-        Desc = string.format("Name: %s\nAge: %d days\nHWID: %s", player.Name, player.AccountAge, hwid),
-        Color = Color3.fromHex("#222222"),
-        Image = avatarUrl,
-        ImageSize = 64,
-        ThumbnailSize = 80,
-    })
-    ServerTab:Section({ Title = "Server Actions" })
-    ServerTab:Button({ Title = "Hop Server", Icon = "repeat", Callback = function() WindUI:Notify({ Title = "Hopping...", Duration = 2 }); TeleportService:Teleport(game.PlaceId) end })
-    ServerTab:Button({ Title = "Rejoin", Icon = "log-in", Callback = function() WindUI:Notify({ Title = "Rejoining...", Duration = 2 }); TeleportService:Teleport(game.PlaceId, player) end })
-    ServerTab:Button({ Title = "Reset Character", Icon = "refresh-cw", Callback = function()
-        local char = player.Character
-        if char then
-            char:BreakJoints()
-            WindUI:Notify({ Title = "Reset", Content = "Respawning...", Duration = 2, Icon = "refresh-cw" })
-        else
-            WindUI:Notify({ Title = "Reset", Content = "No character.", Duration = 2, Icon = "info" })
-        end
-    end})
-
-    -- ============================================================
-    -- Support Tab (with dynamic Discord info restored)
-    -- ============================================================
-    local SupportTab = Window:Tab({ Title = "Support", Icon = "heart" })
-
-    -- Fetch Discord server info
-    local InviteCode = "D5NKtBJEzz"
-    local DiscordAPI = "https://discord.com/api/v10/invites/" .. InviteCode .. "?with_counts=true&with_expiration=true"
-    local raw = httpGet(DiscordAPI)
-    local Response = {}
-    if raw then pcall(function() Response = HttpService:JSONDecode(raw) end) end
-
-    local onlineCount = Response and Response.approximate_presence_count or "?"
-    local totalCount = Response and Response.approximate_member_count or "?"
-    local guildName = (Response and Response.guild and Response.guild.name) or "ZyroYonk Hub"
-    local iconUrl = nil
-    if Response and Response.guild and Response.guild.id and Response.guild.icon then
-        iconUrl = "https://cdn.discordapp.com/icons/" .. tostring(Response.guild.id) .. "/" .. tostring(Response.guild.icon) .. ".png?size=256"
-    end
-
-    SupportTab:Section({ Title = "Discord Server" })
-    local cardProps = {
-        Title = guildName,
-        Desc = "Online: " .. tostring(onlineCount) .. "   Members: " .. tostring(totalCount) .. "\nJoin for updates & support.",
-        Color = Color3.fromHex("#222222"),
-        ImageSize = 64,
-        ThumbnailSize = 100,
-        Buttons = {
-            { Title = "Copy Invite", Callback = function() copyToClipboard("https://discord.gg/" .. InviteCode); WindUI:Notify({ Title = "Copied!", Duration = 2, Icon = "clipboard-check" }) end },
-            { Title = "Join Discord", Callback = function() if openUrl then openUrl("https://discord.gg/" .. InviteCode) else copyToClipboard("https://discord.gg/" .. InviteCode); WindUI:Notify({ Title = "Link Copied", Duration = 2, Icon = "globe" }) end end }
+        SupportTab:Section({ Title = "Discord Server" })
+        local cardProps = {
+            Title = guildName,
+            Desc = "Online: " .. tostring(onlineCount) .. "   Members: " .. tostring(totalCount) .. "\nJoin for updates & support.",
+            Color = Color3.fromHex("#222222"),
+            ImageSize = 64,
+            ThumbnailSize = 100,
+            Buttons = {
+                { Title = "Copy Invite", Callback = function() copyToClipboard("https://discord.gg/" .. InviteCode); WindUI:Notify({ Title = "Copied!", Duration = 2, Icon = "clipboard-check" }) end },
+                { Title = "Join Discord", Callback = function() if openUrl then openUrl("https://discord.gg/" .. InviteCode) else copyToClipboard("https://discord.gg/" .. InviteCode); WindUI:Notify({ Title = "Link Copied", Duration = 2, Icon = "globe" }) end end }
+            }
         }
-    }
-    if iconUrl then cardProps.Image = iconUrl end
-    SupportTab:Paragraph(cardProps)
+        if iconUrl then cardProps.Image = iconUrl end
+        SupportTab:Paragraph(cardProps)
+        SupportTab:Section({ Title = "Help" })
+        SupportTab:Paragraph({ Title = "Executor", Desc = "Using: " .. executorName, Color = Color3.fromHex("#222222") })
+        SupportTab:Button({ Title = "Report Bug", Icon = "bug", Callback = function()
+            copyToClipboard("Bug Report\nExecutor: " .. executorName .. "\nScript: StarForge Hub v1.0.0\n\nDescribe:")
+            WindUI:Notify({ Title = "Template Copied", Content = "Paste in Discord.", Duration = 4, Icon = "message-square" })
+        end})
+    end)
 
-    SupportTab:Section({ Title = "Help" })
-    SupportTab:Paragraph({ Title = "Executor", Desc = "Using: " .. executorName, Color = Color3.fromHex("#222222") })
-    SupportTab:Button({ Title = "Report Bug", Icon = "bug", Callback = function()
-        copyToClipboard("Bug Report\nExecutor: " .. executorName .. "\nScript: StarForge Hub v1.0.0\n\nDescribe:")
-        WindUI:Notify({ Title = "Template Copied", Content = "Paste in Discord.", Duration = 4, Icon = "message-square" })
-    end})
+    if not success then
+        -- If an error occurred, show a notification
+        WindUI:Notify({
+            Title = "Error Loading GUI",
+            Content = "An error occurred: " .. tostring(err),
+            Duration = 10,
+            Icon = "alert-triangle"
+        })
+        warn("GUI Error: ", err)
+    end
 end
 
 showLoadingScreen()
