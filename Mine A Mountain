@@ -230,20 +230,12 @@ local function showGUI()
         HideSearchBar = false,
         ScrollBarEnabled = false,
         User = { Enabled = true, Anonymous = false, Callback = function() end },
-        KeySystem = {
-            API = {
-                {
-                    Type = "luarmor",
-                    ScriptId = "f655e944c9edb33149a2452215a9a950",
-                    Discord = "https://discord.gg/ee6azTNsm6",
-                },
-            },
-        },   
+      
     })
 
     -- VERSION & PING TAGS
     local versionTag = Window:Tag({
-        Title = "v1.0.6",
+        Title = "v1.0.7",
         Icon = "tag",
         Color = Color3.fromHex("#2563eb"),
         Radius = 100
@@ -416,15 +408,38 @@ local function showGUI()
     -- ===== MAIN FEATURES TAB =====
     local MainTab = Window:Tab({ Title = "Main Features", Icon = "house" })
 
-    -- 🔵 Premium Maintenance Notice
-    MainTab:Paragraph({
-        Title = "🔵 Feature Maintenance",
-        Desc = "Some features are currently undergoing maintenance.\n\n• Auto Mine\n• Auto Collect\n\nOur developer, **Vlood**, is working to improve their performance and reliability. These features will be available again in **v1.0.?**\n\nThank you for your patience and for supporting the project!",
-        Color = Color3.fromRGB(0, 120, 255),
+    -- =============================================================
+    --  AUTO COLLECT DROPPED CRYSTALS – simple prompt firing (no teleport)
+    -- =============================================================
+    MainTab:Section({ Title = "Auto Collect Dropped Crystals" })
+
+    -- Reverse tier mapping: T1 -> Common, T2 -> Uncommon, etc.
+    local tierReverse = {
+        T1 = "Common",
+        T2 = "Uncommon",
+        T3 = "Rare",
+        T4 = "Epic",
+        T5 = "Legendary",
+        T6 = "Mythic"
+    }
+
+    local selectedCollectTiers = {"Common", "Uncommon", "Rare", "Epic", "Legendary", "Mythic"} -- default all
+
+    local collectTierDropdown = MainTab:Dropdown({
+        Title = "Select Crystal Tiers to Collect",
+        Desc = "Choose which tiers to automatically pick up",
+        Values = {"Common", "Uncommon", "Rare", "Epic", "Legendary", "Mythic"},
+        Value = {"Common", "Uncommon", "Rare", "Epic", "Legendary", "Mythic"}, -- default all selected
+        Multi = true,
+        AllowNone = true,
+        Callback = function(options)
+            selectedCollectTiers = options or {} -- options is a table of selected tier names
+            if #selectedCollectTiers == 0 then
+                WindUI:Notify({ Title = "Collect Tiers", Content = "No tiers selected – will collect nothing", Duration = 2, Icon = "info" })
+            end
+        end
     })
 
-    -- -------------------- Auto Collect Dropped Crystals --------------------
-    MainTab:Section({ Title = "Auto Collect Dropped Crystals" })
     local collectCrystalsRunning = false
     local collectCrystalsThread = nil
 
@@ -438,8 +453,37 @@ local function showGUI()
         end
     end
 
+    -- NEW SIMPLE COLLECT LOOP – just fire prompts on all matching crystals
     local function collectCrystalsLoop()
-        -- ... existing loop code ...
+        local droppedFolder = workspace:FindFirstChild("DroppedCrystals")
+        if not droppedFolder then
+            task.wait(1)
+            return
+        end
+
+        while collectCrystalsRunning do
+            -- If no tiers selected, skip
+            if #selectedCollectTiers == 0 then
+                task.wait(0.5)
+                continue
+            end
+
+            for _, crystal in ipairs(droppedFolder:GetChildren()) do
+                if not collectCrystalsRunning then break end
+
+                -- Extract tier code from name (e.g., "DroppedCrystal_T1" -> "T1")
+                local tierCode = crystal.Name:match("_(T[1-6])$")  -- captures T1..T6 at end
+                local tierName = tierCode and tierReverse[tierCode]
+
+                if tierName and table.find(selectedCollectTiers, tierName) then
+                    local prompt = crystal:FindFirstChildWhichIsA("ProximityPrompt", true)
+                    if prompt then
+                        firePrompt(prompt)
+                    end
+                end
+            end
+            task.wait(0.2)  -- small delay between cycles
+        end
     end
 
     local collectToggle = MainTab:Toggle({
@@ -453,26 +497,13 @@ local function showGUI()
                 WindUI:Notify({ Title = "Auto Collect", Content = "Started", Duration = 2, Icon = "play" })
             else
                 if collectCrystalsThread then task.cancel(collectCrystalsThread); collectCrystalsThread = nil end
-                local spawn = workspace:FindFirstChild("SpawnLocation")
-                if spawn and spawn:IsA("SpawnLocation") then
-                    local char = player.Character
-                    if char then
-                        local root = char:FindFirstChild("HumanoidRootPart")
-                        if root then
-                            pcall(function()
-                                root.CFrame = spawn.CFrame * CFrame.new(0, 3, 0)
-                            end)
-                        end
-                    end
-                end
                 WindUI:Notify({ Title = "Auto Collect", Content = "Stopped", Duration = 2, Icon = "stop" })
             end
         end
     })
-    collectToggle:Lock()   -- 🔒 lock it
 
     -- =============================================================
-    --  AUTO MINE – ORBIT + REAL 1.5s HOLD E (always in range)
+    --  AUTO MINE – Teleport + Stick + FirePrompt (with sell pause)
     -- =============================================================
     MainTab:Section({ Title = "Auto Mine Crystal" })
 
@@ -488,7 +519,7 @@ local function showGUI()
     local selectedTier = "T1"
     local tierDropdown = MainTab:Dropdown({
         Title = "Select Crystal Tier",
-        Desc = "Development",
+        Desc = "Choose which tier to mine",
         Values = {
             "Common",
             "Uncommon",
@@ -502,224 +533,222 @@ local function showGUI()
             selectedTier = tierMapping[option] or "T1"
         end
     })
-    tierDropdown:Lock()
 
     local autoMineRunning = false
     local autoMineThread = nil
-    local followConnection = nil
-    local currentHumanoid = nil
-    local noclipConnection = nil
+    local stickConnection = nil
+    local currentTargetCrystal = nil
+    local currentTargetPos = nil
 
-    local function setNoclip(state)
+    -- Global flag to pause auto mine while selling
+    local isSelling = false
+
+    local function stopStick()
+        if stickConnection then
+            stickConnection:Disconnect()
+            stickConnection = nil
+        end
+        currentTargetCrystal = nil
+        currentTargetPos = nil
         local char = player.Character
-        if not char then return end
-        for _, part in ipairs(char:GetDescendants()) do
-            if part:IsA("BasePart") then
-                part.CanCollide = not state
-            end
+        if char then
+            local hum = char:FindFirstChild("Humanoid")
+            if hum then hum.PlatformStand = false end
         end
     end
 
-    local function startNoclip()
-        if noclipConnection then return end
-        noclipConnection = RunService.Heartbeat:Connect(function()
-            if not autoMineRunning then return end
-            setNoclip(true)
+    local function startStick(crystal, part)
+        stopStick()
+        currentTargetCrystal = crystal
+        currentTargetPos = part.Position + Vector3.new(0, 1.5, 0)
+        local char = player.Character
+        if char then
+            local hum = char:FindFirstChild("Humanoid")
+            if hum then hum.PlatformStand = true end
+        end
+        stickConnection = RunService.Heartbeat:Connect(function()
+            if not autoMineRunning or not currentTargetCrystal or not currentTargetCrystal.Parent or isSelling then
+                stopStick()
+                return
+            end
+            local char = player.Character
+            if not char then return end
+            local hrp = char:FindFirstChild("HumanoidRootPart")
+            if not hrp then return end
+            hrp.CFrame = CFrame.new(currentTargetPos)
         end)
     end
 
-    local function stopNoclip()
-        if noclipConnection then
-            noclipConnection:Disconnect()
-            noclipConnection = nil
+    local MAX_ATTEMPTS = 5
+
+    local function mineCrystal(crystal)
+        local prompt = crystal:FindFirstChildWhichIsA("ProximityPrompt", true)
+        if not prompt then return false end
+
+        local part = crystal:IsA("Model") and (crystal.PrimaryPart or crystal:FindFirstChildWhichIsA("BasePart")) or crystal
+        if not part then return false end
+
+        local char = player.Character
+        if not char then return false end
+        local hrp = char:FindFirstChild("HumanoidRootPart")
+        if not hrp then return false end
+
+        local targetPos = part.Position + Vector3.new(0, 1.5, 0)
+        hrp.CFrame = CFrame.new(targetPos)
+        startStick(crystal, part)
+
+        local attempts = 0
+        while attempts < MAX_ATTEMPTS and autoMineRunning and crystal and crystal.Parent and not isSelling do
+            firePrompt(prompt)
+            attempts += 1
+            task.wait(0.3)
         end
-        setNoclip(false)
+
+        stopStick()
+        return true
     end
 
-    local function stopAutoMine()
-        autoMineRunning = false
-        if autoMineThread then task.cancel(autoMineThread); autoMineThread = nil end
-        if followConnection then followConnection:Disconnect(); followConnection = nil end
-        if currentHumanoid then currentHumanoid.PlatformStand = false; currentHumanoid = nil end
-        stopNoclip()
-        WindUI:Notify({ Title = "Auto Mine", Content = "Stopped", Duration = 2, Icon = "stop" })
-    end
+    local function autoMineLoop()
+        while autoMineRunning do
+            if isSelling then
+                stopStick()
+                task.wait(0.5)
+                continue
+            end
 
-    local function startAutoMine()
-        if autoMineRunning then return end
-        autoMineRunning = true
-        startNoclip()
+            local crystalFolder = workspace:FindFirstChild("Things") and workspace.Things:FindFirstChild("Crystals")
+            if not crystalFolder then
+                task.wait(1)
+                continue
+            end
 
-        autoMineThread = task.spawn(function()
-            while autoMineRunning do
-                local char = player.Character or player.CharacterAdded:Wait()
-                local hrp = char and char:FindFirstChild("HumanoidRootPart")
-                if not hrp then
-                    task.wait(1)
-                    continue
-                end
+            local char = player.Character
+            if not char then
+                task.wait(1)
+                continue
+            end
+            local hrp = char:FindFirstChild("HumanoidRootPart")
+            if not hrp then
+                task.wait(1)
+                continue
+            end
 
-                local hum = char:FindFirstChild("Humanoid")
-                if not hum then
-                    task.wait(1)
-                    continue
-                end
-
-                local folder = workspace:FindFirstChild("Things") and workspace.Things:FindFirstChild("Crystals")
-                if not folder then
-                    task.wait(2)
-                    continue
-                end
-
-                local bestCrystal, bestPart, closest = nil, nil, math.huge
-                for _, crystal in ipairs(folder:GetChildren()) do
-                    if string.upper(crystal.Name):find(selectedTier) then
-                        local part = crystal:IsA("Model") and (crystal.PrimaryPart or crystal:FindFirstChildWhichIsA("BasePart")) or crystal
-                        if part then
-                            local dist = (hrp.Position - part.Position).Magnitude
-                            if dist < closest then
-                                closest = dist
-                                bestCrystal = crystal
-                                bestPart = part
-                            end
+            local bestCrystal = nil
+            local bestDist = math.huge
+            for _, crystal in ipairs(crystalFolder:GetChildren()) do
+                if string.upper(crystal.Name):find(selectedTier) then
+                    local part = crystal:IsA("Model") and (crystal.PrimaryPart or crystal:FindFirstChildWhichIsA("BasePart")) or crystal
+                    if part then
+                        local dist = (hrp.Position - part.Position).Magnitude
+                        if dist < bestDist then
+                            bestDist = dist
+                            bestCrystal = crystal
                         end
                     end
                 end
-
-                if not bestCrystal or not bestPart then
-                    task.wait(2)
-                    continue
-                end
-
-                local prompt = bestCrystal:FindFirstChildWhichIsA("ProximityPrompt", true)
-                if not prompt then
-                    task.wait(1)
-                    continue
-                end
-
-                local maxDist = prompt.MaxActivationDistance
-                local ORBIT_RADIUS = math.max(2, math.min(maxDist - 0.5, 5))
-                local HEIGHT = 1.0
-                local ORBIT_SPEED = 0.5
-
-                local orbitAngle = 0
-                local lastTime = tick()
-
-                local function getTargetCFrame(part, angle)
-                    local pos = part.Position + Vector3.new(
-                        ORBIT_RADIUS * math.cos(angle),
-                        HEIGHT,
-                        ORBIT_RADIUS * math.sin(angle)
-                    )
-                    return CFrame.new(pos, part.Position)
-                end
-
-                local targetCFrame = getTargetCFrame(bestPart, 0)
-                hrp.CFrame = targetCFrame
-
-                WindUI:Notify({ Title = "Auto Mine", Content = "Orbiting " .. selectedTier .. " (" .. bestCrystal.Name .. ")", Duration = 2, Icon = "rotate-cw" })
-
-                hum.PlatformStand = true
-                currentHumanoid = hum
-
-                local crystal = bestCrystal
-                local part = bestPart
-                local active = true
-
-                if followConnection then followConnection:Disconnect() end
-                followConnection = RunService.Heartbeat:Connect(function()
-                    if not autoMineRunning or not crystal or not crystal.Parent or not part or not part.Parent then
-                        active = false
-                        followConnection:Disconnect()
-                        followConnection = nil
-                        if currentHumanoid then currentHumanoid.PlatformStand = false; currentHumanoid = nil end
-                        return
-                    end
-
-                    local now = tick()
-                    local dt = now - lastTime
-                    lastTime = now
-                    orbitAngle = orbitAngle + ORBIT_SPEED * dt
-
-                    local currentTarget = getTargetCFrame(part, orbitAngle)
-                    local dist = (hrp.Position - currentTarget.Position).Magnitude
-                    if dist > 1.5 then
-                        hrp.CFrame = currentTarget
-                    else
-                        hrp.CFrame = hrp.CFrame:Lerp(currentTarget, 0.7)
-                    end
-                end)
-
-                task.wait(0.3)
-
-                while active and autoMineRunning and crystal and crystal.Parent and part and part.Parent do
-                    pcall(function()
-                        prompt:InputHoldBegin()
-                        task.wait(1.5)
-                        prompt:InputHoldEnd()
-                        task.wait(0.2)
-                    end)
-                end
-
-                if followConnection then
-                    followConnection:Disconnect()
-                    followConnection = nil
-                end
-                if currentHumanoid then
-                    currentHumanoid.PlatformStand = false
-                    currentHumanoid = nil
-                end
-                task.wait(0.5)
             end
-        end)
+
+            if not bestCrystal then
+                task.wait(2)
+                continue
+            end
+
+            mineCrystal(bestCrystal)
+            task.wait(0.3)
+        end
     end
 
     local autoMineToggle = MainTab:Toggle({
         Title = "Enable Auto Mine",
         Default = false,
         Callback = function(state)
+            autoMineRunning = state
             if state then
-                startAutoMine()
+                if autoMineThread then task.cancel(autoMineThread) end
+                autoMineThread = task.spawn(autoMineLoop)
+                WindUI:Notify({ Title = "Auto Mine", Content = "Started", Duration = 2, Icon = "play" })
             else
-                stopAutoMine()
+                if autoMineThread then task.cancel(autoMineThread); autoMineThread = nil end
+                stopStick()
+                WindUI:Notify({ Title = "Auto Mine", Content = "Stopped", Duration = 2, Icon = "stop" })
             end
         end
     })
-    autoMineToggle:Lock()
 
     -- =============================================================
-    --  AUTO SELL — INSTANT TELEPORT (NO TWEEN) with improved full backpack detection
+    --  AUTO SELL – REAL TELEPORT + RELIABLE DETECTION + REMOTE FIRE
     -- =============================================================
-    MainTab:Section({ Title = "Auto Sell on Full" })
+    MainTab:Section({ Title = "Auto Sell" })
 
     local autoSellRunning = false
     local autoSellThread = nil
     local cooldown = false
 
-    -- 🔥 IMPROVED & SECURE BACKPACK FULL DETECTION
+    -- Sell threshold percentage (1–100)
+    local sellThreshold = 100
+
+    -- IMPROVED BACKPACK PERCENTAGE DETECTION
+    local function getBackpackPercentage()
+        local playerGui = player:FindFirstChild("PlayerGui")
+        if not playerGui then return nil end
+
+        -- Scan all UI descendants for text like "100/200" or "100 / 200"
+        for _, child in ipairs(playerGui:GetDescendants()) do
+            if child:IsA("TextLabel") or child:IsA("TextButton") or child:IsA("TextBox") then
+                if child.Visible and child.Text and child.Text ~= "" then
+                    local current, max = child.Text:match("(%d+)%s*/%s*(%d+)")
+                    if current and max then
+                        local curNum = tonumber(current)
+                        local maxNum = tonumber(max)
+                        if curNum and maxNum and maxNum > 0 then
+                            return (curNum / maxNum) * 100
+                        end
+                    end
+                    -- Also try "X/Y" without spaces
+                    current, max = child.Text:match("(%d+)/(%d+)")
+                    if current and max then
+                        local curNum = tonumber(current)
+                        local maxNum = tonumber(max)
+                        if curNum and maxNum and maxNum > 0 then
+                            return (curNum / maxNum) * 100
+                        end
+                    end
+                end
+            end
+        end
+
+        -- Fallback: check player's Backpack for item count (if the game uses it)
+        local backpack = player:FindFirstChild("Backpack")
+        if backpack then
+            local count = #backpack:GetChildren()
+            local max = 50 -- guess, but you can try to find a MaxWeight value elsewhere
+            -- Try to find a MaxWeight value in player or leaderstats
+            local maxWeight = nil
+            local leaderstats = player:FindFirstChild("leaderstats")
+            if leaderstats then
+                for _, stat in ipairs(leaderstats:GetChildren()) do
+                    if string.lower(stat.Name):find("max") and stat:IsA("NumberValue") then
+                        maxWeight = stat.Value
+                        break
+                    end
+                end
+            end
+            if maxWeight and maxWeight > 0 then max = maxWeight end
+            if max > 0 then return (count / max) * 100 end
+        end
+        return nil
+    end
+
     local function isBackpackFull()
         local playerGui = player:FindFirstChild("PlayerGui")
         if not playerGui then return false end
 
-        -- Scan ALL descendants of PlayerGui
         for _, child in ipairs(playerGui:GetDescendants()) do
             if child:IsA("TextLabel") or child:IsA("TextButton") then
-                -- Must be visible and have text
-                if child.Visible and child.Text and child.Text ~= "" then
+                if child.Visible and child.Text then
                     local upper = string.upper(child.Text)
-                    -- Detect "FULL" anywhere in the text
-                    if string.find(upper, "FULL") then
-                        -- Optional: avoid false positives like "FULLNESS" or "FULLY"
-                        -- by checking if the text is exactly "FULL" or "Full"
-                        if upper == "FULL" or child.Text == "Full" or child.Text == "Full!" then
-                            return true
-                        end
-                        -- If the text contains "FULL" but also other words, still consider it if
-                        -- the parent is likely the backpack UI
-                        local parent = child.Parent
-                        if parent and parent.Name and string.find(string.upper(parent.Name), "BACKPACK") then
-                            return true
-                        end
+                    if string.find(upper, "FULL") and (upper == "FULL" or child.Text == "Full" or child.Text == "Full!") then
+                        return true
                     end
                 end
             end
@@ -727,71 +756,123 @@ local function showGUI()
         return false
     end
 
+    local function shouldSell()
+        local pct = getBackpackPercentage()
+        if pct then
+            return pct >= sellThreshold
+        end
+        return isBackpackFull()  -- fallback to FULL text
+    end
+
+    -- REAL TELEPORT + REMOTE FIRE
     local function teleportAndSell()
         if cooldown then return end
         cooldown = true
+        isSelling = true
 
-        local sellPart = workspace:FindFirstChild("Things") and workspace.Things:FindFirstChild("SellModel") and workspace.Things.SellModel:FindFirstChild("SellPart")
-        if not sellPart then
-            warn("SellPart not found!")
-            cooldown = false
+        -- 1. Find SellModel (try multiple locations)
+        local sellModel = workspace:FindFirstChild("SellModel")
+        if not sellModel then
+            sellModel = workspace:FindFirstChild("Things") and workspace.Things:FindFirstChild("SellModel")
+        end
+        if not sellModel then
+            isSelling = false; cooldown = false
+            WindUI:Notify({ Title = "Auto Sell", Content = "SellModel not found!", Duration = 3, Icon = "alert-triangle" })
             return
         end
 
+        -- 2. Get a BasePart to teleport to
+        local targetPart = sellModel.PrimaryPart
+        if not targetPart then
+            targetPart = sellModel:FindFirstChildWhichIsA("BasePart", true)
+        end
+        if not targetPart then
+            isSelling = false; cooldown = false
+            WindUI:Notify({ Title = "Auto Sell", Content = "No BasePart in SellModel!", Duration = 3, Icon = "alert-triangle" })
+            return
+        end
+
+        -- 3. Ensure character exists
         local char = player.Character
         if not char or not char.Parent then
             char = player.CharacterAdded:Wait()
         end
         local hrp = char and char:FindFirstChild("HumanoidRootPart")
         if not hrp then
-            cooldown = false
+            isSelling = false; cooldown = false
             return
         end
 
-        -- Notify that we detected a full backpack (optional debug)
-        WindUI:Notify({ Title = "Backpack Full", Content = "Selling...", Duration = 1, Icon = "package" })
+        WindUI:Notify({ Title = "Selling", Content = "Teleporting...", Duration = 1, Icon = "send" })
 
-        -- Save original position
+        -- 4. REAL TELEPORT – store original, then force teleport
         local originalCFrame = hrp.CFrame
+        local teleportCF = targetPart.CFrame + Vector3.new(0, 3, 0)
 
-        -- INSTANT TELEPORT to sell
-        local targetCFrame = sellPart.CFrame * CFrame.new(0, 2, 0)
-        hrp.CFrame = targetCFrame
-
-        -- Sell
-        local remote = ReplicatedStorage:FindFirstChild("Remotes")
-        if remote then
-            remote = remote:FindFirstChild("SellRequest")
+        -- Set CFrame multiple times to overcome any anti‑teleport
+        for i = 1, 3 do
+            hrp.CFrame = teleportCF
+            task.wait(0.05)
         end
+
+        -- 5. Fire the sell remote (with multiple attempts)
+        local remote = ReplicatedStorage:FindFirstChild("Remotes")
+        if remote then remote = remote:FindFirstChild("SellRequest") end
         if remote then
-            pcall(function()
-                remote:FireServer("all")
-            end)
-            WindUI:Notify({ Title = "Auto Sell", Content = "Sold full backpack!", Duration = 1, Icon = "dollar-sign" })
+            local success = false
+            for attempt = 1, 3 do
+                pcall(function()
+                    remote:FireServer("all")
+                    success = true
+                end)
+                if success then break end
+                task.wait(0.1)
+            end
+            if success then
+                WindUI:Notify({ Title = "Auto Sell", Content = "Sold backpack!", Duration = 1, Icon = "dollar-sign" })
+            else
+                WindUI:Notify({ Title = "Auto Sell", Content = "Remote failed to fire!", Duration = 2, Icon = "alert-triangle" })
+            end
         else
-            WindUI:Notify({ Title = "Auto Sell", Content = "Remote not found!", Duration = 3, Icon = "alert-triangle" })
-            cooldown = false
+            WindUI:Notify({ Title = "Auto Sell", Content = "Remote 'SellRequest' not found!", Duration = 3, Icon = "alert-triangle" })
+            isSelling = false; cooldown = false
             return
         end
 
-        -- INSTANT TELEPORT back to original position
+        -- 6. Return to original position
+        task.wait(0.3)
         hrp.CFrame = originalCFrame
 
-        task.wait(0.5)
+        isSelling = false
         cooldown = false
     end
 
     local function autoSellLoop()
         while autoSellRunning do
-            if isBackpackFull() then
+            if shouldSell() then
                 teleportAndSell()
             end
             task.wait(0.3)
         end
     end
 
+    -- Slider for threshold
+    MainTab:Slider({
+        Title = "Sell Threshold (%)",
+        Desc = "Sell when backpack reaches this percentage",
+        Step = 1,
+        Value = {
+            Min = 1,
+            Max = 100,
+            Default = 100,
+        },
+        Callback = function(value)
+            sellThreshold = value
+        end
+    })
+
     MainTab:Toggle({
-        Title = "Enable Auto Sell on Full",
+        Title = "Enable Auto Sell",
         Default = false,
         Callback = function(state)
             autoSellRunning = state
@@ -801,6 +882,7 @@ local function showGUI()
                 WindUI:Notify({ Title = "Auto Sell", Content = "Monitoring backpack...", Duration = 2, Icon = "play" })
             else
                 if autoSellThread then task.cancel(autoSellThread); autoSellThread = nil end
+                isSelling = false
                 cooldown = false
                 WindUI:Notify({ Title = "Auto Sell", Content = "Stopped", Duration = 2, Icon = "stop" })
             end
@@ -1016,7 +1098,7 @@ local function showGUI()
         end
     })
 
-    -- -------------------- Anti Ragdoll (MOVED HERE) --------------------
+    -- -------------------- Anti Ragdoll --------------------
     MainTab:Section({ Title = "Anti Ragdoll" })
 
     local antiRagdollRunning = false
@@ -1040,9 +1122,7 @@ local function showGUI()
     end
 
     local function setupAntiRagdoll()
-        -- Delete existing
         deleteRagdollRemotes()
-        -- Watch for new ones
         local remotes = ReplicatedStorage:FindFirstChild("Remotes")
         if remotes then
             antiRagdollConnection = remotes.ChildAdded:Connect(function(child)
@@ -1167,7 +1247,7 @@ local function showGUI()
         if flyEnabled then task.wait(1); startFly() end
     end)
 
-    -- ===== WALK SPEED — NOW WITH PERMANENT LOOP =====
+    -- ===== WALK SPEED =====
     MiscTab:Section({ Title = "Walk Speed" })
 
     local walkSpeedValue = 16
@@ -1329,11 +1409,11 @@ local function showGUI()
     SupportTab:Section({ Title = "Help" })
     SupportTab:Paragraph({ Title = "Executor", Desc = "Using: " .. executorName, Color = Color3.fromHex("#222222") })
     SupportTab:Button({ Title = "Report Bug", Icon = "bug", Callback = function()
-        copyToClipboard("Bug Report\nExecutor: " .. executorName .. "\nScript: StarForge Hub v1.0.0\n\nDescribe:")
+        copyToClipboard("Bug Report\nExecutor: " .. executorName .. "\nScript: StarForge Hub v1.0.8\n\nDescribe:")
         WindUI:Notify({ Title = "Template Copied", Content = "Paste in Discord.", Duration = 4, Icon = "message-square" })
     end})
 end
 
 showLoadingScreen()
 task.wait(2.5)
-showGUI()	
+showGUI()
