@@ -230,7 +230,15 @@ local function showGUI()
         HideSearchBar = false,
         ScrollBarEnabled = false,
         User = { Enabled = true, Anonymous = false, Callback = function() end },
-      
+      		                     KeySystem = {
+    API = {
+        {
+            Type = "luarmor",
+            ScriptId = "f655e944c9edb33149a2452215a9a950",  -- your Luarmor script ID
+            Discord = "https://discord.gg/ee6azTNsm6",     -- your Discord invite
+        },
+    },
+},   
     })
 
     -- VERSION & PING TAGS
