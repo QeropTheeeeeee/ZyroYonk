@@ -217,7 +217,7 @@ end
 -- ===== Main GUI =====
 local function showGUI()
     local Window = WindUI:CreateWindow({
-        Title = "Mine A Mountain",
+        Title = "Missiles vs Cities",
         Icon = "hammer",
         Author = "By Vloods" .. utf8.char(0xE000),
         Folder = "ZyroYonk Hub",
@@ -235,7 +235,7 @@ local function showGUI()
 
     -- VERSION & PING TAGS
     local versionTag = Window:Tag({
-        Title = "v1.0.8",
+        Title = "v1.0.1",
         Icon = "tag",
         Color = Color3.fromHex("#2563eb"),
         Radius = 100
