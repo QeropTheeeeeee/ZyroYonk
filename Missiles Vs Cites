@@ -445,12 +445,12 @@ local function showGUI()
         while autoProgressRunning do
             local char = player.Character
             if not char then
-                task.wait(0.5)
+                task.wait(1)
                 continue
             end
             local hrp = char:FindFirstChild("HumanoidRootPart")
             if not hrp then
-                task.wait(0.5)
+                task.wait(1)
                 continue
             end
 
@@ -462,7 +462,7 @@ local function showGUI()
                     end)
                 end
             end
-            task.wait(0.05)
+            task.wait(1)
         end
     end
 
