@@ -61,7 +61,8 @@ local gameScripts = {
     ["125927821145949"] = "https://raw.githubusercontent.com/ZyroYonk/ZyroYonk/refs/heads/main/Mine%20A%20Mountain",
     ["78417665924734"] = "https://raw.githubusercontent.com/ZyroYonk/ZyroYonk/refs/heads/main/Build%20A%20Slime%20Defense",
     ["75738770295234"] = "https://raw.githubusercontent.com/ZyroYonk/ZyroYonk/refs/heads/main/Paint%20My%20Keyboard",
-    ["18916922845"] = "https://raw.githubusercontent.com/ZyroYonk/ZyroYonk/refs/heads/main/Launch%20A%20Wheel"
+    ["18916922845"] = "https://raw.githubusercontent.com/ZyroYonk/ZyroYonk/refs/heads/main/Launch%20A%20Wheel",
+    ["91695551099066"] = "https://raw.githubusercontent.com/ZyroYonk/ZyroYonk/refs/heads/main/1%2B%20Shrink%20Per%20step"
 }
 
 executeForCorrectGame(gameScripts)
