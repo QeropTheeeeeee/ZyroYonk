@@ -1,0 +1,48 @@
+local function executeForCorrectGame(scripts)
+    local placeId = tostring(game.PlaceId)
+    local scriptUrl = scripts[placeId]
+
+    if not scriptUrl then
+        warn("[Loader] No script found for PlaceId:", placeId)
+        return
+    end
+
+    if not loadstring then
+        warn("[Loader] Your executor does not support loadstring.")
+        return
+    end
+
+    local success, result = pcall(function()
+        return game:HttpGet(scriptUrl)
+    end)
+
+    if not success then
+        warn("[Loader] Failed to download script.")
+        warn(result)
+        return
+    end
+
+    local scriptFunction, compileError = loadstring(result)
+
+    if not scriptFunction then
+        warn("[Loader] Failed to compile script.")
+        warn(compileError)
+        return
+    end
+
+    local executed, runtimeError = pcall(scriptFunction)
+
+    if not executed then
+        warn("[Loader] Script runtime error.")
+        warn(runtimeError)
+        return
+    end
+
+    print("[Loader] Successfully loaded script for PlaceId:", placeId)
+end
+
+local gameScripts = { 
+    ["91695551099066"] = "https://raw.githubusercontent.com/ZyroYonk/ZyroYonk/refs/heads/main/Launch%20A%20Wheel"
+}
+
+executeForCorrectGame(gameScripts)
