@@ -42,7 +42,7 @@ local function executeForCorrectGame(scripts)
 end
 
 local gameScripts = { 
-    ["91695551099066"] = "https://raw.githubusercontent.com/ZyroYonk/ZyroYonk/refs/heads/main/Launch%20A%20Wheel"
+    ["91695551099066"] = "https://raw.githubusercontent.com/ZyroYonk/ZyroYonk/refs/heads/main/Premium%20%5BFIXES%5D%2B1%20Shrink%20per%20Step"
 }
 
 executeForCorrectGame(gameScripts)
