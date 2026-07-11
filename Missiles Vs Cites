@@ -230,7 +230,7 @@ local function showGUI()
         HideSearchBar = false,
         ScrollBarEnabled = false,
         User = { Enabled = true, Anonymous = false, Callback = function() end },
-                           KeySystem = {
+		                         KeySystem = {
             API = {
                 {
                     Type = "luarmor",
@@ -422,20 +422,14 @@ local function showGUI()
     local autoProgressRunning = false
     local autoProgressThread = nil
 
+    -- Dynamically collect ALL cap parts from ALL plots inside workspace.map.plots
     local function getCaps()
-        local plots = {
-            workspace.map.plots.plot_1,
-            workspace.map.plots.plot_2,
-            workspace.map.plots.plot_3,
-            workspace.map.plots.plot_4,
-            workspace.map.plots.plot_5,
-            workspace.map.plots.plot_6,
-            workspace.map.plots.plot_7,
-            workspace.map.plots.plot_8,
-        }
         local caps = {}
-        for _, plot in ipairs(plots) do
-            if plot then
+        local plotsFolder = workspace.map and workspace.map.plots
+        if not plotsFolder then return caps end
+
+        for _, plot in ipairs(plotsFolder:GetChildren()) do
+            if plot:IsA("Model") or plot:IsA("Folder") then
                 for _, obj in ipairs(plot:GetDescendants()) do
                     if obj.Name == "cap" and obj:IsA("BasePart") and obj:FindFirstChild("TouchInterest") then
                         table.insert(caps, obj)
@@ -550,26 +544,20 @@ local function showGUI()
         end
     })
 
-    -- 3. Auto Collect Cash (touch collectors)
+    -- 3. Auto Collect Cash (touch collectors) – IMPROVED: dynamic plot detection
     MainTab:Section({ Title = "Auto Collect Cash" })
 
     local autoCollectRunning = false
     local autoCollectThread = nil
 
+    -- Dynamically collect ALL collector parts from ALL plots inside workspace.map.plots
     local function getCollectors()
-        local plots = {
-            workspace.map.plots.plot_1,
-            workspace.map.plots.plot_2,
-            workspace.map.plots.plot_3,
-            workspace.map.plots.plot_4,
-            workspace.map.plots.plot_5,
-            workspace.map.plots.plot_6,
-            workspace.map.plots.plot_7,
-            workspace.map.plots.plot_8,
-        }
         local collectors = {}
-        for _, plot in ipairs(plots) do
-            if plot then
+        local plotsFolder = workspace.map and workspace.map.plots
+        if not plotsFolder then return collectors end
+
+        for _, plot in ipairs(plotsFolder:GetChildren()) do
+            if plot:IsA("Model") or plot:IsA("Folder") then
                 for _, obj in ipairs(plot:GetDescendants()) do
                     if obj.Name == "collector" and obj:IsA("BasePart") and obj:FindFirstChild("TouchInterest") then
                         table.insert(collectors, obj)
