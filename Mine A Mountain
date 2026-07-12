@@ -8,6 +8,9 @@ local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 local TeleportService = game:GetService("TeleportService")
 local RunService = game:GetService("RunService")
+local Lighting = game:GetService("Lighting")
+local StarterGui = game:GetService("StarterGui")
+local CoreGui = game:GetService("CoreGui")
 local player = Players.LocalPlayer
 
 -- ===== Executor Detection =====
@@ -214,6 +217,181 @@ local function showLoadingScreen()
     blur:Destroy()
 end
 
+-- ===== Anti‑Lag (UI‑less integration) =====
+local antiLagEnabled = false
+local antiLagConnections = {}
+local changedProperties = {}
+local oldQualityLevel
+local oldSavedQualityLevel
+
+local function safeGet(instance, propertyName)
+    local ok, value = pcall(function() return instance[propertyName] end)
+    return ok and value or nil
+end
+
+local function safeSet(instance, propertyName, value)
+    pcall(function() instance[propertyName] = value end)
+end
+
+local function rememberProperty(instance, propertyName)
+    if not instance then return end
+    local data = changedProperties[instance]
+    if not data then
+        data = {}
+        changedProperties[instance] = data
+    end
+    if data[propertyName] == nil then
+        data[propertyName] = safeGet(instance, propertyName)
+    end
+end
+
+local function rememberAndSet(instance, propertyName, value)
+    if not instance then return end
+    rememberProperty(instance, propertyName)
+    safeSet(instance, propertyName, value)
+end
+
+local function shouldSkip(instance)
+    if not instance then return true end
+    local char = player.Character
+    if char and instance:IsDescendantOf(char) then return true end
+    return false
+end
+
+local function optimizeInstance(instance)
+    if shouldSkip(instance) then return end
+    if instance:IsA("BasePart") then
+        rememberAndSet(instance, "Material", Enum.Material.SmoothPlastic)
+        rememberAndSet(instance, "Reflectance", 0)
+        rememberAndSet(instance, "CastShadow", false)
+        if instance:IsA("MeshPart") then
+            rememberAndSet(instance, "RenderFidelity", Enum.RenderFidelity.Performance)
+            rememberAndSet(instance, "TextureID", "")
+        end
+    elseif instance:IsA("Decal") or instance:IsA("Texture") then
+        rememberAndSet(instance, "Transparency", 1)
+    elseif instance:IsA("ParticleEmitter") or instance:IsA("Trail") or instance:IsA("Beam")
+        or instance:IsA("Smoke") or instance:IsA("Fire") or instance:IsA("Sparkles") then
+        rememberAndSet(instance, "Enabled", false)
+    elseif instance:IsA("PointLight") or instance:IsA("SpotLight") or instance:IsA("SurfaceLight") then
+        rememberAndSet(instance, "Enabled", false)
+    elseif instance:IsA("SpecialMesh") then
+        rememberAndSet(instance, "TextureId", "")
+    elseif instance:IsA("SurfaceAppearance") then
+        rememberAndSet(instance, "ColorMap", "")
+        rememberAndSet(instance, "MetalnessMap", "")
+        rememberAndSet(instance, "NormalMap", "")
+        rememberAndSet(instance, "RoughnessMap", "")
+    end
+end
+
+local function optimizeLighting()
+    rememberAndSet(Lighting, "Technology", Enum.Technology.Compatibility)
+    rememberAndSet(Lighting, "GlobalShadows", false)
+    rememberAndSet(Lighting, "FogEnd", 1e9)
+    rememberAndSet(Lighting, "ShadowSoftness", 0)
+    for _, effect in ipairs(Lighting:GetChildren()) do
+        if effect:IsA("PostEffect") then
+            rememberAndSet(effect, "Enabled", false)
+        elseif effect:IsA("Atmosphere") then
+            rememberAndSet(effect, "Density", 0)
+            rememberAndSet(effect, "Haze", 0)
+            rememberAndSet(effect, "Glare", 0)
+        elseif effect:IsA("Sky") then
+            rememberAndSet(effect, "CelestialBodiesShown", false)
+            rememberAndSet(effect, "StarCount", 0)
+        end
+    end
+end
+
+local function optimizeTerrain()
+    local terrain = workspace:FindFirstChildOfClass("Terrain")
+    if not terrain then return end
+    rememberAndSet(terrain, "Decoration", false)
+    rememberAndSet(terrain, "WaterWaveSize", 0)
+    rememberAndSet(terrain, "WaterWaveSpeed", 0)
+    rememberAndSet(terrain, "WaterReflectance", 0)
+    rememberAndSet(terrain, "WaterTransparency", 1)
+end
+
+local function restoreAllProperties()
+    for instance, propertyData in pairs(changedProperties) do
+        if instance and instance.Parent then
+            for propertyName, oldValue in pairs(propertyData) do
+                safeSet(instance, propertyName, oldValue)
+            end
+        end
+        changedProperties[instance] = nil
+    end
+end
+
+local function setLowestQuality()
+    pcall(function()
+        local rendering = settings().Rendering
+        if oldQualityLevel == nil then
+            oldQualityLevel = rendering.QualityLevel
+        end
+        rendering.QualityLevel = Enum.QualityLevel.Level01
+    end)
+    pcall(function()
+        local userGameSettings = UserSettings():GetService("UserGameSettings")
+        if oldSavedQualityLevel == nil then
+            oldSavedQualityLevel = userGameSettings.SavedQualityLevel
+        end
+        userGameSettings.SavedQualityLevel = Enum.SavedQualitySetting.QualityLevel1
+    end)
+end
+
+local function restoreQuality()
+    if oldQualityLevel ~= nil then
+        pcall(function() settings().Rendering.QualityLevel = oldQualityLevel end)
+    end
+    if oldSavedQualityLevel ~= nil then
+        pcall(function()
+            local userGameSettings = UserSettings():GetService("UserGameSettings")
+            userGameSettings.SavedQualityLevel = oldSavedQualityLevel
+        end)
+    end
+end
+
+local function enableAntiLag()
+    if antiLagEnabled then return end
+    antiLagEnabled = true
+    setLowestQuality()
+    optimizeLighting()
+    optimizeTerrain()
+    for _, instance in ipairs(workspace:GetDescendants()) do
+        optimizeInstance(instance)
+    end
+    local conn = workspace.DescendantAdded:Connect(function(instance)
+        if antiLagEnabled then optimizeInstance(instance) end
+    end)
+    table.insert(antiLagConnections, conn)
+    WindUI:Notify({ Title = "Anti‑Lag", Content = "Enabled", Duration = 2, Icon = "zap" })
+end
+
+local function disableAntiLag()
+    if not antiLagEnabled then return end
+    antiLagEnabled = false
+    for _, conn in ipairs(antiLagConnections) do
+        pcall(function() conn:Disconnect() end)
+    end
+    antiLagConnections = {}
+    restoreAllProperties()
+    restoreQuality()
+    WindUI:Notify({ Title = "Anti‑Lag", Content = "Disabled", Duration = 2, Icon = "stop" })
+end
+
+-- Cleanup on script end
+local function cleanupAntiLag()
+    disableAntiLag()
+end
+if type(getgenv) == "function" then
+    getgenv().__UNIVERSAL_ANTILAG_CLEANUP = cleanupAntiLag
+else
+    _G.__UNIVERSAL_ANTILAG_CLEANUP = cleanupAntiLag
+end
+
 -- ===== Main GUI =====
 local function showGUI()
     local Window = WindUI:CreateWindow({
@@ -230,32 +408,30 @@ local function showGUI()
         HideSearchBar = false,
         ScrollBarEnabled = false,
         User = { Enabled = true, Anonymous = false, Callback = function() end },
-      		                     KeySystem = {
-    API = {
-        {
-            Type = "luarmor",
-            ScriptId = "f655e944c9edb33149a2452215a9a950",  -- your Luarmor script ID
-            Discord = "https://discord.gg/ee6azTNsm6",     -- your Discord invite
+        KeySystem = {
+            API = {
+                {
+                    Type = "luarmor",
+                    ScriptId = "f655e944c9edb33149a2452215a9a950",
+                    Discord = "https://discord.gg/ee6azTNsm6",
+                },
+            },
         },
-    },
-},   
     })
 
     -- VERSION & PING TAGS
     local versionTag = Window:Tag({
-        Title = "v1.0.7",
+        Title = "v1.0.9",
         Icon = "tag",
         Color = Color3.fromHex("#2563eb"),
         Radius = 100
     })
-
     local pingTag = Window:Tag({
         Title = "0ms",
         Icon = "wifi",
         Color = Color3.fromHex("#22c55e"),
         Radius = 100
     })
-
     task.spawn(function()
         while true do
             local ping = getPing()
@@ -279,7 +455,6 @@ local function showGUI()
 
     -- ===== INFORMATION TAB =====
     local InfoTab = Window:Tab({ Title = "Information", Icon = "info" })
-
     local avatarUrl = "https://www.roblox.com/headshot-thumbnail/image?userId=" .. player.UserId .. "&width=100&height=100&format=png"
     InfoTab:Paragraph({
         Title = "👋 Hi " .. player.Name .. "!",
@@ -289,9 +464,7 @@ local function showGUI()
         ImageSize = 64,
         ThumbnailSize = 80,
     })
-
     Window:Divider()
-
     InfoTab:Section({ Title = "Player Selector" })
 
     local selectedPlayerName = nil
@@ -306,11 +479,9 @@ local function showGUI()
             end
             return
         end
-
         local age = plr.AccountAge or 0
         local avatar = "https://www.roblox.com/headshot-thumbnail/image?userId=" .. plr.UserId .. "&width=100&height=100&format=png"
         local desc = string.format("**Name:** %s\n**Account Age:** %d days\n**User ID:** %d", plr.Name, age, plr.UserId)
-
         if profileParagraph then
             profileParagraph:SetDesc(desc)
             profileParagraph:SetImage(avatar)
@@ -341,7 +512,6 @@ local function showGUI()
 
     local function refreshPlayersDropdown()
         local playerNames = getPlayerNames()
-
         if playersDropdown then
             playersDropdown:SetValues(playerNames)
             if not table.find(playerNames, selectedPlayerName) then
@@ -362,13 +532,11 @@ local function showGUI()
             })
             selectedPlayerName = playerNames[1]
         end
-
         local target = Players:FindFirstChild(selectedPlayerName)
         updateProfile(target)
     end
 
     refreshPlayersDropdown()
-
     Players.PlayerAdded:Connect(refreshPlayersDropdown)
     Players.PlayerRemoving:Connect(refreshPlayersDropdown)
 
@@ -389,25 +557,21 @@ local function showGUI()
                 WindUI:Notify({ Title = "No player selected", Duration = 2, Icon = "alert-circle" })
                 return
             end
-
             local target = Players:FindFirstChild(selectedPlayerName)
             if not target then
                 WindUI:Notify({ Title = "Player not found", Duration = 2, Icon = "alert-circle" })
                 return
             end
-
             local char = target.Character
             if not char or not char:FindFirstChild("HumanoidRootPart") then
                 WindUI:Notify({ Title = "Target has no character", Duration = 2, Icon = "alert-circle" })
                 return
             end
-
             local myChar = player.Character
             if not myChar or not myChar:FindFirstChild("HumanoidRootPart") then
                 WindUI:Notify({ Title = "You have no character", Duration = 2, Icon = "alert-circle" })
                 return
             end
-
             myChar.HumanoidRootPart.CFrame = target.Character.HumanoidRootPart.CFrame + Vector3.new(0, 2, 0)
             WindUI:Notify({ Title = "Teleported to " .. target.Name, Duration = 2, Icon = "check" })
         end
@@ -417,11 +581,9 @@ local function showGUI()
     local MainTab = Window:Tab({ Title = "Main Features", Icon = "house" })
 
     -- =============================================================
-    --  AUTO COLLECT DROPPED CRYSTALS – simple prompt firing (no teleport)
+    --  AUTO COLLECT DROPPED CRYSTALS – MULTI‑SELECT, DEFAULT: ONLY "Common"
     -- =============================================================
     MainTab:Section({ Title = "Auto Collect Dropped Crystals" })
-
-    -- Reverse tier mapping: T1 -> Common, T2 -> Uncommon, etc.
     local tierReverse = {
         T1 = "Common",
         T2 = "Uncommon",
@@ -430,18 +592,18 @@ local function showGUI()
         T5 = "Legendary",
         T6 = "Mythic"
     }
-
-    local selectedCollectTiers = {"Common", "Uncommon", "Rare", "Epic", "Legendary", "Mythic"} -- default all
+    -- Default: only "Common" selected
+    local selectedCollectTiers = {"Common"}
 
     local collectTierDropdown = MainTab:Dropdown({
         Title = "Select Crystal Tiers to Collect",
-        Desc = "Choose which tiers to automatically pick up",
+        Desc = "Choose which tiers to automatically pick up (multi‑select)",
         Values = {"Common", "Uncommon", "Rare", "Epic", "Legendary", "Mythic"},
-        Value = {"Common", "Uncommon", "Rare", "Epic", "Legendary", "Mythic"}, -- default all selected
+        Value = {"Common"},   -- default only Common
         Multi = true,
         AllowNone = true,
         Callback = function(options)
-            selectedCollectTiers = options or {} -- options is a table of selected tier names
+            selectedCollectTiers = options or {}
             if #selectedCollectTiers == 0 then
                 WindUI:Notify({ Title = "Collect Tiers", Content = "No tiers selected – will collect nothing", Duration = 2, Icon = "info" })
             end
@@ -461,28 +623,21 @@ local function showGUI()
         end
     end
 
-    -- NEW SIMPLE COLLECT LOOP – just fire prompts on all matching crystals
     local function collectCrystalsLoop()
         local droppedFolder = workspace:FindFirstChild("DroppedCrystals")
         if not droppedFolder then
             task.wait(1)
             return
         end
-
         while collectCrystalsRunning do
-            -- If no tiers selected, skip
             if #selectedCollectTiers == 0 then
                 task.wait(0.5)
                 continue
             end
-
             for _, crystal in ipairs(droppedFolder:GetChildren()) do
                 if not collectCrystalsRunning then break end
-
-                -- Extract tier code from name (e.g., "DroppedCrystal_T1" -> "T1")
-                local tierCode = crystal.Name:match("_(T[1-6])$")  -- captures T1..T6 at end
+                local tierCode = crystal.Name:match("_(T[1-6])$")
                 local tierName = tierCode and tierReverse[tierCode]
-
                 if tierName and table.find(selectedCollectTiers, tierName) then
                     local prompt = crystal:FindFirstChildWhichIsA("ProximityPrompt", true)
                     if prompt then
@@ -490,7 +645,7 @@ local function showGUI()
                     end
                 end
             end
-            task.wait(0.2)  -- small delay between cycles
+            task.wait(0.2)
         end
     end
 
@@ -511,7 +666,7 @@ local function showGUI()
     })
 
     -- =============================================================
-    --  AUTO MINE – Teleport + Stick + FirePrompt (with sell pause)
+    --  AUTO MINE – MULTI‑SELECT, DEFAULT: ONLY "Common"
     -- =============================================================
     MainTab:Section({ Title = "Auto Mine Crystal" })
 
@@ -524,21 +679,21 @@ local function showGUI()
         ["Mythic"] = "T6"
     }
 
-    local selectedTier = "T1"
-    local tierDropdown = MainTab:Dropdown({
-        Title = "Select Crystal Tier",
-        Desc = "Choose which tier to mine",
-        Values = {
-            "Common",
-            "Uncommon",
-            "Rare",
-            "Epic",
-            "Legendary",
-            "Mythic"
-        },
-        Value = "Common",
-        Callback = function(option)
-            selectedTier = tierMapping[option] or "T1"
+    -- Default: only "Common" selected
+    local selectedMineTiers = {"Common"}
+
+    local mineTierDropdown = MainTab:Dropdown({
+        Title = "Select Crystal Tiers to Mine",
+        Desc = "Choose which tiers to automatically mine (multi‑select)",
+        Values = {"Common", "Uncommon", "Rare", "Epic", "Legendary", "Mythic"},
+        Value = {"Common"},   -- default only Common
+        Multi = true,
+        AllowNone = true,
+        Callback = function(options)
+            selectedMineTiers = options or {}
+            if #selectedMineTiers == 0 then
+                WindUI:Notify({ Title = "Mine Tiers", Content = "No tiers selected – will mine nothing", Duration = 2, Icon = "info" })
+            end
         end
     })
 
@@ -547,8 +702,6 @@ local function showGUI()
     local stickConnection = nil
     local currentTargetCrystal = nil
     local currentTargetPos = nil
-
-    -- Global flag to pause auto mine while selling
     local isSelling = false
 
     local function stopStick()
@@ -592,26 +745,21 @@ local function showGUI()
     local function mineCrystal(crystal)
         local prompt = crystal:FindFirstChildWhichIsA("ProximityPrompt", true)
         if not prompt then return false end
-
         local part = crystal:IsA("Model") and (crystal.PrimaryPart or crystal:FindFirstChildWhichIsA("BasePart")) or crystal
         if not part then return false end
-
         local char = player.Character
         if not char then return false end
         local hrp = char:FindFirstChild("HumanoidRootPart")
         if not hrp then return false end
-
         local targetPos = part.Position + Vector3.new(0, 1.5, 0)
         hrp.CFrame = CFrame.new(targetPos)
         startStick(crystal, part)
-
         local attempts = 0
         while attempts < MAX_ATTEMPTS and autoMineRunning and crystal and crystal.Parent and not isSelling do
             firePrompt(prompt)
             attempts += 1
             task.wait(0.3)
         end
-
         stopStick()
         return true
     end
@@ -621,6 +769,22 @@ local function showGUI()
             if isSelling then
                 stopStick()
                 task.wait(0.5)
+                continue
+            end
+
+            if #selectedMineTiers == 0 then
+                task.wait(1)
+                continue
+            end
+
+            -- Convert selected tier names to codes
+            local selectedCodes = {}
+            for _, name in ipairs(selectedMineTiers) do
+                local code = tierMapping[name]
+                if code then table.insert(selectedCodes, code) end
+            end
+            if #selectedCodes == 0 then
+                task.wait(1)
                 continue
             end
 
@@ -643,8 +807,10 @@ local function showGUI()
 
             local bestCrystal = nil
             local bestDist = math.huge
+
             for _, crystal in ipairs(crystalFolder:GetChildren()) do
-                if string.upper(crystal.Name):find(selectedTier) then
+                local tierCode = string.upper(crystal.Name):match("(T[1-6])")
+                if tierCode and table.find(selectedCodes, tierCode) then
                     local part = crystal:IsA("Model") and (crystal.PrimaryPart or crystal:FindFirstChildWhichIsA("BasePart")) or crystal
                     if part then
                         local dist = (hrp.Position - part.Position).Magnitude
@@ -684,23 +850,17 @@ local function showGUI()
     })
 
     -- =============================================================
-    --  AUTO SELL – REAL TELEPORT + RELIABLE DETECTION + REMOTE FIRE
+    --  AUTO SELL (unchanged)
     -- =============================================================
     MainTab:Section({ Title = "Auto Sell" })
-
     local autoSellRunning = false
     local autoSellThread = nil
     local cooldown = false
-
-    -- Sell threshold percentage (1–100)
     local sellThreshold = 100
 
-    -- IMPROVED BACKPACK PERCENTAGE DETECTION
     local function getBackpackPercentage()
         local playerGui = player:FindFirstChild("PlayerGui")
         if not playerGui then return nil end
-
-        -- Scan all UI descendants for text like "100/200" or "100 / 200"
         for _, child in ipairs(playerGui:GetDescendants()) do
             if child:IsA("TextLabel") or child:IsA("TextButton") or child:IsA("TextBox") then
                 if child.Visible and child.Text and child.Text ~= "" then
@@ -712,7 +872,6 @@ local function showGUI()
                             return (curNum / maxNum) * 100
                         end
                     end
-                    -- Also try "X/Y" without spaces
                     current, max = child.Text:match("(%d+)/(%d+)")
                     if current and max then
                         local curNum = tonumber(current)
@@ -724,14 +883,10 @@ local function showGUI()
                 end
             end
         end
-
-        -- Fallback: check player's Backpack for item count (if the game uses it)
         local backpack = player:FindFirstChild("Backpack")
         if backpack then
             local count = #backpack:GetChildren()
-            local max = 50 -- guess, but you can try to find a MaxWeight value elsewhere
-            -- Try to find a MaxWeight value in player or leaderstats
-            local maxWeight = nil
+            local max = 50
             local leaderstats = player:FindFirstChild("leaderstats")
             if leaderstats then
                 for _, stat in ipairs(leaderstats:GetChildren()) do
@@ -750,7 +905,6 @@ local function showGUI()
     local function isBackpackFull()
         local playerGui = player:FindFirstChild("PlayerGui")
         if not playerGui then return false end
-
         for _, child in ipairs(playerGui:GetDescendants()) do
             if child:IsA("TextLabel") or child:IsA("TextButton") then
                 if child.Visible and child.Text then
@@ -769,16 +923,14 @@ local function showGUI()
         if pct then
             return pct >= sellThreshold
         end
-        return isBackpackFull()  -- fallback to FULL text
+        return isBackpackFull()
     end
 
-    -- REAL TELEPORT + REMOTE FIRE
     local function teleportAndSell()
         if cooldown then return end
         cooldown = true
         isSelling = true
 
-        -- 1. Find SellModel (try multiple locations)
         local sellModel = workspace:FindFirstChild("SellModel")
         if not sellModel then
             sellModel = workspace:FindFirstChild("Things") and workspace.Things:FindFirstChild("SellModel")
@@ -789,7 +941,6 @@ local function showGUI()
             return
         end
 
-        -- 2. Get a BasePart to teleport to
         local targetPart = sellModel.PrimaryPart
         if not targetPart then
             targetPart = sellModel:FindFirstChildWhichIsA("BasePart", true)
@@ -800,7 +951,6 @@ local function showGUI()
             return
         end
 
-        -- 3. Ensure character exists
         local char = player.Character
         if not char or not char.Parent then
             char = player.CharacterAdded:Wait()
@@ -813,17 +963,13 @@ local function showGUI()
 
         WindUI:Notify({ Title = "Selling", Content = "Teleporting...", Duration = 1, Icon = "send" })
 
-        -- 4. REAL TELEPORT – store original, then force teleport
         local originalCFrame = hrp.CFrame
         local teleportCF = targetPart.CFrame + Vector3.new(0, 3, 0)
-
-        -- Set CFrame multiple times to overcome any anti‑teleport
         for i = 1, 3 do
             hrp.CFrame = teleportCF
             task.wait(0.05)
         end
 
-        -- 5. Fire the sell remote (with multiple attempts)
         local remote = ReplicatedStorage:FindFirstChild("Remotes")
         if remote then remote = remote:FindFirstChild("SellRequest") end
         if remote then
@@ -847,10 +993,8 @@ local function showGUI()
             return
         end
 
-        -- 6. Return to original position
         task.wait(0.3)
         hrp.CFrame = originalCFrame
-
         isSelling = false
         cooldown = false
     end
@@ -864,7 +1008,6 @@ local function showGUI()
         end
     end
 
-    -- Slider for threshold
     MainTab:Slider({
         Title = "Sell Threshold (%)",
         Desc = "Sell when backpack reaches this percentage",
@@ -900,6 +1043,7 @@ local function showGUI()
     -- -------------------- Auto Upgrades --------------------
     MainTab:Section({ Title = "Auto Upgrades" })
 
+    -- Upgrade Warmth
     local upgradeWarmthRunning = false
     local upgradeWarmthThread = nil
 
@@ -944,6 +1088,7 @@ local function showGUI()
         end
     })
 
+    -- Upgrade Backpack
     local upgradeBackpackRunning = false
     local upgradeBackpackThread = nil
 
@@ -974,6 +1119,51 @@ local function showGUI()
             else
                 if upgradeBackpackThread then task.cancel(upgradeBackpackThread); upgradeBackpackThread = nil end
                 WindUI:Notify({ Title = "Upgrade Backpack", Content = "Stopped", Duration = 2, Icon = "stop" })
+            end
+        end
+    })
+
+    -- ===== NEW: Auto Upgrade Luck =====
+    local upgradeLuckRunning = false
+    local upgradeLuckThread = nil
+
+    local function getUpgradeLuckRemote()
+        local success, remote = pcall(function()
+            return ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("UpgradePlotCapacity")
+        end)
+        if success and remote then
+            return remote
+        end
+        return nil
+    end
+
+    local function upgradeLuckLoop()
+        local remote = getUpgradeLuckRemote()
+        if not remote then
+            WindUI:Notify({ Title = "Upgrade Luck", Content = "Remote not found!", Duration = 3, Icon = "alert-triangle" })
+            upgradeLuckRunning = false
+            return
+        end
+        while upgradeLuckRunning do
+            pcall(function()
+                remote:FireServer()
+            end)
+            task.wait(0.5)
+        end
+    end
+
+    MainTab:Toggle({
+        Title = "Auto Upgrade Plot",
+        Default = false,
+        Callback = function(state)
+            upgradeLuckRunning = state
+            if state then
+                if upgradeLuckThread then task.cancel(upgradeLuckThread) end
+                upgradeLuckThread = task.spawn(upgradeLuckLoop)
+                WindUI:Notify({ Title = "Upgrade Luck", Content = "Started", Duration = 2, Icon = "dice" })
+            else
+                if upgradeLuckThread then task.cancel(upgradeLuckThread); upgradeLuckThread = nil end
+                WindUI:Notify({ Title = "Upgrade Luck", Content = "Stopped", Duration = 2, Icon = "stop" })
             end
         end
     })
@@ -1255,9 +1445,8 @@ local function showGUI()
         if flyEnabled then task.wait(1); startFly() end
     end)
 
-    -- ===== WALK SPEED =====
+    -- Walk Speed
     MiscTab:Section({ Title = "Walk Speed" })
-
     local walkSpeedValue = 16
     local moveSpeedEnabled = false
     local speedLoopThread = nil
@@ -1356,6 +1545,21 @@ local function showGUI()
             else
                 if antiAfkThread then task.cancel(antiAfkThread); antiAfkThread = nil end
                 WindUI:Notify({ Title = "Anti‑AFK", Content = "Stopped", Duration = 2, Icon = "stop" })
+            end
+        end
+    })
+
+    -- ===== ANTI‑LAG TOGGLE (UI‑less) =====
+    MiscTab:Section({ Title = "Optimizations" })
+    MiscTab:Toggle({
+        Title = "Anti‑Lag",
+        Desc = "Disables particles, lights, textures, and lowers graphics for performance",
+        Default = false,
+        Callback = function(state)
+            if state then
+                enableAntiLag()
+            else
+                disableAntiLag()
             end
         end
     })
