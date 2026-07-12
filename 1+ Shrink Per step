@@ -8,6 +8,7 @@ local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 local TeleportService = game:GetService("TeleportService")
 local RunService = game:GetService("RunService")
+local Lighting = game:GetService("Lighting")
 local player = Players.LocalPlayer
 
 -- ===== Executor Detection =====
@@ -155,6 +156,164 @@ local function restartAntiAfkIfNeeded()
 end
 player.CharacterAdded:Connect(restartAntiAfkIfNeeded)
 
+-- ============================================================
+--  ANTI‑LAG INTEGRATION (toggle inside Misc tab)
+-- ============================================================
+local antiLagEnabled = false
+local antiLagConnections = {}
+local antiLagChangedProps = {}
+local oldQualityLevel = nil
+local oldSavedQualityLevel = nil
+
+local function safeGet(instance, prop)
+    local ok, val = pcall(function() return instance[prop] end)
+    return ok and val or nil
+end
+
+local function safeSet(instance, prop, val)
+    pcall(function() instance[prop] = val end)
+end
+
+local function rememberProp(instance, prop)
+    if not instance then return end
+    local data = antiLagChangedProps[instance]
+    if not data then data = {}; antiLagChangedProps[instance] = data end
+    if data[prop] == nil then data[prop] = safeGet(instance, prop) end
+end
+
+local function rememberAndSet(instance, prop, val)
+    if not instance then return end
+    rememberProp(instance, prop)
+    safeSet(instance, prop, val)
+end
+
+local function shouldSkip(instance)
+    local char = player.Character
+    return char and instance:IsDescendantOf(char)
+end
+
+local function optimizeInstance(instance)
+    if shouldSkip(instance) then return end
+    if instance:IsA("BasePart") then
+        rememberAndSet(instance, "Material", Enum.Material.SmoothPlastic)
+        rememberAndSet(instance, "Reflectance", 0)
+        rememberAndSet(instance, "CastShadow", false)
+        if instance:IsA("MeshPart") then
+            rememberAndSet(instance, "RenderFidelity", Enum.RenderFidelity.Performance)
+            rememberAndSet(instance, "TextureID", "")
+        end
+    elseif instance:IsA("Decal") or instance:IsA("Texture") then
+        rememberAndSet(instance, "Transparency", 1)
+    elseif instance:IsA("ParticleEmitter") or instance:IsA("Trail") or instance:IsA("Beam") or
+           instance:IsA("Smoke") or instance:IsA("Fire") or instance:IsA("Sparkles") then
+        rememberAndSet(instance, "Enabled", false)
+    elseif instance:IsA("PointLight") or instance:IsA("SpotLight") or instance:IsA("SurfaceLight") then
+        rememberAndSet(instance, "Enabled", false)
+    elseif instance:IsA("SpecialMesh") then
+        rememberAndSet(instance, "TextureId", "")
+    elseif instance:IsA("SurfaceAppearance") then
+        rememberAndSet(instance, "ColorMap", "")
+        rememberAndSet(instance, "MetalnessMap", "")
+        rememberAndSet(instance, "NormalMap", "")
+        rememberAndSet(instance, "RoughnessMap", "")
+    end
+end
+
+local function optimizeLighting()
+    rememberAndSet(Lighting, "Technology", Enum.Technology.Compatibility)
+    rememberAndSet(Lighting, "GlobalShadows", false)
+    rememberAndSet(Lighting, "FogEnd", 1e9)
+    rememberAndSet(Lighting, "ShadowSoftness", 0)
+    for _, effect in ipairs(Lighting:GetChildren()) do
+        if effect:IsA("PostEffect") then
+            rememberAndSet(effect, "Enabled", false)
+        elseif effect:IsA("Atmosphere") then
+            rememberAndSet(effect, "Density", 0)
+            rememberAndSet(effect, "Haze", 0)
+            rememberAndSet(effect, "Glare", 0)
+        elseif effect:IsA("Sky") then
+            rememberAndSet(effect, "CelestialBodiesShown", false)
+            rememberAndSet(effect, "StarCount", 0)
+        end
+    end
+end
+
+local function optimizeTerrain()
+    local terrain = workspace:FindFirstChildOfClass("Terrain")
+    if terrain then
+        rememberAndSet(terrain, "Decoration", false)
+        rememberAndSet(terrain, "WaterWaveSize", 0)
+        rememberAndSet(terrain, "WaterWaveSpeed", 0)
+        rememberAndSet(terrain, "WaterReflectance", 0)
+        rememberAndSet(terrain, "WaterTransparency", 1)
+    end
+end
+
+local function restoreAllProperties()
+    for instance, data in pairs(antiLagChangedProps) do
+        if instance and instance.Parent then
+            for prop, val in pairs(data) do
+                safeSet(instance, prop, val)
+            end
+        end
+        antiLagChangedProps[instance] = nil
+    end
+end
+
+local function setLowestQuality()
+    pcall(function()
+        local rendering = settings().Rendering
+        if oldQualityLevel == nil then oldQualityLevel = rendering.QualityLevel end
+        rendering.QualityLevel = Enum.QualityLevel.Level01
+    end)
+    pcall(function()
+        local userGameSettings = UserSettings():GetService("UserGameSettings")
+        if oldSavedQualityLevel == nil then oldSavedQualityLevel = userGameSettings.SavedQualityLevel end
+        userGameSettings.SavedQualityLevel = Enum.SavedQualitySetting.QualityLevel1
+    end)
+end
+
+local function restoreQuality()
+    if oldQualityLevel ~= nil then
+        pcall(function() settings().Rendering.QualityLevel = oldQualityLevel end)
+    end
+    if oldSavedQualityLevel ~= nil then
+        pcall(function()
+            UserSettings():GetService("UserGameSettings").SavedQualityLevel = oldSavedQualityLevel
+        end)
+    end
+end
+
+local function enableAntiLag()
+    if antiLagEnabled then return end
+    antiLagEnabled = true
+    setLowestQuality()
+    optimizeLighting()
+    optimizeTerrain()
+    for _, inst in ipairs(workspace:GetDescendants()) do
+        optimizeInstance(inst)
+    end
+    local conn = workspace.DescendantAdded:Connect(function(inst)
+        if antiLagEnabled then optimizeInstance(inst) end
+    end)
+    table.insert(antiLagConnections, conn)
+    WindUI:Notify({ Title = "Anti-Lag", Content = "Enabled", Duration = 2, Icon = "zap" })
+end
+
+local function disableAntiLag()
+    if not antiLagEnabled then return end
+    antiLagEnabled = false
+    for _, conn in ipairs(antiLagConnections) do
+        pcall(function() conn:Disconnect() end)
+    end
+    antiLagConnections = {}
+    restoreAllProperties()
+    restoreQuality()
+    WindUI:Notify({ Title = "Anti-Lag", Content = "Disabled", Duration = 2, Icon = "stop" })
+end
+
+-- ============================================================
+
 -- ===== Loading Screen =====
 local function showLoadingScreen()
     local blur = Instance.new("BlurEffect", game:GetService("Lighting"))
@@ -230,20 +389,20 @@ local function showGUI()
         HideSearchBar = false,
         ScrollBarEnabled = false,
         User = { Enabled = true, Anonymous = false, Callback = function() end },
-		      		                     KeySystem = {
-    API = {
-        {
-            Type = "luarmor",
-            ScriptId = "f655e944c9edb33149a2452215a9a950",  -- your Luarmor script ID
-            Discord = "https://discord.gg/ee6azTNsm6",     -- your Discord invite
+        KeySystem = {
+            API = {
+                {
+                    Type = "luarmor",
+                    ScriptId = "f655e944c9edb33149a2452215a9a950",
+                    Discord = "https://discord.gg/ee6azTNsm6",
+                },
+            },
         },
-    },
-}, 
     })
 
     -- VERSION & PING TAGS
     local versionTag = Window:Tag({
-        Title = "v1.0.1",
+        Title = "v1.0.2",
         Icon = "tag",
         Color = Color3.fromHex("#2563eb"),
         Radius = 100
@@ -416,279 +575,271 @@ local function showGUI()
     -- ===== MAIN FEATURES TAB =====
     local MainTab = Window:Tab({ Title = "Main Features", Icon = "house" })
 
-    -- ===== World 1 (Rooms) =====
+    -- ===== Auto Win Delay Slider (shared for both worlds) =====
+    local winSmartDelay = 3
+
+    MainTab:Slider({
+        Title = "Auto Win Delay",
+        Desc = "Delay between cycles (0.1 – 10 seconds)",
+        Step = 0.1,
+        Value = {
+            Min = 0.1,
+            Max = 10,
+            Default = 3,
+        },
+        Callback = function(value)
+            winSmartDelay = value
+        end
+    })
+
+    -- ===== World 1 (Rooms) - Auto Win Smart =====
     MainTab:Section({ Title = "World 1" })
 
-    local levelOptions1 = {
-        { label = "Level 1", room = "0" },
-        { label = "Level 25", room = "1" },
-        { label = "Level 50", room = "2" },
-        { label = "Level 75", room = "3" },
-        { label = "Level 100", room = "4" },
-        { label = "Level 125", room = "5" },
-        { label = "Level 150", room = "6" },
-        { label = "Level 175", room = "7" },
-        { label = "Level 200", room = "8" },
-        { label = "Level 225", room = "9" },
-        { label = "Level 250", room = "10" },
-        { label = "Level 275", room = "11" },
-        { label = "Level 300", room = "12" },
-        { label = "Level 343", room = "13" },
-        { label = "Level 365", room = "14" },
-        { label = "Level 400", room = "15" },
-        { label = "Level 450", room = "16" },
-        { label = "Level 510", room = "17" },
-        { label = "Level 575", room = "18" },
-        { label = "Level 645", room = "19" },
-        { label = "Level 720", room = "20" },
-        { label = "Level 800", room = "22" },
-    }
+    local autoWinSmartW1 = false
+    local autoWinSmartW1Thread = nil
 
-    local labels1 = {}
-    for _, opt in ipairs(levelOptions1) do
-        table.insert(labels1, opt.label)
+    -- Helper: get current level from GUI
+    local function getCurrentLevel()
+        local levelLabel = player.PlayerGui:FindFirstChild("Main") and 
+                           player.PlayerGui.Main:FindFirstChild("Down") and
+                           player.PlayerGui.Main.Down:FindFirstChild("Main") and
+                           player.PlayerGui.Main.Down.Main:FindFirstChild("Main") and
+                           player.PlayerGui.Main.Down.Main.Main:FindFirstChild("Level")
+        if levelLabel then
+            local num = tonumber(levelLabel.Text:match("%d+"))
+            return num or 0
+        end
+        return 0
     end
 
-    local currentRoomIndex1 = "0"
-    local loopRunning1 = false
-    local loopThread1 = nil
-    local loopDelay1 = 3
-    local tweenDuration1 = 1
-
-    local function teleportToLevel1(roomIndex)
+    -- Get best room for W1 based on current level
+    local function getBestRoomW1(currentLevel)
         local rooms = workspace:FindFirstChild("Rooms")
-        if not rooms then
-            WindUI:Notify({ Title = "Error", Content = "Rooms folder not found", Duration = 3, Icon = "alert-circle" })
-            return false
-        end
-
-        local room = rooms:FindFirstChild(roomIndex)
-        if not room then
-            WindUI:Notify({ Title = "Error", Content = "Room " .. roomIndex .. " not found", Duration = 3, Icon = "alert-circle" })
-            return false
-        end
-
-        local char = player.Character
-        if not char then
-            WindUI:Notify({ Title = "Error", Content = "Character not loaded", Duration = 2, Icon = "alert-circle" })
-            return false
-        end
-        local hrp = char:FindFirstChild("HumanoidRootPart")
-        if not hrp then
-            WindUI:Notify({ Title = "Error", Content = "HumanoidRootPart missing", Duration = 2, Icon = "alert-circle" })
-            return false
-        end
-
-        local roomPosition = room:IsA("BasePart") and room.Position or room:FindFirstChildWhichIsA("BasePart")
-        if not roomPosition then
-            WindUI:Notify({ Title = "Error", Content = "Room has no position", Duration = 2, Icon = "alert-circle" })
-            return false
-        end
-        local targetCFrame = room:IsA("BasePart") and room.CFrame or roomPosition.CFrame
-        hrp.CFrame = targetCFrame + Vector3.new(0, 2, 0)
-
-        task.wait(0.5)
-        local winPart = room:FindFirstChild("Win")
-        if winPart and winPart:IsA("BasePart") then
-            local winCFrame = winPart.CFrame + Vector3.new(0, 2, 0)
-            local tweenInfo = TweenInfo.new(tweenDuration1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-            local tween = TweenService:Create(hrp, tweenInfo, { CFrame = winCFrame })
-            tween:Play()
-            tween.Completed:Wait()
-            return true
-        else
-            WindUI:Notify({ Title = "Warning", Content = "No 'Win' part in room " .. roomIndex, Duration = 2, Icon = "alert-triangle" })
-            return false
-        end
-    end
-
-    MainTab:Dropdown({
-        Title = "Select Level",
-        Desc = "Choose the level you want to teleport to (use the toggle below to loop)",
-        Values = labels1,
-        Value = labels1[1],
-        Callback = function(option)
-            for _, opt in ipairs(levelOptions1) do
-                if opt.label == option then
-                    currentRoomIndex1 = opt.room
-                    break
+        if not rooms then return nil end
+        local bestRoom, bestReq = nil, -math.huge
+        for _, room in ipairs(rooms:GetChildren()) do
+            local label = room:FindFirstChild("Showcase") and 
+                          room.Showcase:FindFirstChild("SurfaceGui") and
+                          room.Showcase.SurfaceGui:FindFirstChild("TextLabel")
+            if label then
+                local req = tonumber(label.Text:match("%d+"))
+                if req and req <= currentLevel and req > bestReq then
+                    bestReq = req
+                    bestRoom = room
+                end
+            else
+                local num = tonumber(room.Name:match("%d+"))
+                if num and num <= currentLevel and num > bestReq then
+                    bestReq = num
+                    bestRoom = room
                 end
             end
-            WindUI:Notify({ Title = "Level Set", Content = "Target: " .. option, Duration = 1, Icon = "check" })
         end
-    })
+        return bestRoom
+    end
+
+    local function teleportToWin(room)
+        if not room then return false end
+        local entrance = room:FindFirstChild("Main") or room:FindFirstChild("Floor") or room:FindFirstChildWhichIsA("BasePart", true)
+        local win = room:FindFirstChild("Win")
+        if not entrance or not win then return false end
+
+        local char = player.Character
+        if not char then return false end
+        local hrp = char:FindFirstChild("HumanoidRootPart")
+        if not hrp then return false end
+
+        hrp.CFrame = entrance.CFrame + Vector3.new(0, 5, 0)
+        task.wait(0.5)
+
+        local speed = math.max((hrp.Position - win.Position).Magnitude / 100, 0.5)
+        local tween = TweenService:Create(hrp, TweenInfo.new(speed, Enum.EasingStyle.Linear), {
+            CFrame = win.CFrame + Vector3.new(0, 3, 0)
+        })
+        tween:Play()
+        tween.Completed:Wait()
+        return true
+    end
+
+    local function autoWinSmartW1Loop()
+        while autoWinSmartW1 do
+            local level = getCurrentLevel()
+            if level and level > 0 then
+                local best = getBestRoomW1(level)
+                if best then
+                    local success = teleportToWin(best)
+                    if success then
+                        WindUI:Notify({ Title = "W1 Smart Win", Content = "Completed room " .. best.Name, Duration = 1, Icon = "check" })
+                    end
+                end
+            end
+            for i = 1, math.floor(winSmartDelay) do
+                if not autoWinSmartW1 then break end
+                task.wait(1)
+            end
+            if autoWinSmartW1 then
+                task.wait(winSmartDelay % 1)
+            end
+        end
+    end
 
     MainTab:Toggle({
-        Title = "Enable Auto Win Loop",
+        Title = "Auto Win",
         Default = false,
         Callback = function(state)
-            loopRunning1 = state
+            autoWinSmartW1 = state
             if state then
-                if loopThread1 then task.cancel(loopThread1) end
-                loopThread1 = task.spawn(function()
-                    while loopRunning1 do
-                        while not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") do
-                            task.wait(0.5)
-                        end
-                        local success = teleportToLevel1(currentRoomIndex1)
-                        if success then
-                            WindUI:Notify({ Title = "Loop Cycle Complete", Content = "Waiting " .. loopDelay1 .. "s", Duration = 1, Icon = "check" })
-                        else
-                            WindUI:Notify({ Title = "Loop Error", Content = "Check console", Duration = 2, Icon = "alert-circle" })
-                        end
-                        for i = 1, loopDelay1 do
-                            if not loopRunning1 then break end
-                            task.wait(1)
-                        end
-                    end
-                end)
-                WindUI:Notify({ Title = "Auto Win Loop (W1)", Content = "Started", Duration = 2, Icon = "play" })
+                if autoWinSmartW1Thread then task.cancel(autoWinSmartW1Thread) end
+                autoWinSmartW1Thread = task.spawn(autoWinSmartW1Loop)
+                WindUI:Notify({ Title = "Auto Win Smart W1", Content = "Started", Duration = 2, Icon = "play" })
             else
-                if loopThread1 then task.cancel(loopThread1); loopThread1 = nil end
-                WindUI:Notify({ Title = "Auto Win Loop (W1)", Content = "Stopped", Duration = 2, Icon = "stop" })
+                if autoWinSmartW1Thread then task.cancel(autoWinSmartW1Thread); autoWinSmartW1Thread = nil end
+                WindUI:Notify({ Title = "Auto Win Smart W1", Content = "Stopped", Duration = 2, Icon = "stop" })
             end
         end
     })
 
-    -- ===== World 2 (CheeseRooms) =====
+    -- ===== World 2 (CheeseRooms) - Auto Win Smart =====
     MainTab:Section({ Title = "World 2" })
 
-    local levelOptions2 = {
-        { label = "Level 1", room = "0" },
-        { label = "Level 25", room = "1" },
-        { label = "Level 50", room = "2" },
-        { label = "Level 75", room = "3" },
-        { label = "Level 100", room = "4" },
-        { label = "Level 125", room = "5" },
-        { label = "Level 150", room = "6" },
-        { label = "Level 175", room = "7" },
-        { label = "Level 200", room = "8" },
-        { label = "Level 225", room = "9" },
-        { label = "Level 250", room = "10" },
-        { label = "Level 275", room = "11" },
-        { label = "Level 300", room = "12" },
-        { label = "Level 343", room = "13" },
-        { label = "Level 365", room = "14" },
-        { label = "Level 400", room = "15" },
-        { label = "Level 450", room = "16" },
-        { label = "Level 510", room = "17" },
-        { label = "Level 575", room = "18" },
-        { label = "Level 645", room = "19" },
-        { label = "Level 720", room = "20" },
-        { label = "Level 800", room = "21" },
-        { label = "Level 900", room = "22" },
-        { label = "1.0k Level", room = "23" },
-        { label = "1.1k Level", room = "24" },
-    }
+    local autoWinSmartW2 = false
+    local autoWinSmartW2Thread = nil
 
-    local labels2 = {}
-    for _, opt in ipairs(levelOptions2) do
-        table.insert(labels2, opt.label)
-    end
-
-    local currentRoomIndex2 = "0"
-    local loopRunning2 = false
-    local loopThread2 = nil
-    local loopDelay2 = 3
-    local tweenDuration2 = 1
-
-    local function teleportToLevel2(roomIndex)
-        local cheeseRooms = workspace:FindFirstChild("CheeseRooms")
-        if not cheeseRooms then
-            WindUI:Notify({ Title = "Error", Content = "CheeseRooms folder not found", Duration = 3, Icon = "alert-circle" })
-            return false
-        end
-
-        local room = cheeseRooms:FindFirstChild(roomIndex)
-        if not room then
-            WindUI:Notify({ Title = "Error", Content = "Room " .. roomIndex .. " not found in CheeseRooms", Duration = 3, Icon = "alert-circle" })
-            return false
-        end
-
-        local char = player.Character
-        if not char then
-            WindUI:Notify({ Title = "Error", Content = "Character not loaded", Duration = 2, Icon = "alert-circle" })
-            return false
-        end
-        local hrp = char:FindFirstChild("HumanoidRootPart")
-        if not hrp then
-            WindUI:Notify({ Title = "Error", Content = "HumanoidRootPart missing", Duration = 2, Icon = "alert-circle" })
-            return false
-        end
-
-        local roomPosition = room:IsA("BasePart") and room.Position or room:FindFirstChildWhichIsA("BasePart")
-        if not roomPosition then
-            WindUI:Notify({ Title = "Error", Content = "Room has no position", Duration = 2, Icon = "alert-circle" })
-            return false
-        end
-        local targetCFrame = room:IsA("BasePart") and room.CFrame or roomPosition.CFrame
-        hrp.CFrame = targetCFrame + Vector3.new(0, 2, 0)
-
-        task.wait(0.5)
-        local winPart = room:FindFirstChild("Win")
-        if winPart and winPart:IsA("BasePart") then
-            local winCFrame = winPart.CFrame + Vector3.new(0, 2, 0)
-            local tweenInfo = TweenInfo.new(tweenDuration2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-            local tween = TweenService:Create(hrp, tweenInfo, { CFrame = winCFrame })
-            tween:Play()
-            tween.Completed:Wait()
-            return true
-        else
-            WindUI:Notify({ Title = "Warning", Content = "No 'Win' part in room " .. roomIndex, Duration = 2, Icon = "alert-triangle" })
-            return false
-        end
-    end
-
-    MainTab:Dropdown({
-        Title = "Select Level",
-        Desc = "Choose the level you want to teleport to (use the toggle below to loop)",
-        Values = labels2,
-        Value = labels2[1],
-        Callback = function(option)
-            for _, opt in ipairs(levelOptions2) do
-                if opt.label == option then
-                    currentRoomIndex2 = opt.room
-                    break
+    local function getBestRoomW2(currentLevel)
+        local rooms = workspace:FindFirstChild("CheeseRooms")
+        if not rooms then return nil end
+        local bestRoom, bestReq = nil, -math.huge
+        for _, room in ipairs(rooms:GetChildren()) do
+            local label = room:FindFirstChild("Showcase") and 
+                          room.Showcase:FindFirstChild("SurfaceGui") and
+                          room.Showcase.SurfaceGui:FindFirstChild("TextLabel")
+            if label then
+                local req = tonumber(label.Text:match("%d+"))
+                if req and req <= currentLevel and req > bestReq then
+                    bestReq = req
+                    bestRoom = room
+                end
+            else
+                local num = tonumber(room.Name:match("%d+"))
+                if num and num <= currentLevel and num > bestReq then
+                    bestReq = num
+                    bestRoom = room
                 end
             end
-            WindUI:Notify({ Title = "Level Set", Content = "Target: " .. option, Duration = 1, Icon = "check" })
         end
-    })
+        return bestRoom
+    end
+
+    local function autoWinSmartW2Loop()
+        while autoWinSmartW2 do
+            local level = getCurrentLevel()
+            if level and level > 0 then
+                local best = getBestRoomW2(level)
+                if best then
+                    local success = teleportToWin(best)
+                    if success then
+                        WindUI:Notify({ Title = "W2 Smart Win", Content = "Completed room " .. best.Name, Duration = 1, Icon = "check" })
+                    end
+                end
+            end
+            for i = 1, math.floor(winSmartDelay) do
+                if not autoWinSmartW2 then break end
+                task.wait(1)
+            end
+            if autoWinSmartW2 then
+                task.wait(winSmartDelay % 1)
+            end
+        end
+    end
 
     MainTab:Toggle({
-        Title = "Enable Auto Win Loop",
+        Title = "Auto Win",
         Default = false,
         Callback = function(state)
-            loopRunning2 = state
+            autoWinSmartW2 = state
             if state then
-                if loopThread2 then task.cancel(loopThread2) end
-                loopThread2 = task.spawn(function()
-                    while loopRunning2 do
-                        while not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") do
-                            task.wait(0.5)
-                        end
-                        local success = teleportToLevel2(currentRoomIndex2)
-                        if success then
-                            WindUI:Notify({ Title = "Loop Cycle Complete", Content = "Waiting " .. loopDelay2 .. "s", Duration = 1, Icon = "check" })
-                        else
-                            WindUI:Notify({ Title = "Loop Error", Content = "Check console", Duration = 2, Icon = "alert-circle" })
-                        end
-                        for i = 1, loopDelay2 do
-                            if not loopRunning2 then break end
-                            task.wait(1)
-                        end
-                    end
-                end)
-                WindUI:Notify({ Title = "Auto Win Loop (W2)", Content = "Started", Duration = 2, Icon = "play" })
+                if autoWinSmartW2Thread then task.cancel(autoWinSmartW2Thread) end
+                autoWinSmartW2Thread = task.spawn(autoWinSmartW2Loop)
+                WindUI:Notify({ Title = "Auto Win Smart W2", Content = "Started", Duration = 2, Icon = "play" })
             else
-                if loopThread2 then task.cancel(loopThread2); loopThread2 = nil end
-                WindUI:Notify({ Title = "Auto Win Loop (W2)", Content = "Stopped", Duration = 2, Icon = "stop" })
+                if autoWinSmartW2Thread then task.cancel(autoWinSmartW2Thread); autoWinSmartW2Thread = nil end
+                WindUI:Notify({ Title = "Auto Win Smart W2", Content = "Stopped", Duration = 2, Icon = "stop" })
             end
         end
     })
 
     -- ===== Other Features =====
     MainTab:Section({ Title = "Other Features" })
+
+    -- ===== Auto Train Smart (UPDATED with PressRequirements) =====
+    local autoTrainSmart = false
+    local autoTrainSmartThread = nil
+
+    local PressRequirements = {
+        Normal = 0,
+        Silver = 1,
+        Diamond = 3,
+        Red = 5,
+        Gold = 15,
+        Cheese = 20
+    }
+
+    local function teleportToPress(press)
+        local char = player.Character or player.CharacterAdded:Wait()
+        local hrp = char:WaitForChild("HumanoidRootPart")
+        local part = press:IsA("BasePart") and press or press:FindFirstChildWhichIsA("BasePart", true)
+        if part then
+            hrp.CFrame = part.CFrame + Vector3.new(0, 5, 0)
+        end
+    end
+
+    local function getBestPress()
+        local presses = workspace:FindFirstChild("Presses")
+        if not presses then return nil end
+        local rebirths = player:WaitForChild("leaderstats"):WaitForChild("Rebirths").Value
+        local bestPress = nil
+        local highestRequirement = -1
+        for name, requirement in pairs(PressRequirements) do
+            if rebirths >= requirement and requirement > highestRequirement then
+                local press = presses:FindFirstChild(name)
+                if press then
+                    bestPress = press
+                    highestRequirement = requirement
+                end
+            end
+        end
+        return bestPress
+    end
+
+    local function trainSmartLoop()
+        while autoTrainSmart do
+            local press = getBestPress()
+            if press then
+                teleportToPress(press)
+                WindUI:Notify({ Title = "Train Smart", Content = "Teleported to " .. press.Name, Duration = 1, Icon = "zap" })
+            end
+            for i = 1, 3 do
+                if not autoTrainSmart then break end
+                task.wait(1)
+            end
+        end
+    end
+
+    MainTab:Toggle({
+        Title = "Auto Train",
+        Default = false,
+        Callback = function(state)
+            autoTrainSmart = state
+            if state then
+                if autoTrainSmartThread then task.cancel(autoTrainSmartThread) end
+                autoTrainSmartThread = task.spawn(trainSmartLoop)
+                WindUI:Notify({ Title = "Auto Train Smart", Content = "Started", Duration = 2, Icon = "play" })
+            else
+                if autoTrainSmartThread then task.cancel(autoTrainSmartThread); autoTrainSmartThread = nil end
+                WindUI:Notify({ Title = "Auto Train Smart", Content = "Stopped", Duration = 2, Icon = "stop" })
+            end
+        end
+    })
 
     -- Auto Buy Shrink
     local autoBuyShrink = false
@@ -812,245 +963,6 @@ local function showGUI()
             end
         end
     })
-
-    -- ============================================================
-    --  PREMIUM TAB
-    -- ============================================================
-    local premiumTab = Window:Tab({
-        Title = "<font color='rgb(255,215,0)'>Premium Features</font>",
-        Icon = "crown"
-    })
-
-    premiumTab:Section({ Title = "✨ Premium Information" })
-
-    -- Premium pricing/instructions paragraph
-    premiumTab:Paragraph({
-        Title = "How to Unlock Premium",
-        Desc = "This is Premium Features. You can access it if you buy a Premium Key.\n\nIf you are interested in buying a premium key, join the Discord and make a ticket.\n\n• 250 - 1 Week Premium Key\n• 500 - Month Premium Key\n• 1000 - Lifetime Premium Key",
-        Color = Color3.fromHex("#222222"),
-    })
-
-    premiumTab:Section({ Title = "Unlock Premium" })
-
-    -- Flag to lock premium features
-    local premiumUnlocked = false
-
-    -- Button to execute the premium loader and unlock features
-    premiumTab:Button({
-        Title = "Executor Premium",
-        Icon = "key",
-        Callback = function()
-            -- Execute the provided loader
-            local success, err = pcall(function()
-                loadstring(game:HttpGet("https://api.luarmor.net/files/v4/loaders/2b17e69b0c1a7f0525f1048eaf87f089.lua"))()
-            end)
-            if success then
-                premiumUnlocked = true
-                -- Unlock all premium toggles and sliders
-                if autoTrainSmartToggle then autoTrainSmartToggle:Unlock() end
-                if autoWinPerfectlyToggle then autoWinPerfectlyToggle:Unlock() end
-                if winPerfectlySlider then winPerfectlySlider:Unlock() end
-                WindUI:Notify({
-                    Title = "Premium Unlocked!",
-                    Content = "All premium features are now available.",
-                    Duration = 3,
-                    Icon = "check"
-                })
-            else
-                WindUI:Notify({
-                    Title = "Error",
-                    Content = "Failed to execute premium loader: " .. tostring(err),
-                    Duration = 4,
-                    Icon = "alert-circle"
-                })
-            end
-        end
-    })
-
-    -- ===== Premium Automation =====
-    premiumTab:Section({ Title = "Premium Automation" })
-
-    -- Shared lock: Auto Win Perfectly gets priority
-    local winPerfectlyBusy = false
-
-    -- Auto Train Smart (fixed 3s delay) - LOCKED by default
-    local autoTrainSmart = false
-    local autoTrainSmartThread = nil
-    local autoTrainSmartToggle = nil
-
-    local function trainSmartLoop()
-        while autoTrainSmart do
-            while winPerfectlyBusy do
-                task.wait(0.5)
-            end
-
-            local rebirth = player:FindFirstChild("leaderstats") and player.leaderstats:FindFirstChild("Rebirths")
-            if rebirth then
-                local myRebirth = rebirth.Value
-                local presses = workspace:FindFirstChild("Presses")
-                if presses then
-                    local bestPress
-                    local bestRequirement = -math.huge
-                    for _, press in ipairs(presses:GetChildren()) do
-                        local requirement = tonumber(press.Name:match("%d+"))
-                        if requirement and requirement <= myRebirth and requirement > bestRequirement then
-                            bestRequirement = requirement
-                            bestPress = press
-                        end
-                    end
-                    if not bestPress then
-                        for _, press in ipairs(presses:GetChildren()) do
-                            bestPress = press
-                            break
-                        end
-                    end
-                    if bestPress then
-                        local target = bestPress:IsA("BasePart") and bestPress or bestPress:FindFirstChildWhichIsA("BasePart", true)
-                        if target then
-                            local char = player.Character
-                            if char then
-                                local hrp = char:FindFirstChild("HumanoidRootPart")
-                                if hrp then
-                                    hrp.CFrame = target.CFrame + Vector3.new(0, 5, 0)
-                                end
-                            end
-                        end
-                    end
-                end
-            end
-
-            for i = 1, 3 do
-                if not autoTrainSmart then break end
-                task.wait(1)
-            end
-        end
-    end
-
-    autoTrainSmartToggle = premiumTab:Toggle({
-        Title = "Auto Train Smart",
-        Default = false,
-        Callback = function(state)
-            autoTrainSmart = state
-            if state then
-                if autoTrainSmartThread then task.cancel(autoTrainSmartThread) end
-                autoTrainSmartThread = task.spawn(trainSmartLoop)
-                WindUI:Notify({ Title = "Auto Train Smart", Content = "Started", Duration = 2, Icon = "play" })
-            else
-                if autoTrainSmartThread then task.cancel(autoTrainSmartThread); autoTrainSmartThread = nil end
-                WindUI:Notify({ Title = "Auto Train Smart", Content = "Stopped", Duration = 2, Icon = "stop" })
-            end
-        end
-    })
-    autoTrainSmartToggle:Lock()
-
-    -- Auto Win Perfectly (with slider for delay) - LOCKED by default
-    local autoWinPerfectly = false
-    local autoWinPerfectlyThread = nil
-    local winPerfectlyDelay = 3
-    local autoWinPerfectlyToggle = nil
-    local winPerfectlySlider = nil
-
-    local function winPerfectlyLoop()
-        while autoWinPerfectly do
-            winPerfectlyBusy = true
-
-            local levelLabel = player.PlayerGui:FindFirstChild("Main") and 
-                               player.PlayerGui.Main:FindFirstChild("Down") and
-                               player.PlayerGui.Main.Down:FindFirstChild("Main") and
-                               player.PlayerGui.Main.Down.Main:FindFirstChild("Main") and
-                               player.PlayerGui.Main.Down.Main.Main:FindFirstChild("Level")
-            if levelLabel then
-                local myLevel = tonumber(levelLabel.Text:match("%d+"))
-                if myLevel then
-                    local rooms = workspace:FindFirstChild("Rooms")
-                    if rooms then
-                        local bestRoom
-                        local bestRequirement = -math.huge
-                        for _, room in ipairs(rooms:GetChildren()) do
-                            local label = room:FindFirstChild("Showcase") and 
-                                          room.Showcase:FindFirstChild("SurfaceGui") and
-                                          room.Showcase.SurfaceGui:FindFirstChild("TextLabel")
-                            if label then
-                                local required = tonumber(label.Text:match("%d+"))
-                                if required and required <= myLevel and required > bestRequirement then
-                                    bestRequirement = required
-                                    bestRoom = room
-                                end
-                            end
-                        end
-                        if bestRoom then
-                            local entrance = bestRoom:FindFirstChild("Main") or bestRoom:FindFirstChild("Floor") or bestRoom:FindFirstChildWhichIsA("BasePart", true)
-                            local win = bestRoom:FindFirstChild("Win")
-                            if entrance and win then
-                                local char = player.Character
-                                if char then
-                                    local hrp = char:FindFirstChild("HumanoidRootPart")
-                                    if hrp then
-                                        hrp.CFrame = entrance.CFrame + Vector3.new(0, 5, 0)
-                                        task.wait(1)
-                                        local speed = math.max((hrp.Position - win.Position).Magnitude / 100, 0.5)
-                                        local tween = TweenService:Create(
-                                            hrp,
-                                            TweenInfo.new(speed, Enum.EasingStyle.Linear),
-                                            { CFrame = win.CFrame + Vector3.new(0, 3, 0) }
-                                        )
-                                        tween:Play()
-                                        tween.Completed:Wait()
-                                    end
-                                end
-                            end
-                        end
-                    end
-                end
-            end
-
-            winPerfectlyBusy = false
-
-            local delay = math.max(0.1, winPerfectlyDelay)
-            for i = 1, math.floor(delay) do
-                if not autoWinPerfectly then break end
-                task.wait(1)
-            end
-            if autoWinPerfectly then
-                task.wait(delay % 1)
-            end
-        end
-    end
-
-    autoWinPerfectlyToggle = premiumTab:Toggle({
-        Title = "Auto Win Perfectly",
-        Default = false,
-        Callback = function(state)
-            autoWinPerfectly = state
-            if state then
-                if autoWinPerfectlyThread then task.cancel(autoWinPerfectlyThread) end
-                autoWinPerfectlyThread = task.spawn(winPerfectlyLoop)
-                WindUI:Notify({ Title = "Auto Win Perfectly", Content = "Started", Duration = 2, Icon = "play" })
-            else
-                if autoWinPerfectlyThread then task.cancel(autoWinPerfectlyThread); autoWinPerfectlyThread = nil end
-                WindUI:Notify({ Title = "Auto Win Perfectly", Content = "Stopped", Duration = 2, Icon = "stop" })
-            end
-        end
-    })
-    autoWinPerfectlyToggle:Lock()
-
-    -- Slider for Auto Win Perfectly delay
-    winPerfectlySlider = premiumTab:Slider({
-        Title = "Auto Win Perfectly Loop Delay",
-        Desc = "Delay between cycles (seconds)",
-        Step = 0.1,
-        Value = {
-            Min = 0.1,
-            Max = 10,
-            Default = 3,
-        },
-        Callback = function(value)
-            winPerfectlyDelay = value
-        end
-    })
-    winPerfectlySlider:Lock()
-
-    -- ============================================================
 
     Window:Divider()
 
@@ -1240,6 +1152,20 @@ local function showGUI()
             else
                 if antiAfkThread then task.cancel(antiAfkThread); antiAfkThread = nil end
                 WindUI:Notify({ Title = "Anti‑AFK", Content = "Stopped", Duration = 2, Icon = "stop" })
+            end
+        end
+    })
+
+    -- ===== ANTI‑LAG TOGGLE (integrated) =====
+    MiscTab:Section({ Title = "Performance" })
+    MiscTab:Toggle({
+        Title = "Anti‑Lag",
+        Default = false,
+        Callback = function(state)
+            if state then
+                enableAntiLag()
+            else
+                disableAntiLag()
             end
         end
     })
