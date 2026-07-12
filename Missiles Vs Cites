@@ -8,6 +8,8 @@ local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 local TeleportService = game:GetService("TeleportService")
 local RunService = game:GetService("RunService")
+local Lighting = game:GetService("Lighting")
+local StarterGui = game:GetService("StarterGui")
 local player = Players.LocalPlayer
 
 -- ===== Executor Detection =====
@@ -214,6 +216,193 @@ local function showLoadingScreen()
     blur:Destroy()
 end
 
+-- ============================================================
+-- ===== ANTI‑LAG CORE (integrated, no extra UI) =====
+-- ============================================================
+local antiLagEnabled = false
+local antiLagConnections = {}
+local changedProperties = {}
+local oldQualityLevel = nil
+local oldSavedQualityLevel = nil
+
+local function safeGet(instance, propertyName)
+    local ok, value = pcall(function()
+        return instance[propertyName]
+    end)
+    return ok and value or nil
+end
+
+local function safeSet(instance, propertyName, value)
+    pcall(function()
+        instance[propertyName] = value
+    end)
+end
+
+local function rememberProperty(instance, propertyName)
+    if not instance then return end
+    local data = changedProperties[instance]
+    if not data then
+        data = {}
+        changedProperties[instance] = data
+    end
+    if data[propertyName] == nil then
+        data[propertyName] = safeGet(instance, propertyName)
+    end
+end
+
+local function rememberAndSet(instance, propertyName, value)
+    if not instance then return end
+    rememberProperty(instance, propertyName)
+    safeSet(instance, propertyName, value)
+end
+
+local function shouldSkip(instance)
+    if not instance then return true end
+    local char = player.Character
+    if char and instance:IsDescendantOf(char) then
+        return true
+    end
+    return false
+end
+
+local function optimizeInstance(instance)
+    if shouldSkip(instance) then return end
+
+    if instance:IsA("BasePart") then
+        rememberAndSet(instance, "Material", Enum.Material.SmoothPlastic)
+        rememberAndSet(instance, "Reflectance", 0)
+        rememberAndSet(instance, "CastShadow", false)
+        if instance:IsA("MeshPart") then
+            rememberAndSet(instance, "RenderFidelity", Enum.RenderFidelity.Performance)
+            rememberAndSet(instance, "TextureID", "")
+        end
+    elseif instance:IsA("Decal") or instance:IsA("Texture") then
+        rememberAndSet(instance, "Transparency", 1)
+    elseif instance:IsA("ParticleEmitter") or instance:IsA("Trail") or instance:IsA("Beam") or
+           instance:IsA("Smoke") or instance:IsA("Fire") or instance:IsA("Sparkles") then
+        rememberAndSet(instance, "Enabled", false)
+    elseif instance:IsA("PointLight") or instance:IsA("SpotLight") or instance:IsA("SurfaceLight") then
+        rememberAndSet(instance, "Enabled", false)
+    elseif instance:IsA("SpecialMesh") then
+        rememberAndSet(instance, "TextureId", "")
+    elseif instance:IsA("SurfaceAppearance") then
+        rememberAndSet(instance, "ColorMap", "")
+        rememberAndSet(instance, "MetalnessMap", "")
+        rememberAndSet(instance, "NormalMap", "")
+        rememberAndSet(instance, "RoughnessMap", "")
+    end
+end
+
+local function optimizeLighting()
+    rememberAndSet(Lighting, "Technology", Enum.Technology.Compatibility)
+    rememberAndSet(Lighting, "GlobalShadows", false)
+    rememberAndSet(Lighting, "FogEnd", 1e9)
+    rememberAndSet(Lighting, "ShadowSoftness", 0)
+
+    for _, effect in ipairs(Lighting:GetChildren()) do
+        if effect:IsA("PostEffect") then
+            rememberAndSet(effect, "Enabled", false)
+        elseif effect:IsA("Atmosphere") then
+            rememberAndSet(effect, "Density", 0)
+            rememberAndSet(effect, "Haze", 0)
+            rememberAndSet(effect, "Glare", 0)
+        elseif effect:IsA("Sky") then
+            rememberAndSet(effect, "CelestialBodiesShown", false)
+            rememberAndSet(effect, "StarCount", 0)
+        end
+    end
+end
+
+local function optimizeTerrain()
+    local terrain = workspace:FindFirstChildOfClass("Terrain")
+    if not terrain then return end
+    rememberAndSet(terrain, "Decoration", false)
+    rememberAndSet(terrain, "WaterWaveSize", 0)
+    rememberAndSet(terrain, "WaterWaveSpeed", 0)
+    rememberAndSet(terrain, "WaterReflectance", 0)
+    rememberAndSet(terrain, "WaterTransparency", 1)
+end
+
+local function restoreAllProperties()
+    for instance, propertyData in pairs(changedProperties) do
+        if instance and instance.Parent then
+            for propertyName, oldValue in pairs(propertyData) do
+                safeSet(instance, propertyName, oldValue)
+            end
+        end
+        changedProperties[instance] = nil
+    end
+end
+
+local function setLowestQuality()
+    pcall(function()
+        local rendering = settings().Rendering
+        if oldQualityLevel == nil then
+            oldQualityLevel = rendering.QualityLevel
+        end
+        rendering.QualityLevel = Enum.QualityLevel.Level01
+    end)
+    pcall(function()
+        local userGameSettings = UserSettings():GetService("UserGameSettings")
+        if oldSavedQualityLevel == nil then
+            oldSavedQualityLevel = userGameSettings.SavedQualityLevel
+        end
+        userGameSettings.SavedQualityLevel = Enum.SavedQualitySetting.QualityLevel1
+    end)
+end
+
+local function restoreQuality()
+    if oldQualityLevel ~= nil then
+        pcall(function()
+            settings().Rendering.QualityLevel = oldQualityLevel
+        end)
+    end
+    if oldSavedQualityLevel ~= nil then
+        pcall(function()
+            local userGameSettings = UserSettings():GetService("UserGameSettings")
+            userGameSettings.SavedQualityLevel = oldSavedQualityLevel
+        end)
+    end
+end
+
+local function enableAntiLag()
+    if antiLagEnabled then return end
+    antiLagEnabled = true
+
+    setLowestQuality()
+    optimizeLighting()
+    optimizeTerrain()
+
+    for _, instance in ipairs(workspace:GetDescendants()) do
+        optimizeInstance(instance)
+    end
+
+    local conn = workspace.DescendantAdded:Connect(function(instance)
+        if antiLagEnabled then
+            optimizeInstance(instance)
+        end
+    end)
+    table.insert(antiLagConnections, conn)
+
+    WindUI:Notify({ Title = "Anti‑Lag", Content = "Enabled", Duration = 2, Icon = "zap" })
+end
+
+local function disableAntiLag()
+    if not antiLagEnabled then return end
+    antiLagEnabled = false
+
+    for _, conn in ipairs(antiLagConnections) do
+        pcall(conn.Disconnect, conn)
+    end
+    antiLagConnections = {}
+
+    restoreAllProperties()
+    restoreQuality()
+
+    WindUI:Notify({ Title = "Anti‑Lag", Content = "Disabled", Duration = 2, Icon = "stop" })
+end
+-- ============================================================
+
 -- ===== Main GUI =====
 local function showGUI()
     local Window = WindUI:CreateWindow({
@@ -230,7 +419,7 @@ local function showGUI()
         HideSearchBar = false,
         ScrollBarEnabled = false,
         User = { Enabled = true, Anonymous = false, Callback = function() end },
-		                         KeySystem = {
+        KeySystem = {
             API = {
                 {
                     Type = "luarmor",
@@ -238,12 +427,12 @@ local function showGUI()
                     Discord = "https://discord.gg/ee6azTNsm6",
                 },
             },
-        },  
+        },
     })
 
     -- VERSION & PING TAGS
     local versionTag = Window:Tag({
-        Title = "v1.0.1",
+        Title = "v1.0.2",
         Icon = "tag",
         Color = Color3.fromHex("#2563eb"),
         Radius = 100
@@ -780,6 +969,20 @@ local function showGUI()
                 WindUI:Notify({ Title = "Speed Boost", Content = "Enabled (" .. walkSpeedValue .. ")", Duration = 2, Icon = "zap" })
             else
                 WindUI:Notify({ Title = "Speed Boost", Content = "Disabled", Duration = 2, Icon = "stop" })
+            end
+        end
+    })
+
+    -- ===== ANTI‑LAG TOGGLE (integrated, no extra UI) =====
+    MiscTab:Section({ Title = "Performance" })
+    MiscTab:Toggle({
+        Title = "Anti‑Lag",
+        Default = false,
+        Callback = function(state)
+            if state then
+                enableAntiLag()
+            else
+                disableAntiLag()
             end
         end
     })
