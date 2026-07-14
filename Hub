@@ -65,7 +65,8 @@ local gameScripts = {
     ["91695551099066"] = "https://raw.githubusercontent.com/ZyroYonk/ZyroYonk/refs/heads/main/1%2B%20Shrink%20Per%20step",
     ["99702578544768"] = "https://raw.githubusercontent.com/ZyroYonk/ZyroYonk/refs/heads/main/BE%20A%20FISH%20BAIT",
     ["104693964860826"] = "https://raw.githubusercontent.com/ZyroYonk/ZyroYonk/refs/heads/main/Anime%20Rng%20Defense",
-    ["115681808123944"] = "https://raw.githubusercontent.com/ZyroYonk/ZyroYonk/refs/heads/main/Throw%20a%20Coin"
+    ["115681808123944"] = "https://raw.githubusercontent.com/ZyroYonk/ZyroYonk/refs/heads/main/Throw%20a%20Coin",
+    ["108307565942574"] = "https://raw.githubusercontent.com/ZyroYonk/ZyroYonk/refs/heads/main/Rng%20heroes"
 }
 
 executeForCorrectGame(gameScripts)
