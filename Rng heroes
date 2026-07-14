@@ -121,7 +121,7 @@ WindUI:AddTheme({
     Icon = WindUI:Gradient({ ["0"] = { Color = Color3.fromHex("#ffffff") }, ["100"] = { Color = Color3.fromHex("#9ca3af") } }, { Rotation = 90 }),
 })
 
--- ===== Anti‑AFK (improved) =====
+-- ===== Anti‑AFK =====
 local antiAfkRunning = false
 local antiAfkThread = nil
 
@@ -217,7 +217,7 @@ local function showLoadingScreen()
 end
 
 -- ============================================================
--- ===== ANTI‑LAG CORE (integrated, no extra UI) =====
+-- ===== ANTI‑LAG CORE =====
 -- ============================================================
 local antiLagEnabled = false
 local antiLagConnections = {}
@@ -403,7 +403,43 @@ local function disableAntiLag()
 end
 -- ============================================================
 
--- ===== Main GUI =====
+-- ============================================================
+-- ===== UPGRADE HELPER FUNCTIONS (FIXED FOR Tile_) =====
+-- ============================================================
+local INDEX_IDS = {"Gold", "Luck", "Damage", "RollSpeed"}  -- base index upgrades
+
+-- Returns the Content container inside Canvas
+local function getUpgradeContainer()
+    local gui = player:FindFirstChild("PlayerGui")
+    if not gui then return nil end
+    local main = gui:FindFirstChild("Main")
+    if not main then return nil end
+    local upgrades = main:FindFirstChild("Upgrades")
+    if not upgrades then return nil end
+    local canvas = upgrades:FindFirstChild("Canvas")
+    if not canvas then return nil end
+    local content = canvas:FindFirstChild("Content")
+    return content  -- This is exactly the folder with Tile_* objects
+end
+
+-- Collects all upgrade IDs from children whose name starts with "Tile_"
+local function getAllUpgradeIds(container)
+    local ids = {}
+    if not container then return ids end
+    for _, child in ipairs(container:GetChildren()) do
+        local name = child.Name
+        if string.sub(name, 1, 5) == "Tile_" then   -- "Tile_" length = 5
+            local id = string.sub(name, 6)          -- everything after "Tile_"
+            if id and id ~= "" then
+                table.insert(ids, id)
+            end
+        end
+    end
+    return ids
+end
+-- ============================================================
+
+-- ===== MAIN GUI =====
 local function showGUI()
     local Window = WindUI:CreateWindow({
         Title = "Rng Heroes",
@@ -602,46 +638,7 @@ local function showGUI()
         end
     })
 
-    -- ================================================================
-    -- ===== HELPERS FOR UPGRADE DETECTION =====
-    -- ================================================================
-
-    -- Get the container (Canvas.Content or Canvas)
-    local function getUpgradeContainer()
-        local gui = player:FindFirstChild("PlayerGui")
-        if not gui then return nil end
-        local main = gui:FindFirstChild("Main")
-        if not main then return nil end
-        local upgrades = main:FindFirstChild("Upgrades")
-        if not upgrades then return nil end
-        local canvas = upgrades:FindFirstChild("Canvas")
-        if not canvas then return nil end
-        local content = canvas:FindFirstChild("Content")
-        if content then return content end
-        return canvas
-    end
-
-    -- Recursively collect all upgrade IDs (clean names)
-    local function getAllUpgradeIds(container, ids)
-        ids = ids or {}
-        if not container then return ids end
-        for _, child in ipairs(container:GetChildren()) do
-            local name = child.Name
-            local lower = string.lower(name)
-            if string.sub(lower, 1, 5) == "tile_" then
-                table.insert(ids, string.sub(name, 6))   -- after "Tile_"
-            elseif string.sub(lower, 1, 6) == "title_" then
-                table.insert(ids, string.sub(name, 7))   -- after "Title_"
-            end
-            getAllUpgradeIds(child, ids)
-        end
-        return ids
-    end
-
-    -- Index upgrade IDs
-    local INDEX_IDS = {"Gold", "Luck", "Damage", "RollSpeed"}
-
-    -- ===== MAIN FEATURES TAB – FIVE TOGGLES =====
+    -- ===== MAIN FEATURES TAB =====
     local MainTab = Window:Tab({ Title = "Main Features", Icon = "house" })
 
     -- 1. Auto Roll Fast
@@ -658,6 +655,8 @@ local function showGUI()
             end)
             if success and rem then
                 rollRemote = rem
+            else
+                WindUI:Notify({ Title = "Remote missing", Content = "Roll", Duration = 3, Icon = "alert-circle" })
             end
         end
         return rollRemote
@@ -705,6 +704,8 @@ local function showGUI()
             end)
             if success and rem then
                 buyUpgradeRemote = rem
+            else
+                WindUI:Notify({ Title = "Remote missing", Content = "PurchaseUpgrade", Duration = 3, Icon = "alert-circle" })
             end
         end
         return buyUpgradeRemote
@@ -717,11 +718,9 @@ local function showGUI()
             if container then
                 local ids = getAllUpgradeIds(container)
                 for _, id in ipairs(ids) do
+                    -- Skip prestige (contains "Prestige") and index upgrades
                     local isPrestige = string.find(id, "Prestige", 1, true)
-                    local isIndex = false
-                    for _, idx in ipairs(INDEX_IDS) do
-                        if id == idx then isIndex = true break end
-                    end
+                    local isIndex = table.find(INDEX_IDS, id) ~= nil
                     if not isPrestige and not isIndex then
                         if remote then
                             task.spawn(function()
@@ -729,11 +728,12 @@ local function showGUI()
                                     remote:FireServer(id)
                                 end)
                             end)
+                            task.wait(0.05)  -- small delay to avoid rate limit
                         end
                     end
                 end
             end
-            task.wait(0.1)
+            task.wait(0.2)
         end
     end
 
@@ -767,6 +767,8 @@ local function showGUI()
             end)
             if success and rem then
                 prestigeRemote = rem
+            else
+                WindUI:Notify({ Title = "Remote missing", Content = "PrestigeRequested", Duration = 3, Icon = "alert-circle" })
             end
         end
         return prestigeRemote
@@ -780,7 +782,7 @@ local function showGUI()
                     remote:FireServer()
                 end)
             end
-            task.wait(0.5)
+            task.wait(1)  -- 1 second cooldown
         end
     end
 
@@ -814,6 +816,8 @@ local function showGUI()
             end)
             if success and rem then
                 purchasePrestigeRemote = rem
+            else
+                WindUI:Notify({ Title = "Remote missing", Content = "PurchasePrestigeUpgrade", Duration = 3, Icon = "alert-circle" })
             end
         end
         return purchasePrestigeRemote
@@ -833,11 +837,12 @@ local function showGUI()
                                     remote:FireServer(id)
                                 end)
                             end)
+                            task.wait(0.05)
                         end
                     end
                 end
             end
-            task.wait(0.1)
+            task.wait(0.2)
         end
     end
 
@@ -871,6 +876,8 @@ local function showGUI()
             end)
             if success and rem then
                 purchaseIndexRemote = rem
+            else
+                WindUI:Notify({ Title = "Remote missing", Content = "PurchaseIndexUpgrade", Duration = 3, Icon = "alert-circle" })
             end
         end
         return purchaseIndexRemote
@@ -883,22 +890,19 @@ local function showGUI()
             if container then
                 local ids = getAllUpgradeIds(container)
                 for _, id in ipairs(ids) do
-                    local isIndex = false
-                    for _, idx in ipairs(INDEX_IDS) do
-                        if id == idx then isIndex = true break end
-                    end
-                    if isIndex then
+                    if table.find(INDEX_IDS, id) then
                         if remote then
                             task.spawn(function()
                                 pcall(function()
                                     remote:InvokeServer(id)
                                 end)
                             end)
+                            task.wait(0.05)
                         end
                     end
                 end
             end
-            task.wait(0.1)
+            task.wait(0.2)
         end
     end
 
@@ -933,6 +937,8 @@ local function showGUI()
             end)
             if success and rem then
                 unlockZoneRemote = rem
+            else
+                WindUI:Notify({ Title = "Remote missing", Content = "RequestZoneUnlock", Duration = 3, Icon = "alert-circle" })
             end
         end
         return unlockZoneRemote
@@ -970,7 +976,7 @@ local function showGUI()
         end
     })
 
-    -- 7. Auto Power Armed (NEW - loops every 1 minute)
+    -- 7. Auto Power Armed
     MainTab:Section({ Title = "Auto Power Armed" })
 
     local autoPowerArmedRunning = false
@@ -984,6 +990,8 @@ local function showGUI()
             end)
             if success and rem then
                 powerArmedRemote = rem
+            else
+                WindUI:Notify({ Title = "Remote missing", Content = "SetPowerArmed", Duration = 3, Icon = "alert-circle" })
             end
         end
         return powerArmedRemote
@@ -997,7 +1005,7 @@ local function showGUI()
                     remote:FireServer(true)
                 end)
             end
-            task.wait(60) -- 1 minute
+            task.wait(60) -- every minute
         end
     end
 
@@ -1104,7 +1112,7 @@ local function showGUI()
         if flyEnabled then task.wait(1); startFly() end
     end)
 
-    -- ===== WALK SPEED =====
+    -- Walk Speed
     MiscTab:Section({ Title = "Walk Speed" })
 
     local walkSpeedValue = 16
@@ -1191,7 +1199,7 @@ local function showGUI()
         end
     })
 
-    -- ===== ANTI‑LAG TOGGLE (integrated, no extra UI) =====
+    -- Anti‑Lag
     MiscTab:Section({ Title = "Performance" })
     MiscTab:Toggle({
         Title = "Anti‑Lag",
