@@ -655,12 +655,46 @@ local function showGUI()
         end
     end
 
+    -- NEW: Delete promo items function
+    local function deletePromoItems()
+        local promoNames = {"island_promo_nuclear", "island_promo_barrage"}
+        local deleted = 0
+        for _, name in ipairs(promoNames) do
+            for _, obj in ipairs(workspace:GetDescendants()) do
+                if obj.Name == name then
+                    pcall(function()
+                        obj:Destroy()
+                        deleted = deleted + 1
+                    end)
+                end
+            end
+        end
+        if deleted > 0 then
+            WindUI:Notify({
+                Title = "Promo Items Deleted",
+                Content = "Removed " .. deleted .. " item(s) (" .. table.concat(promoNames, ", ") .. ")",
+                Duration = 3,
+                Icon = "trash-2"
+            })
+        else
+            WindUI:Notify({
+                Title = "No Promo Items Found",
+                Content = "Searched for " .. table.concat(promoNames, ", "),
+                Duration = 2,
+                Icon = "info"
+            })
+        end
+    end
+
     MainTab:Toggle({
         Title = "Auto Progress",
         Default = false,
         Callback = function(state)
             autoProgressRunning = state
             if state then
+                -- Delete promo items automatically when enabled
+                deletePromoItems()
+
                 if autoProgressThread then task.cancel(autoProgressThread) end
                 autoProgressThread = task.spawn(progressLoop)
                 WindUI:Notify({ Title = "Auto Progress", Content = "Started", Duration = 2, Icon = "rocket" })
