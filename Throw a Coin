@@ -432,7 +432,7 @@ local function showGUI()
 
     -- VERSION & PING TAGS
     local versionTag = Window:Tag({
-        Title = "v1.0.2",
+        Title = "v1.0.3",
         Icon = "tag",
         Color = Color3.fromHex("#2563eb"),
         Radius = 100
