@@ -432,7 +432,7 @@ local function showGUI()
 
     -- VERSION & PING TAGS
     local versionTag = Window:Tag({
-        Title = "v1.0.1",
+        Title = "v1.0.2",
         Icon = "tag",
         Color = Color3.fromHex("#2563eb"),
         Radius = 100
@@ -604,7 +604,7 @@ local function showGUI()
 
     -- ===== MAIN FEATURES TAB =====
     local MainTab = Window:Tab({ Title = "Main Features", Icon = "house" })
-     MainTab:Section({ Title = "Coin Roll  World 2 Development But World 1 Is Already Functionall" })
+     
     -- Coin types for dropdown (only used for Auto Throw)
     local coinTypes = {
         "Basic Coin",
