@@ -421,7 +421,7 @@ local function showGUI()
 
     -- VERSION & PING TAGS
     local versionTag = Window:Tag({
-        Title = "v1.0.9",
+        Title = "v1.1.0",
         Icon = "tag",
         Color = Color3.fromHex("#2563eb"),
         Radius = 100
@@ -581,7 +581,7 @@ local function showGUI()
     local MainTab = Window:Tab({ Title = "Main Features", Icon = "house" })
 
     -- =============================================================
-    --  AUTO COLLECT DROPPED CRYSTALS – MULTI‑SELECT, DEFAULT: ONLY "Common"
+    --  AUTO COLLECT DROPPED CRYSTALS – NOW TELEPORTS & STICKS LIKE AUTO MINE
     -- =============================================================
     MainTab:Section({ Title = "Auto Collect Dropped Crystals" })
     local tierReverse = {
@@ -599,7 +599,7 @@ local function showGUI()
         Title = "Select Crystal Tiers to Collect",
         Desc = "Choose which tiers to automatically pick up (multi‑select)",
         Values = {"Common", "Uncommon", "Rare", "Epic", "Legendary", "Mythic"},
-        Value = {"Common"},   -- default only Common
+        Value = {"Common"},
         Multi = true,
         AllowNone = true,
         Callback = function(options)
@@ -612,6 +612,45 @@ local function showGUI()
 
     local collectCrystalsRunning = false
     local collectCrystalsThread = nil
+    local collectStickConnection = nil
+    local collectCurrentTarget = nil
+    local collectCurrentPos = nil
+
+    local function stopCollectStick()
+        if collectStickConnection then
+            collectStickConnection:Disconnect()
+            collectStickConnection = nil
+        end
+        collectCurrentTarget = nil
+        collectCurrentPos = nil
+        local char = player.Character
+        if char then
+            local hum = char:FindFirstChild("Humanoid")
+            if hum then hum.PlatformStand = false end
+        end
+    end
+
+    local function startCollectStick(crystal, part)
+        stopCollectStick()
+        collectCurrentTarget = crystal
+        collectCurrentPos = part.Position + Vector3.new(0, 1.5, 0)
+        local char = player.Character
+        if char then
+            local hum = char:FindFirstChild("Humanoid")
+            if hum then hum.PlatformStand = true end
+        end
+        collectStickConnection = RunService.Heartbeat:Connect(function()
+            if not collectCrystalsRunning or not collectCurrentTarget or not collectCurrentTarget.Parent then
+                stopCollectStick()
+                return
+            end
+            local char = player.Character
+            if not char then return end
+            local hrp = char:FindFirstChild("HumanoidRootPart")
+            if not hrp then return end
+            hrp.CFrame = CFrame.new(collectCurrentPos)
+        end)
+    end
 
     local function firePrompt(prompt)
         if fireproximityprompt then
@@ -624,27 +663,78 @@ local function showGUI()
     end
 
     local function collectCrystalsLoop()
-        local droppedFolder = workspace:FindFirstChild("DroppedCrystals")
-        if not droppedFolder then
-            task.wait(1)
-            return
-        end
         while collectCrystalsRunning do
             if #selectedCollectTiers == 0 then
                 task.wait(0.5)
                 continue
             end
+
+            local droppedFolder = workspace:FindFirstChild("DroppedCrystals")
+            if not droppedFolder then
+                task.wait(1)
+                continue
+            end
+
+            local char = player.Character
+            if not char then
+                task.wait(1)
+                continue
+            end
+            local hrp = char:FindFirstChild("HumanoidRootPart")
+            if not hrp then
+                task.wait(1)
+                continue
+            end
+
+            local bestCrystal = nil
+            local bestDist = math.huge
+
             for _, crystal in ipairs(droppedFolder:GetChildren()) do
-                if not collectCrystalsRunning then break end
                 local tierCode = crystal.Name:match("_(T[1-6])$")
                 local tierName = tierCode and tierReverse[tierCode]
                 if tierName and table.find(selectedCollectTiers, tierName) then
-                    local prompt = crystal:FindFirstChildWhichIsA("ProximityPrompt", true)
-                    if prompt then
-                        firePrompt(prompt)
+                    local part = crystal:IsA("Model") and (crystal.PrimaryPart or crystal:FindFirstChildWhichIsA("BasePart")) or crystal
+                    if part then
+                        local dist = (hrp.Position - part.Position).Magnitude
+                        if dist < bestDist then
+                            bestDist = dist
+                            bestCrystal = crystal
+                        end
                     end
                 end
             end
+
+            if not bestCrystal then
+                task.wait(2)
+                continue
+            end
+
+            -- Get the part and prompt
+            local part = bestCrystal:IsA("Model") and (bestCrystal.PrimaryPart or bestCrystal:FindFirstChildWhichIsA("BasePart")) or bestCrystal
+            if not part then
+                task.wait(0.5)
+                continue
+            end
+            local prompt = bestCrystal:FindFirstChildWhichIsA("ProximityPrompt", true)
+            if not prompt then
+                task.wait(0.5)
+                continue
+            end
+
+            -- Move to crystal and stick
+            hrp.CFrame = CFrame.new(part.Position + Vector3.new(0, 1.5, 0))
+            startCollectStick(bestCrystal, part)
+
+            -- Fire prompt a few times
+            local attempts = 0
+            local MAX_ATTEMPTS = 5
+            while attempts < MAX_ATTEMPTS and collectCrystalsRunning and bestCrystal and bestCrystal.Parent do
+                firePrompt(prompt)
+                attempts += 1
+                task.wait(0.3)
+            end
+
+            stopCollectStick()
             task.wait(0.2)
         end
     end
@@ -660,13 +750,14 @@ local function showGUI()
                 WindUI:Notify({ Title = "Auto Collect", Content = "Started", Duration = 2, Icon = "play" })
             else
                 if collectCrystalsThread then task.cancel(collectCrystalsThread); collectCrystalsThread = nil end
+                stopCollectStick()
                 WindUI:Notify({ Title = "Auto Collect", Content = "Stopped", Duration = 2, Icon = "stop" })
             end
         end
     })
 
     -- =============================================================
-    --  AUTO MINE – MULTI‑SELECT, DEFAULT: ONLY "Common"
+    --  AUTO MINE – (unchanged)
     -- =============================================================
     MainTab:Section({ Title = "Auto Mine Crystal" })
 
@@ -679,14 +770,13 @@ local function showGUI()
         ["Mythic"] = "T6"
     }
 
-    -- Default: only "Common" selected
     local selectedMineTiers = {"Common"}
 
     local mineTierDropdown = MainTab:Dropdown({
         Title = "Select Crystal Tiers to Mine",
         Desc = "Choose which tiers to automatically mine (multi‑select)",
         Values = {"Common", "Uncommon", "Rare", "Epic", "Legendary", "Mythic"},
-        Value = {"Common"},   -- default only Common
+        Value = {"Common"},
         Multi = true,
         AllowNone = true,
         Callback = function(options)
@@ -777,7 +867,6 @@ local function showGUI()
                 continue
             end
 
-            -- Convert selected tier names to codes
             local selectedCodes = {}
             for _, name in ipairs(selectedMineTiers) do
                 local code = tierMapping[name]
@@ -849,9 +938,7 @@ local function showGUI()
         end
     })
 
-    -- =============================================================
-    --  AUTO SELL (unchanged)
-    -- =============================================================
+    -- ===== AUTO SELL (FIXED) =====
     MainTab:Section({ Title = "Auto Sell" })
     local autoSellRunning = false
     local autoSellThread = nil
@@ -861,44 +948,57 @@ local function showGUI()
     local function getBackpackPercentage()
         local playerGui = player:FindFirstChild("PlayerGui")
         if not playerGui then return nil end
-        for _, child in ipairs(playerGui:GetDescendants()) do
-            if child:IsA("TextLabel") or child:IsA("TextButton") or child:IsA("TextBox") then
-                if child.Visible and child.Text and child.Text ~= "" then
-                    local current, max = child.Text:match("(%d+)%s*/%s*(%d+)")
-                    if current and max then
-                        local curNum = tonumber(current)
-                        local maxNum = tonumber(max)
-                        if curNum and maxNum and maxNum > 0 then
-                            return (curNum / maxNum) * 100
+
+        local backpackLabel = nil
+        for _, descendant in ipairs(playerGui:GetDescendants()) do
+            if descendant:IsA("TextLabel") or descendant:IsA("TextButton") or descendant:IsA("TextBox") then
+                if descendant.Visible and descendant.Text and descendant.Text ~= "" then
+                    local parent = descendant.Parent
+                    while parent and parent ~= playerGui do
+                        if parent.Name and string.find(string.lower(parent.Name), "backpack") then
+                            backpackLabel = descendant
+                            break
                         end
+                        parent = parent.Parent
                     end
-                    current, max = child.Text:match("(%d+)/(%d+)")
-                    if current and max then
-                        local curNum = tonumber(current)
-                        local maxNum = tonumber(max)
-                        if curNum and maxNum and maxNum > 0 then
-                            return (curNum / maxNum) * 100
-                        end
-                    end
+                    if backpackLabel then break end
                 end
             end
         end
+
+        if backpackLabel then
+            local text = backpackLabel.Text
+            local current, max = text:match("(%d+)%s*/%s*(%d+)")
+            if not current then
+                current, max = text:match("(%d+)/(%d+)")
+            end
+            if current and max then
+                local curNum = tonumber(current)
+                local maxNum = tonumber(max)
+                if curNum and maxNum and maxNum > 0 then
+                    return (curNum / maxNum) * 100
+                end
+            end
+        end
+
         local backpack = player:FindFirstChild("Backpack")
         if backpack then
             local count = #backpack:GetChildren()
-            local max = 50
+            local maxCapacity = 50
             local leaderstats = player:FindFirstChild("leaderstats")
             if leaderstats then
                 for _, stat in ipairs(leaderstats:GetChildren()) do
-                    if string.lower(stat.Name):find("max") and stat:IsA("NumberValue") then
-                        maxWeight = stat.Value
+                    if stat:IsA("NumberValue") and string.lower(stat.Name):find("max") then
+                        maxCapacity = stat.Value
                         break
                     end
                 end
             end
-            if maxWeight and maxWeight > 0 then max = maxWeight end
-            if max > 0 then return (count / max) * 100 end
+            if maxCapacity > 0 then
+                return (count / maxCapacity) * 100
+            end
         end
+
         return nil
     end
 
@@ -921,7 +1021,7 @@ local function showGUI()
     local function shouldSell()
         local pct = getBackpackPercentage()
         if pct then
-            return pct >= sellThreshold
+            return pct >= (sellThreshold - 0.5)
         end
         return isBackpackFull()
     end
@@ -1040,7 +1140,7 @@ local function showGUI()
         end
     })
 
-    -- -------------------- Auto Upgrades --------------------
+    -- -------------------- Auto Upgrades (unchanged) --------------------
     MainTab:Section({ Title = "Auto Upgrades" })
 
     -- Upgrade Warmth
@@ -1051,9 +1151,7 @@ local function showGUI()
         local success, remote = pcall(function()
             return ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("UpgradeBuy")
         end)
-        if success and remote then
-            return remote
-        end
+        if success and remote then return remote end
         return nil
     end
 
@@ -1065,9 +1163,7 @@ local function showGUI()
             return
         end
         while upgradeWarmthRunning do
-            pcall(function()
-                remote:FireServer("Air", 1)
-            end)
+            pcall(function() remote:FireServer("Air", 1) end)
             task.wait(0.5)
         end
     end
@@ -1100,9 +1196,7 @@ local function showGUI()
             return
         end
         while upgradeBackpackRunning do
-            pcall(function()
-                remote:FireServer("Weight", 1)
-            end)
+            pcall(function() remote:FireServer("Weight", 1) end)
             task.wait(0.5)
         end
     end
@@ -1123,7 +1217,7 @@ local function showGUI()
         end
     })
 
-    -- ===== NEW: Auto Upgrade Luck =====
+    -- Auto Upgrade Plot
     local upgradeLuckRunning = false
     local upgradeLuckThread = nil
 
@@ -1131,23 +1225,19 @@ local function showGUI()
         local success, remote = pcall(function()
             return ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("UpgradePlotCapacity")
         end)
-        if success and remote then
-            return remote
-        end
+        if success and remote then return remote end
         return nil
     end
 
     local function upgradeLuckLoop()
         local remote = getUpgradeLuckRemote()
         if not remote then
-            WindUI:Notify({ Title = "Upgrade Luck", Content = "Remote not found!", Duration = 3, Icon = "alert-triangle" })
+            WindUI:Notify({ Title = "Upgrade Plot", Content = "Remote not found!", Duration = 3, Icon = "alert-triangle" })
             upgradeLuckRunning = false
             return
         end
         while upgradeLuckRunning do
-            pcall(function()
-                remote:FireServer()
-            end)
+            pcall(function() remote:FireServer() end)
             task.wait(0.5)
         end
     end
@@ -1160,10 +1250,10 @@ local function showGUI()
             if state then
                 if upgradeLuckThread then task.cancel(upgradeLuckThread) end
                 upgradeLuckThread = task.spawn(upgradeLuckLoop)
-                WindUI:Notify({ Title = "Upgrade Luck", Content = "Started", Duration = 2, Icon = "dice" })
+                WindUI:Notify({ Title = "Upgrade Plot", Content = "Started", Duration = 2, Icon = "dice" })
             else
                 if upgradeLuckThread then task.cancel(upgradeLuckThread); upgradeLuckThread = nil end
-                WindUI:Notify({ Title = "Upgrade Luck", Content = "Stopped", Duration = 2, Icon = "stop" })
+                WindUI:Notify({ Title = "Upgrade Plot", Content = "Stopped", Duration = 2, Icon = "stop" })
             end
         end
     })
@@ -1193,9 +1283,7 @@ local function showGUI()
         local success, remote = pcall(function()
             return ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("ShopBuy")
         end)
-        if success and remote then
-            return remote
-        end
+        if success and remote then return remote end
         return nil
     end
 
@@ -1209,9 +1297,7 @@ local function showGUI()
         while buyPickaxeRunning do
             for _, pickaxe in ipairs(pickaxeTypes) do
                 if not buyPickaxeRunning then break end
-                pcall(function()
-                    remote:FireServer(pickaxe)
-                end)
+                pcall(function() remote:FireServer(pickaxe) end)
                 task.wait(0.2)
             end
             task.wait(1)
@@ -1255,9 +1341,7 @@ local function showGUI()
         local success, remote = pcall(function()
             return ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("BombBuyRequest")
         end)
-        if success and remote then
-            return remote
-        end
+        if success and remote then return remote end
         return nil
     end
 
@@ -1271,9 +1355,7 @@ local function showGUI()
         while buyBombRunning do
             for _, bomb in ipairs(bombTypes) do
                 if not buyBombRunning then break end
-                pcall(function()
-                    remote:InvokeServer(bomb)
-                end)
+                pcall(function() remote:InvokeServer(bomb) end)
                 task.wait(0.3)
             end
             task.wait(1)
@@ -1313,9 +1395,7 @@ local function showGUI()
         }
         for _, name in ipairs(remoteNames) do
             local remote = remotes:FindFirstChild(name)
-            if remote then
-                remote:Destroy()
-            end
+            if remote then remote:Destroy() end
         end
     end
 
@@ -1549,7 +1629,7 @@ local function showGUI()
         end
     })
 
-    -- ===== ANTI‑LAG TOGGLE (UI‑less) =====
+    -- ===== ANTI‑LAG TOGGLE =====
     MiscTab:Section({ Title = "Optimizations" })
     MiscTab:Toggle({
         Title = "Anti‑Lag",
@@ -1621,7 +1701,7 @@ local function showGUI()
     SupportTab:Section({ Title = "Help" })
     SupportTab:Paragraph({ Title = "Executor", Desc = "Using: " .. executorName, Color = Color3.fromHex("#222222") })
     SupportTab:Button({ Title = "Report Bug", Icon = "bug", Callback = function()
-        copyToClipboard("Bug Report\nExecutor: " .. executorName .. "\nScript: StarForge Hub v1.0.8\n\nDescribe:")
+        copyToClipboard("Bug Report\nExecutor: " .. executorName .. "\nScript: StarForge Hub v1.0.9\n\nDescribe:")
         WindUI:Notify({ Title = "Template Copied", Content = "Paste in Discord.", Duration = 4, Icon = "message-square" })
     end})
 end
