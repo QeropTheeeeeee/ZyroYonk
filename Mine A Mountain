@@ -421,7 +421,7 @@ local function showGUI()
 
     -- VERSION & PING TAGS
     local versionTag = Window:Tag({
-        Title = "v1.1.0",
+        Title = "v1.1.2",
         Icon = "tag",
         Color = Color3.fromHex("#2563eb"),
         Radius = 100
@@ -938,69 +938,11 @@ local function showGUI()
         end
     })
 
-    -- ===== AUTO SELL (FIXED) =====
+    -- ===== AUTO SELL (UPDATED: no slider, sells only when full) =====
     MainTab:Section({ Title = "Auto Sell" })
     local autoSellRunning = false
     local autoSellThread = nil
     local cooldown = false
-    local sellThreshold = 100
-
-    local function getBackpackPercentage()
-        local playerGui = player:FindFirstChild("PlayerGui")
-        if not playerGui then return nil end
-
-        local backpackLabel = nil
-        for _, descendant in ipairs(playerGui:GetDescendants()) do
-            if descendant:IsA("TextLabel") or descendant:IsA("TextButton") or descendant:IsA("TextBox") then
-                if descendant.Visible and descendant.Text and descendant.Text ~= "" then
-                    local parent = descendant.Parent
-                    while parent and parent ~= playerGui do
-                        if parent.Name and string.find(string.lower(parent.Name), "backpack") then
-                            backpackLabel = descendant
-                            break
-                        end
-                        parent = parent.Parent
-                    end
-                    if backpackLabel then break end
-                end
-            end
-        end
-
-        if backpackLabel then
-            local text = backpackLabel.Text
-            local current, max = text:match("(%d+)%s*/%s*(%d+)")
-            if not current then
-                current, max = text:match("(%d+)/(%d+)")
-            end
-            if current and max then
-                local curNum = tonumber(current)
-                local maxNum = tonumber(max)
-                if curNum and maxNum and maxNum > 0 then
-                    return (curNum / maxNum) * 100
-                end
-            end
-        end
-
-        local backpack = player:FindFirstChild("Backpack")
-        if backpack then
-            local count = #backpack:GetChildren()
-            local maxCapacity = 50
-            local leaderstats = player:FindFirstChild("leaderstats")
-            if leaderstats then
-                for _, stat in ipairs(leaderstats:GetChildren()) do
-                    if stat:IsA("NumberValue") and string.lower(stat.Name):find("max") then
-                        maxCapacity = stat.Value
-                        break
-                    end
-                end
-            end
-            if maxCapacity > 0 then
-                return (count / maxCapacity) * 100
-            end
-        end
-
-        return nil
-    end
 
     local function isBackpackFull()
         local playerGui = player:FindFirstChild("PlayerGui")
@@ -1019,10 +961,6 @@ local function showGUI()
     end
 
     local function shouldSell()
-        local pct = getBackpackPercentage()
-        if pct then
-            return pct >= (sellThreshold - 0.5)
-        end
         return isBackpackFull()
     end
 
@@ -1108,22 +1046,9 @@ local function showGUI()
         end
     end
 
-    MainTab:Slider({
-        Title = "Sell Threshold (%)",
-        Desc = "Sell when backpack reaches this percentage",
-        Step = 1,
-        Value = {
-            Min = 1,
-            Max = 100,
-            Default = 100,
-        },
-        Callback = function(value)
-            sellThreshold = value
-        end
-    })
-
     MainTab:Toggle({
         Title = "Enable Auto Sell",
+        Desc = "Sells automatically when backpack is full",
         Default = false,
         Callback = function(state)
             autoSellRunning = state
@@ -1434,6 +1359,112 @@ local function showGUI()
                     antiRagdollConnection = nil
                 end
                 WindUI:Notify({ Title = "Anti Ragdoll", Content = "Disabled", Duration = 2, Icon = "stop" })
+            end
+        end
+    })
+
+    -- ===== CRYSTAL ESP (NEW TOGGLE) =====
+    MainTab:Section({ Title = "Crystal ESP" })
+
+    -- Folders for ESP
+    local Folders = {
+        workspace:WaitForChild("Things"):WaitForChild("Crystals"),
+        workspace:WaitForChild("DroppedCrystals")
+    }
+
+    local espRunning = false
+    local espThread = nil
+    local espConnections = {}
+
+    local function forceESP(folder)
+        for _, obj in ipairs(folder:GetDescendants()) do
+            if obj.Name == "CrystalHover" and obj:IsA("BillboardGui") then
+                pcall(function()
+                    obj.Enabled = true
+                    obj.AlwaysOnTop = true
+                    obj.MaxDistance = math.huge
+                    obj.Size = UDim2.new(0, 250, 0, 120)
+                    for _, ui in ipairs(obj:GetDescendants()) do
+                        if ui:IsA("TextLabel") then
+                            ui.Visible = true
+                            ui.TextTransparency = 0
+                            ui.TextStrokeTransparency = 0
+                        elseif ui:IsA("ImageLabel") or ui:IsA("ImageButton") then
+                            ui.Visible = true
+                            ui.ImageTransparency = 0
+                        elseif ui:IsA("UIStroke") then
+                            ui.Enabled = true
+                        end
+                    end
+                end)
+            end
+        end
+    end
+
+    local function espLoop()
+        while espRunning do
+            for _, folder in ipairs(Folders) do
+                forceESP(folder)
+            end
+            task.wait(0.03)
+        end
+    end
+
+    local function onDescendantAdded(obj)
+        if obj.Name == "CrystalHover" and obj:IsA("BillboardGui") then
+            task.wait()
+            pcall(function()
+                obj.Enabled = true
+                obj.AlwaysOnTop = true
+                obj.MaxDistance = math.huge
+                obj.Size = UDim2.new(0, 250, 0, 120)
+            end)
+        end
+    end
+
+    local function enableESP()
+        -- Clean previous connections
+        for _, conn in ipairs(espConnections) do
+            pcall(conn.Disconnect, conn)
+        end
+        espConnections = {}
+        for _, folder in ipairs(Folders) do
+            local conn = folder.DescendantAdded:Connect(onDescendantAdded)
+            table.insert(espConnections, conn)
+        end
+        if espThread then task.cancel(espThread) end
+        espThread = task.spawn(espLoop)
+    end
+
+    local function disableESP()
+        espRunning = false
+        if espThread then task.cancel(espThread); espThread = nil end
+        for _, conn in ipairs(espConnections) do
+            pcall(conn.Disconnect, conn)
+        end
+        espConnections = {}
+        -- Optionally disable all billboards
+        for _, folder in ipairs(Folders) do
+            for _, obj in ipairs(folder:GetDescendants()) do
+                if obj.Name == "CrystalHover" and obj:IsA("BillboardGui") then
+                    pcall(function() obj.Enabled = false end)
+                end
+            end
+        end
+    end
+
+    MainTab:Toggle({
+        Title = "Crystal ESP",
+        Desc = "Show crystal names and info through walls",
+        Default = false,
+        Callback = function(state)
+            espRunning = state
+            if state then
+                enableESP()
+                WindUI:Notify({ Title = "Crystal ESP", Content = "Enabled", Duration = 2, Icon = "eye" })
+            else
+                disableESP()
+                WindUI:Notify({ Title = "Crystal ESP", Content = "Disabled", Duration = 2, Icon = "eye-off" })
             end
         end
     })
