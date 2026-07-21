@@ -9,8 +9,6 @@ local Workspace = game:GetService("Workspace")
 local TeleportService = game:GetService("TeleportService")
 local RunService = game:GetService("RunService")
 local Lighting = game:GetService("Lighting")
-local StarterGui = game:GetService("StarterGui")
-local CoreGui = game:GetService("CoreGui")
 local player = Players.LocalPlayer
 
 -- ===== Executor Detection =====
@@ -122,7 +120,7 @@ WindUI:AddTheme({
     Icon = WindUI:Gradient({ ["0"] = { Color = Color3.fromHex("#ffffff") }, ["100"] = { Color = Color3.fromHex("#9ca3af") } }, { Rotation = 90 }),
 })
 
--- ===== Anti‑AFK (improved) =====
+-- ===== Anti‑AFK =====
 local antiAfkRunning = false
 local antiAfkThread = nil
 
@@ -217,16 +215,16 @@ local function showLoadingScreen()
     blur:Destroy()
 end
 
--- ===== Crystal Blacklist (for failed mine/collect attempts) =====
-local crystalBlacklist = {}          -- key = crystal instance, value = timeout timestamp
-local BLACKLIST_DURATION = 10        -- seconds to ignore a failed crystal
+-- ===== Crystal Blacklist =====
+local crystalBlacklist = {}
+local BLACKLIST_DURATION = 10
 
 local function isBlacklisted(crystal)
     local timeout = crystalBlacklist[crystal]
     if timeout and tick() < timeout then
         return true
     elseif timeout then
-        crystalBlacklist[crystal] = nil   -- expired
+        crystalBlacklist[crystal] = nil
     end
     return false
 end
@@ -235,7 +233,7 @@ local function blacklistCrystal(crystal)
     crystalBlacklist[crystal] = tick() + BLACKLIST_DURATION
 end
 
--- ===== Anti‑Lag (UI‑less integration) =====
+-- ===== Anti‑Lag =====
 local antiLagEnabled = false
 local antiLagConnections = {}
 local changedProperties = {}
@@ -400,14 +398,10 @@ local function disableAntiLag()
     WindUI:Notify({ Title = "Anti‑Lag", Content = "Disabled", Duration = 2, Icon = "stop" })
 end
 
--- Cleanup on script end
-local function cleanupAntiLag()
-    disableAntiLag()
-end
 if type(getgenv) == "function" then
-    getgenv().__UNIVERSAL_ANTILAG_CLEANUP = cleanupAntiLag
+    getgenv().__UNIVERSAL_ANTILAG_CLEANUP = disableAntiLag
 else
-    _G.__UNIVERSAL_ANTILAG_CLEANUP = cleanupAntiLag
+    _G.__UNIVERSAL_ANTILAG_CLEANUP = disableAntiLag
 end
 
 -- ===== Main GUI =====
@@ -439,7 +433,7 @@ local function showGUI()
 
     -- VERSION & PING TAGS
     local versionTag = Window:Tag({
-        Title = "v1.1.3",
+        Title = "v1.1.5",
         Icon = "tag",
         Color = Color3.fromHex("#2563eb"),
         Radius = 100
@@ -752,7 +746,6 @@ local function showGUI()
 
             stopCollectStick()
 
-            -- If still exists after 3 attempts, blacklist it
             if bestCrystal and bestCrystal.Parent then
                 blacklistCrystal(bestCrystal)
                 WindUI:Notify({
@@ -858,7 +851,7 @@ local function showGUI()
         end)
     end
 
-    local MAX_ATTEMPTS = 3   -- set to 3
+    local MAX_ATTEMPTS = 3
 
     local function mineCrystal(crystal)
         local prompt = crystal:FindFirstChildWhichIsA("ProximityPrompt", true)
@@ -948,7 +941,6 @@ local function showGUI()
 
             mineCrystal(bestCrystal)
 
-            -- If crystal still exists after mining attempts, blacklist it
             if bestCrystal and bestCrystal.Parent then
                 blacklistCrystal(bestCrystal)
                 WindUI:Notify({
@@ -980,20 +972,23 @@ local function showGUI()
         end
     })
 
-    -- ===== AUTO SELL =====
+    -- =============================================================
+    --  AUTO SELL – FIXED with toggle only
+    -- =============================================================
     MainTab:Section({ Title = "Auto Sell" })
     local autoSellRunning = false
     local autoSellThread = nil
-    local cooldown = false
+    local sellCooldown = false
 
+    -- Detect backpack full by scanning PlayerGui for any "full" text
     local function isBackpackFull()
         local playerGui = player:FindFirstChild("PlayerGui")
         if not playerGui then return false end
         for _, child in ipairs(playerGui:GetDescendants()) do
-            if child:IsA("TextLabel") or child:IsA("TextButton") then
+            if child:IsA("TextLabel") or child:IsA("TextButton") or child:IsA("TextBox") then
                 if child.Visible and child.Text then
-                    local upper = string.upper(child.Text)
-                    if string.find(upper, "FULL") and (upper == "FULL" or child.Text == "Full" or child.Text == "Full!") then
+                    local lower = string.lower(child.Text)
+                    if string.find(lower, "full") then
                         return true
                     end
                 end
@@ -1002,21 +997,39 @@ local function showGUI()
         return false
     end
 
-    local function shouldSell()
-        return isBackpackFull()
+    -- Find the Sell remote dynamically
+    local function findSellRemote()
+        local remotes = ReplicatedStorage:FindFirstChild("Remotes")
+        if remotes then
+            for _, child in ipairs(remotes:GetChildren()) do
+                if string.find(string.lower(child.Name), "sell") then
+                    return child
+                end
+            end
+        end
+        -- Search entire ReplicatedStorage as fallback
+        for _, child in ipairs(ReplicatedStorage:GetDescendants()) do
+            if (child:IsA("RemoteEvent") or child:IsA("RemoteFunction")) and string.find(string.lower(child.Name), "sell") then
+                return child
+            end
+        end
+        return nil
     end
 
-    local function teleportAndSell()
-        if cooldown then return end
-        cooldown = true
+    -- Perform the sell action
+    local function performSell()
+        if sellCooldown then return end
+        sellCooldown = true
         isSelling = true
 
+        -- Find SellModel
         local sellModel = workspace:FindFirstChild("SellModel")
         if not sellModel then
             sellModel = workspace:FindFirstChild("Things") and workspace.Things:FindFirstChild("SellModel")
         end
         if not sellModel then
-            isSelling = false; cooldown = false
+            isSelling = false
+            sellCooldown = false
             WindUI:Notify({ Title = "Auto Sell", Content = "SellModel not found!", Duration = 3, Icon = "alert-triangle" })
             return
         end
@@ -1026,7 +1039,8 @@ local function showGUI()
             targetPart = sellModel:FindFirstChildWhichIsA("BasePart", true)
         end
         if not targetPart then
-            isSelling = false; cooldown = false
+            isSelling = false
+            sellCooldown = false
             WindUI:Notify({ Title = "Auto Sell", Content = "No BasePart in SellModel!", Duration = 3, Icon = "alert-triangle" })
             return
         end
@@ -1037,30 +1051,46 @@ local function showGUI()
         end
         local hrp = char and char:FindFirstChild("HumanoidRootPart")
         if not hrp then
-            isSelling = false; cooldown = false
+            isSelling = false
+            sellCooldown = false
             return
         end
 
-        WindUI:Notify({ Title = "Selling", Content = "Teleporting...", Duration = 1, Icon = "send" })
+        WindUI:Notify({ Title = "Auto Sell", Content = "Teleporting to sell...", Duration = 1, Icon = "send" })
 
+        -- Save original position
         local originalCFrame = hrp.CFrame
-        local teleportCF = targetPart.CFrame + Vector3.new(0, 3, 0)
+        local sellPos = targetPart.CFrame + Vector3.new(0, 3, 0)
+
+        -- Teleport to sell position
         for i = 1, 3 do
-            hrp.CFrame = teleportCF
+            hrp.CFrame = sellPos
             task.wait(0.05)
         end
 
-        local remote = ReplicatedStorage:FindFirstChild("Remotes")
-        if remote then remote = remote:FindFirstChild("SellRequest") end
+        -- Find and fire the remote
+        local remote = findSellRemote()
         if remote then
             local success = false
-            for attempt = 1, 3 do
-                pcall(function()
-                    remote:FireServer("all")
-                    success = true
-                end)
-                if success then break end
-                task.wait(0.1)
+            local arg = "all"  -- common argument
+            if remote:IsA("RemoteEvent") then
+                for attempt = 1, 3 do
+                    pcall(function()
+                        remote:FireServer(arg)
+                        success = true
+                    end)
+                    if success then break end
+                    task.wait(0.1)
+                end
+            elseif remote:IsA("RemoteFunction") then
+                for attempt = 1, 3 do
+                    local result = pcall(function()
+                        remote:InvokeServer(arg)
+                        success = true
+                    end)
+                    if success then break end
+                    task.wait(0.1)
+                end
             end
             if success then
                 WindUI:Notify({ Title = "Auto Sell", Content = "Sold backpack!", Duration = 1, Icon = "dollar-sign" })
@@ -1068,23 +1098,27 @@ local function showGUI()
                 WindUI:Notify({ Title = "Auto Sell", Content = "Remote failed to fire!", Duration = 2, Icon = "alert-triangle" })
             end
         else
-            WindUI:Notify({ Title = "Auto Sell", Content = "Remote 'SellRequest' not found!", Duration = 3, Icon = "alert-triangle" })
-            isSelling = false; cooldown = false
+            WindUI:Notify({ Title = "Auto Sell", Content = "No Sell remote found!", Duration = 3, Icon = "alert-triangle" })
+            isSelling = false
+            sellCooldown = false
             return
         end
 
-        task.wait(0.3)
+        task.wait(0.5)
+
+        -- Teleport back
         hrp.CFrame = originalCFrame
+
         isSelling = false
-        cooldown = false
+        sellCooldown = false
     end
 
     local function autoSellLoop()
         while autoSellRunning do
-            if shouldSell() then
-                teleportAndSell()
+            if isBackpackFull() then
+                performSell()
             end
-            task.wait(0.3)
+            task.wait(0.5)  -- check every half second
         end
     end
 
@@ -1101,7 +1135,7 @@ local function showGUI()
             else
                 if autoSellThread then task.cancel(autoSellThread); autoSellThread = nil end
                 isSelling = false
-                cooldown = false
+                sellCooldown = false
                 WindUI:Notify({ Title = "Auto Sell", Content = "Stopped", Duration = 2, Icon = "stop" })
             end
         end
@@ -1791,7 +1825,7 @@ local function showGUI()
     SupportTab:Section({ Title = "Help" })
     SupportTab:Paragraph({ Title = "Executor", Desc = "Using: " .. executorName, Color = Color3.fromHex("#222222") })
     SupportTab:Button({ Title = "Report Bug", Icon = "bug", Callback = function()
-        copyToClipboard("Bug Report\nExecutor: " .. executorName .. "\nScript: StarForge Hub v1.1.3\n\nDescribe:")
+        copyToClipboard("Bug Report\nExecutor: " .. executorName .. "\nScript: StarForge Hub v1.1.5\n\nDescribe:")
         WindUI:Notify({ Title = "Template Copied", Content = "Paste in Discord.", Duration = 4, Icon = "message-square" })
     end})
 end
