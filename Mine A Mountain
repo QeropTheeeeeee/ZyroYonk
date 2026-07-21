@@ -217,6 +217,24 @@ local function showLoadingScreen()
     blur:Destroy()
 end
 
+-- ===== Crystal Blacklist (for failed mine/collect attempts) =====
+local crystalBlacklist = {}          -- key = crystal instance, value = timeout timestamp
+local BLACKLIST_DURATION = 10        -- seconds to ignore a failed crystal
+
+local function isBlacklisted(crystal)
+    local timeout = crystalBlacklist[crystal]
+    if timeout and tick() < timeout then
+        return true
+    elseif timeout then
+        crystalBlacklist[crystal] = nil   -- expired
+    end
+    return false
+end
+
+local function blacklistCrystal(crystal)
+    crystalBlacklist[crystal] = tick() + BLACKLIST_DURATION
+end
+
 -- ===== Anti‑Lag (UI‑less integration) =====
 local antiLagEnabled = false
 local antiLagConnections = {}
@@ -581,7 +599,7 @@ local function showGUI()
     local MainTab = Window:Tab({ Title = "Main Features", Icon = "house" })
 
     -- =============================================================
-    --  AUTO COLLECT DROPPED CRYSTALS – NOW TELEPORTS & STICKS LIKE AUTO MINE
+    --  AUTO COLLECT DROPPED CRYSTALS – WITH BLACKLIST
     -- =============================================================
     MainTab:Section({ Title = "Auto Collect Dropped Crystals" })
     local tierReverse = {
@@ -592,7 +610,6 @@ local function showGUI()
         T5 = "Legendary",
         T6 = "Mythic"
     }
-    -- Default: only "Common" selected
     local selectedCollectTiers = {"Common"}
 
     local collectTierDropdown = MainTab:Dropdown({
@@ -690,15 +707,17 @@ local function showGUI()
             local bestDist = math.huge
 
             for _, crystal in ipairs(droppedFolder:GetChildren()) do
-                local tierCode = crystal.Name:match("_(T[1-6])$")
-                local tierName = tierCode and tierReverse[tierCode]
-                if tierName and table.find(selectedCollectTiers, tierName) then
-                    local part = crystal:IsA("Model") and (crystal.PrimaryPart or crystal:FindFirstChildWhichIsA("BasePart")) or crystal
-                    if part then
-                        local dist = (hrp.Position - part.Position).Magnitude
-                        if dist < bestDist then
-                            bestDist = dist
-                            bestCrystal = crystal
+                if not isBlacklisted(crystal) then
+                    local tierCode = crystal.Name:match("_(T[1-6])$")
+                    local tierName = tierCode and tierReverse[tierCode]
+                    if tierName and table.find(selectedCollectTiers, tierName) then
+                        local part = crystal:IsA("Model") and (crystal.PrimaryPart or crystal:FindFirstChildWhichIsA("BasePart")) or crystal
+                        if part then
+                            local dist = (hrp.Position - part.Position).Magnitude
+                            if dist < bestDist then
+                                bestDist = dist
+                                bestCrystal = crystal
+                            end
                         end
                     end
                 end
@@ -709,7 +728,6 @@ local function showGUI()
                 continue
             end
 
-            -- Get the part and prompt
             local part = bestCrystal:IsA("Model") and (bestCrystal.PrimaryPart or bestCrystal:FindFirstChildWhichIsA("BasePart")) or bestCrystal
             if not part then
                 task.wait(0.5)
@@ -721,13 +739,11 @@ local function showGUI()
                 continue
             end
 
-            -- Move to crystal and stick
             hrp.CFrame = CFrame.new(part.Position + Vector3.new(0, 1.5, 0))
             startCollectStick(bestCrystal, part)
 
-            -- Fire prompt a few times
             local attempts = 0
-            local MAX_ATTEMPTS = 5
+            local MAX_ATTEMPTS = 3
             while attempts < MAX_ATTEMPTS and collectCrystalsRunning and bestCrystal and bestCrystal.Parent do
                 firePrompt(prompt)
                 attempts += 1
@@ -735,6 +751,18 @@ local function showGUI()
             end
 
             stopCollectStick()
+
+            -- If still exists after 3 attempts, blacklist it
+            if bestCrystal and bestCrystal.Parent then
+                blacklistCrystal(bestCrystal)
+                WindUI:Notify({
+                    Title = "Auto Collect",
+                    Content = "Skipping " .. bestCrystal.Name .. " (failed)",
+                    Duration = 1,
+                    Icon = "alert-circle"
+                })
+            end
+
             task.wait(0.2)
         end
     end
@@ -757,7 +785,7 @@ local function showGUI()
     })
 
     -- =============================================================
-    --  AUTO MINE – (updated for mobile: better stick reset)
+    --  AUTO MINE – WITH BLACKLIST
     -- =============================================================
     MainTab:Section({ Title = "Auto Mine Crystal" })
 
@@ -830,7 +858,7 @@ local function showGUI()
         end)
     end
 
-    local MAX_ATTEMPTS = 5
+    local MAX_ATTEMPTS = 3   -- set to 3
 
     local function mineCrystal(crystal)
         local prompt = crystal:FindFirstChildWhichIsA("ProximityPrompt", true)
@@ -898,14 +926,16 @@ local function showGUI()
             local bestDist = math.huge
 
             for _, crystal in ipairs(crystalFolder:GetChildren()) do
-                local tierCode = string.upper(crystal.Name):match("(T[1-6])")
-                if tierCode and table.find(selectedCodes, tierCode) then
-                    local part = crystal:IsA("Model") and (crystal.PrimaryPart or crystal:FindFirstChildWhichIsA("BasePart")) or crystal
-                    if part then
-                        local dist = (hrp.Position - part.Position).Magnitude
-                        if dist < bestDist then
-                            bestDist = dist
-                            bestCrystal = crystal
+                if not isBlacklisted(crystal) then
+                    local tierCode = string.upper(crystal.Name):match("(T[1-6])")
+                    if tierCode and table.find(selectedCodes, tierCode) then
+                        local part = crystal:IsA("Model") and (crystal.PrimaryPart or crystal:FindFirstChildWhichIsA("BasePart")) or crystal
+                        if part then
+                            local dist = (hrp.Position - part.Position).Magnitude
+                            if dist < bestDist then
+                                bestDist = dist
+                                bestCrystal = crystal
+                            end
                         end
                     end
                 end
@@ -917,6 +947,18 @@ local function showGUI()
             end
 
             mineCrystal(bestCrystal)
+
+            -- If crystal still exists after mining attempts, blacklist it
+            if bestCrystal and bestCrystal.Parent then
+                blacklistCrystal(bestCrystal)
+                WindUI:Notify({
+                    Title = "Auto Mine",
+                    Content = "Skipping " .. bestCrystal.Name .. " (failed)",
+                    Duration = 1,
+                    Icon = "alert-circle"
+                })
+            end
+
             task.wait(0.3)
         end
     end
@@ -938,7 +980,7 @@ local function showGUI()
         end
     })
 
-    -- ===== AUTO SELL (UPDATED: no slider, sells only when full) =====
+    -- ===== AUTO SELL =====
     MainTab:Section({ Title = "Auto Sell" })
     local autoSellRunning = false
     local autoSellThread = nil
@@ -1065,7 +1107,7 @@ local function showGUI()
         end
     })
 
-    -- -------------------- Auto Upgrades (unchanged) --------------------
+    -- ===== AUTO UPGRADES =====
     MainTab:Section({ Title = "Auto Upgrades" })
 
     -- Upgrade Warmth
@@ -1183,7 +1225,7 @@ local function showGUI()
         end
     })
 
-    -- -------------------- Auto Shop (Buy Pickaxe) --------------------
+    -- ===== AUTO SHOP (Buy Pickaxe) =====
     MainTab:Section({ Title = "Auto Shop" })
 
     local buyPickaxeRunning = false
@@ -1245,7 +1287,7 @@ local function showGUI()
         end
     })
 
-    -- -------------------- Auto Buy Bomb --------------------
+    -- ===== AUTO BUY BOMB =====
     MainTab:Section({ Title = "Auto Buy Bomb" })
 
     local bombTypes = {
@@ -1303,7 +1345,7 @@ local function showGUI()
         end
     })
 
-    -- -------------------- Anti Ragdoll --------------------
+    -- ===== ANTI RAGDOLL =====
     MainTab:Section({ Title = "Anti Ragdoll" })
 
     local antiRagdollRunning = false
@@ -1363,10 +1405,9 @@ local function showGUI()
         end
     })
 
-    -- ===== CRYSTAL ESP (FULLY FIXED FOR MOBILE) =====
+    -- ===== CRYSTAL ESP =====
     MainTab:Section({ Title = "Crystal ESP" })
 
-    -- Folders for ESP
     local Folders = {
         workspace:WaitForChild("Things"):WaitForChild("Crystals"),
         workspace:WaitForChild("DroppedCrystals")
@@ -1383,16 +1424,15 @@ local function showGUI()
                     obj.Enabled = true
                     obj.AlwaysOnTop = true
                     obj.MaxDistance = math.huge
-                    obj.Size = UDim2.new(0, 300, 0, 160) -- bigger for mobile
-                    obj.StudsOffset = Vector3.new(0, 3, 0) -- lift above crystal
+                    obj.Size = UDim2.new(0, 300, 0, 160)
+                    obj.StudsOffset = Vector3.new(0, 3, 0)
                     obj.ClipsDescendants = false
-                    -- Force all children visible
                     for _, ui in ipairs(obj:GetDescendants()) do
                         if ui:IsA("TextLabel") then
                             ui.Visible = true
                             ui.TextTransparency = 0
                             ui.TextStrokeTransparency = 0
-                            ui.TextSize = 24 -- bigger text
+                            ui.TextSize = 24
                         elseif ui:IsA("ImageLabel") or ui:IsA("ImageButton") then
                             ui.Visible = true
                             ui.ImageTransparency = 0
@@ -1444,7 +1484,6 @@ local function showGUI()
     end
 
     local function enableESP()
-        -- Clean previous connections
         for _, conn in ipairs(espConnections) do
             pcall(conn.Disconnect, conn)
         end
@@ -1464,7 +1503,6 @@ local function showGUI()
             pcall(conn.Disconnect, conn)
         end
         espConnections = {}
-        -- Optionally disable all billboards
         for _, folder in ipairs(Folders) do
             for _, obj in ipairs(folder:GetDescendants()) do
                 if obj.Name == "CrystalHover" and obj:IsA("BillboardGui") then
@@ -1753,7 +1791,7 @@ local function showGUI()
     SupportTab:Section({ Title = "Help" })
     SupportTab:Paragraph({ Title = "Executor", Desc = "Using: " .. executorName, Color = Color3.fromHex("#222222") })
     SupportTab:Button({ Title = "Report Bug", Icon = "bug", Callback = function()
-        copyToClipboard("Bug Report\nExecutor: " .. executorName .. "\nScript: StarForge Hub v1.0.9\n\nDescribe:")
+        copyToClipboard("Bug Report\nExecutor: " .. executorName .. "\nScript: StarForge Hub v1.1.3\n\nDescribe:")
         WindUI:Notify({ Title = "Template Copied", Content = "Paste in Discord.", Duration = 4, Icon = "message-square" })
     end})
 end
