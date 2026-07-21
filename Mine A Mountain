@@ -421,7 +421,7 @@ local function showGUI()
 
     -- VERSION & PING TAGS
     local versionTag = Window:Tag({
-        Title = "v1.1.2",
+        Title = "v1.1.3",
         Icon = "tag",
         Color = Color3.fromHex("#2563eb"),
         Radius = 100
@@ -757,7 +757,7 @@ local function showGUI()
     })
 
     -- =============================================================
-    --  AUTO MINE – (unchanged)
+    --  AUTO MINE – (updated for mobile: better stick reset)
     -- =============================================================
     MainTab:Section({ Title = "Auto Mine Crystal" })
 
@@ -1363,7 +1363,7 @@ local function showGUI()
         end
     })
 
-    -- ===== CRYSTAL ESP (NEW TOGGLE) =====
+    -- ===== CRYSTAL ESP (FULLY FIXED FOR MOBILE) =====
     MainTab:Section({ Title = "Crystal ESP" })
 
     -- Folders for ESP
@@ -1383,17 +1383,22 @@ local function showGUI()
                     obj.Enabled = true
                     obj.AlwaysOnTop = true
                     obj.MaxDistance = math.huge
-                    obj.Size = UDim2.new(0, 250, 0, 120)
+                    obj.Size = UDim2.new(0, 300, 0, 160) -- bigger for mobile
+                    obj.StudsOffset = Vector3.new(0, 3, 0) -- lift above crystal
+                    obj.ClipsDescendants = false
+                    -- Force all children visible
                     for _, ui in ipairs(obj:GetDescendants()) do
                         if ui:IsA("TextLabel") then
                             ui.Visible = true
                             ui.TextTransparency = 0
                             ui.TextStrokeTransparency = 0
+                            ui.TextSize = 24 -- bigger text
                         elseif ui:IsA("ImageLabel") or ui:IsA("ImageButton") then
                             ui.Visible = true
                             ui.ImageTransparency = 0
                         elseif ui:IsA("UIStroke") then
                             ui.Enabled = true
+                            ui.Thickness = 2
                         end
                     end
                 end)
@@ -1417,7 +1422,23 @@ local function showGUI()
                 obj.Enabled = true
                 obj.AlwaysOnTop = true
                 obj.MaxDistance = math.huge
-                obj.Size = UDim2.new(0, 250, 0, 120)
+                obj.Size = UDim2.new(0, 300, 0, 160)
+                obj.StudsOffset = Vector3.new(0, 3, 0)
+                obj.ClipsDescendants = false
+                for _, ui in ipairs(obj:GetDescendants()) do
+                    if ui:IsA("TextLabel") then
+                        ui.Visible = true
+                        ui.TextTransparency = 0
+                        ui.TextStrokeTransparency = 0
+                        ui.TextSize = 24
+                    elseif ui:IsA("ImageLabel") or ui:IsA("ImageButton") then
+                        ui.Visible = true
+                        ui.ImageTransparency = 0
+                    elseif ui:IsA("UIStroke") then
+                        ui.Enabled = true
+                        ui.Thickness = 2
+                    end
+                end
             end)
         end
     end
